@@ -1,0 +1,15 @@
+node_modules/
+android-capacitor/www/
+android-capacitor/android/
+android-capacitor/package-lock.json
+*.mnote
+*.hwpx
+.DS_Store
+Thumbs.db
+
+server/.venv/
+server/ffmpeg*/
+*.pyc
+__pycache__/
+desktop/dist/
+desktop/build/

@@ -1,0 +1,12 @@
+{
+  "appId": "com.example.meetnote",
+  "appName": "MeetNote",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": true,
+    "webContentsDebuggingEnabled": true
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

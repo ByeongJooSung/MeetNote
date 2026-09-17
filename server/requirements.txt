@@ -1,0 +1,17 @@
+fastapi>=0.110
+uvicorn>=0.29
+python-multipart>=0.0.9
+faster-whisper>=1.0
+soundfile>=0.12
+numpy>=1.24
+scikit-learn>=1.3
+librosa>=0.10
+scipy>=1.10
+typing
+# webrtcvad는 Windows에서 C++ 컴파일러가 필요하므로 미리 빌드된 wheel 사용
+webrtcvad-wheels>=2.0.14
+# torch는 CPU 버전으로 (GPU가 있으면 --index-url 없이 재설치)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.1
+# resemblyzer는 아래 install 스크립트가 --no-deps로 설치합니다 (requirements로 설치하면 원본 webrtcvad를 빌드하려 함)
+# pyannote.audio>=3.1   # 정확도가 필요하면 HF 토큰 발급 후 설치

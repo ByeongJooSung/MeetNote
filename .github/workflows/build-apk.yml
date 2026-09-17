@@ -1,0 +1,29 @@
+# Actions 탭에서 수동 실행(workflow_dispatch)하면 디버그 APK를 만들어 Artifacts에 올립니다.
+name: Build Android APK
+on:
+  workflow_dispatch:
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: android-actions/setup-android@v3
+      - name: Prepare www
+        run: |
+          cd android-capacitor
+          rm -rf www && mkdir www && cp -r ../web/. www/ && rm -f www/serve.py
+          npm install
+          npx cap add android
+          # RECORD_AUDIO 권한 삽입
+          sed -i 's#<application#<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <application#' android/app/src/main/AndroidManifest.xml
+          npx cap sync android
+      - name: Gradle build
+        run: cd android-capacitor/android && chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meetnote-debug-apk
+          path: android-capacitor/android/app/build/outputs/apk/debug/app-debug.apk
