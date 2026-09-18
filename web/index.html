@@ -369,6 +369,21 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 .busy-dots::after{content:"";display:inline-block;width:1.2em;text-align:left;animation:busyDots 1.2s steps(4,end) infinite}
 @keyframes busyDots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
 .tb[data-hist]:disabled{opacity:.35;cursor:default}
+/* 내 회의록(클라우드) */
+#cloudDlg{width:min(760px,calc(100vw - 32px))}
+.cloud-list{max-height:min(56vh,480px);overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:8px}
+.cloud-list table{width:100%;border-collapse:collapse;font-size:13.5px}
+.cloud-list th{position:sticky;top:0;background:var(--sunk);text-align:left;font-weight:600;font-size:12.5px;color:var(--ink2);padding:6px 8px;border-bottom:1px solid var(--line)}
+.cloud-list td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+.cloud-list tr:last-child td{border-bottom:0}
+.cloud-list td.t{font-weight:600;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cloud-list td.n{white-space:nowrap;color:var(--ink2);font-size:12.5px}
+.cloud-list td.a{white-space:nowrap;text-align:right}
+.cloud-list td.a .btn{padding:3px 9px;font-size:12.5px;margin-left:4px}
+.cloud-list tr.cur td.t::after{content:"열려 있음";margin-left:6px;font-size:11px;font-weight:500;color:var(--tape);background:var(--tape-soft);padding:1px 6px;border-radius:8px}
+.cloud-empty{padding:22px 12px;text-align:center;color:var(--ink2);font-size:13.5px}
+.set-kv{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13.5px;margin:8px 0 12px}
+.set-kv dt{color:var(--ink2)}.set-kv dd{margin:0}
 /* 설정 창 */
 #aiDlg{width:min(600px,calc(100vw - 32px))}
 .set-tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:6px 0 12px}
@@ -487,6 +502,8 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <button id="newBtn" class="btn">새 회의</button>
     <button id="openBtn" class="btn">회의록 불러오기</button>
     <button id="saveBtn" class="btn primary">.mnote로 저장</button>
+    <button id="cloudSaveBtn" class="btn" hidden title="녹음과 회의록을 내 Google Drive에 저장하고 '내 회의록' 목록에 기록합니다">☁ 클라우드 저장</button>
+    <button id="cloudListBtn" class="btn" hidden title="클라우드에 저장한 회의록 목록">내 회의록</button>
     <button id="hwpxBtn" class="btn" title="PDF · 한글(HWPX) · Word로 내보내기">내보내기</button>
     <button id="settingsBtn" class="btn" title="설정: AI 엔진 · 로그 · 계정" aria-label="설정">⚙ 설정</button>
     <button id="bgPill" class="bgpill" hidden title="분석 진행 상황 보기"><span class="sdot"></span><span id="bgText">분석 중</span><span class="mini"><i id="bgBar"></i></span></button>
@@ -731,7 +748,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div class="set-tabs" role="tablist">
     <button type="button" role="tab" data-set="ai" aria-selected="true">AI 엔진</button>
     <button type="button" role="tab" data-set="log" aria-selected="false">로그</button>
-    <button type="button" role="tab" data-set="acct" aria-selected="false">계정</button>
+    <button type="button" role="tab" data-set="acct" aria-selected="false">계정·클라우드</button>
   </div>
   <div id="setAi">
   <label class="field">AI 엔진<select id="aiProvider">
@@ -760,6 +777,9 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <pre id="aiLogView"></pre>
   </div>
   <div id="setAcct" hidden>
+    <dl class="set-kv" id="cloudState"></dl>
+    <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><button class="btn" id="driveConnect">Google Drive 연결</button><button class="btn" id="driveDisconnect">Drive 권한 해제</button></div>
+    <p>회의록 파일(.mnote, 녹음 포함)은 <b>내 Google Drive의 MeetNote 폴더</b>에만 저장됩니다. 이 앱은 자신이 만든 파일만 볼 수 있는 권한(drive.file)을 씁니다. 목록(제목·일시·길이)은 운영자가 설정한 경우 목록 DB에도 기록됩니다.</p>
     <p>Google 로그인에 쓸 클라이언트 ID와 로그인 필수 여부를 정합니다.</p>
     <div class="row"><button class="btn" id="setAuthBtn">Google 로그인 설정 열기</button></div>
   </div>
@@ -854,6 +874,13 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   </div>
 </dialog>
 
+<dialog id="cloudDlg" aria-labelledby="cloudTitle">
+  <h2 id="cloudTitle">내 회의록</h2>
+  <p class="hint" id="cloudInfo"></p>
+  <div class="cloud-list" id="cloudList"></div>
+  <div class="dlg-actions"><button class="btn" id="cloudSync" title="Drive의 MeetNote 폴더를 읽어 목록을 다시 맞춥니다 (다른 기기에서 지웠거나 목록이 어긋났을 때)">Drive와 목록 맞추기</button><button class="btn" id="cloudRefresh">새로고침</button><button class="btn primary" id="cloudClose">닫기</button></div>
+</dialog>
+
 <dialog id="refineDlg" aria-labelledby="refineTitle">
   <h2 id="refineTitle">회의록 스타일로 다듬기</h2>
   <p>회의 내용을 회의록 문체(개조식)로 정리합니다. 내용에 없는 사실은 더하지 않고, 표는 그대로 둡니다. 결과가 마음에 들지 않으면 <b>되돌리기</b>를 누르세요.</p>
@@ -915,6 +942,7 @@ const fresh = () => ({
   id: uid(), title: '', createdAt: new Date().toISOString(),
   blocks: [],
   segments: [], minutes: '', docHtml: '', docBlocks: [], meta: { when: '', place: '', author: '', host: '', template: 'kcsa', actions: [], notes: '' }, attendees: [], speakers: {}, audioBlob: null, audioMime: '', audioExt: '', audioImported: false, clockOnly: false, duration: 0,
+  cloud: null,  // 클라우드에서 열었거나 저장한 경우 { fileId }
   photos: []   // 회의 사진(붙임) [{ id, name, dataUrl(JPEG), w, h }] 최대 PHOTO_MAX장
 });
 let S = fresh();
@@ -3598,6 +3626,7 @@ function renderAIStatus() {
 function showSetTab(tab) {
   document.querySelectorAll('.set-tabs [data-set]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.set === tab)));
   $('#setAi').hidden = tab !== 'ai'; $('#setLog').hidden = tab !== 'log'; $('#setAcct').hidden = tab !== 'acct';
+  if (tab === 'acct') renderCloudState();
   if (tab === 'log') { renderAILog(); const v = $('#aiLogView'); v.scrollTop = v.scrollHeight; }
 }
 function openAIDlg(tab) { renderAIDlg(); showSetTab(typeof tab === 'string' ? tab : 'ai'); try { if (!$('#aiDlg').open) $('#aiDlg').showModal(); } catch {} renderAILog(); }
@@ -5042,9 +5071,11 @@ const SIDE_KEY = 'meetnote.sideW';
 
 /* ---------- Google sign-in (Google Identity Services) ---------- */
 const USER_KEY = 'meetnote.user', GCLIENT_KEY = 'meetnote.gclient';
-let user = null;
+let user = null, lastCredential = null;
 try { const u = JSON.parse(localStorage.getItem(USER_KEY) || 'null'); if (u && u.exp * 1000 > Date.now()) user = u; } catch {}
-try { const g = JSON.parse(localStorage.getItem(GCLIENT_KEY) || 'null'); if (g && g.id) { if (!CFG.googleClientId) CFG.googleClientId = g.id; if (typeof g.require === 'boolean') CFG.requireLogin = g.require; } } catch {}
+// 배포 설정(config.js)에 클라이언트 ID가 있으면 그 설정이 우선: 브라우저에 저장된 값으로 '로그인 필수'를 끌 수 없다
+const CFG_LOCKED = !!CFG.googleClientId;
+try { const g = JSON.parse(localStorage.getItem(GCLIENT_KEY) || 'null'); if (g && g.id && !CFG_LOCKED) { CFG.googleClientId = g.id; if (typeof g.require === 'boolean') CFG.requireLogin = g.require; } } catch {}
 const authPossible = () => /^https?:$/.test(location.protocol) && !inClaude;
 const authEnabled = () => !!CFG.googleClientId && authPossible();
 let gsiLoaded = false, gsiInit = false;
@@ -5054,6 +5085,7 @@ function renderUser() {
   box.hidden = !user;
   if (user) { $('#userPic').src = user.picture || ''; $('#userPic').hidden = !user.picture; $('#userName').textContent = user.name || user.email || ''; $('#userName').title = user.email || ''; }
   $('#loginBtn').hidden = !!user;
+  $('#cloudSaveBtn').hidden = $('#cloudListBtn').hidden = !(user && authEnabled());
   const strict = authEnabled() && CFG.requireLogin;           // 구성된 사이트에서 로그인 필수
   const showGate = !user && (strict || !guest);
   $('#gate').hidden = !showGate;
@@ -5088,6 +5120,7 @@ function onGoogleCredential(resp) {
   try {
     const c = decodeJwt(resp.credential);
     user = { sub: c.sub, name: c.name, email: c.email, picture: c.picture, exp: c.exp, iat: c.iat };
+    lastCredential = { token: resp.credential, exp: c.exp * 1000 };
     try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch {}
     if (!S.meta.author && user.name) { S.meta.author = user.name; $('#mAuthor').value = user.name; }
     renderUser(); toast(`${user.name || user.email}님, 환영합니다.`);
@@ -5127,6 +5160,7 @@ $('#authCopyOrigin').addEventListener('click', async () => { try { await navigat
 $('#authApply').addEventListener('click', () => {
   const id = $('#authClient').value.trim();
   if (id && !/\.apps\.googleusercontent\.com$/.test(id)) { toast('클라이언트 ID는 …apps.googleusercontent.com 으로 끝나야 해요.'); return; }
+  if (CFG_LOCKED) { toast('이 사이트는 배포 설정(config.js)으로 로그인이 고정돼 있어 여기서 바꿀 수 없어요.', 6000); $('#authDlg').close(); return; }
   CFG.googleClientId = id; CFG.requireLogin = $('#authRequire').checked;
   try { localStorage.setItem(GCLIENT_KEY, JSON.stringify({ id, require: CFG.requireLogin })); } catch {}
   $('#authDlg').close(); renderUser();
@@ -5134,12 +5168,262 @@ $('#authApply').addEventListener('click', () => {
   else if (!id) toast('로그인 설정을 지웠어요.');
 });
 $('#signOut').addEventListener('click', () => {
+  cloudSignOut();
   user = null; try { localStorage.removeItem(USER_KEY); } catch {}
   try { google.accounts.id.disableAutoSelect(); } catch {}
   guest = false; try { sessionStorage.removeItem('meetnote.guest'); } catch {}
   renderUser();
 });
+/* ---------- 클라우드 저장: 파일은 사용자의 Google Drive, 목록은 Firestore(설정된 경우) ----------
+   - Drive: drive.file 권한(이 앱이 만든 파일만 접근). 'MeetNote' 폴더에 .mnote를 이어 올리기로 저장, appProperties에 목록 정보도 함께 기록
+   - Firestore: users/{uid}/meetings/{회의 id} 문서에 제목·일시·길이·Drive 파일 id. Google ID 토큰으로 Firebase 인증(REST)
+   - Firestore가 없거나 실패해도 Drive 목록으로 동작한다(Drive가 원본, DB는 색인) */
+const EP = Object.assign({ idp: 'https://identitytoolkit.googleapis.com/v1', sts: 'https://securetoken.googleapis.com/v1', fs: 'https://firestore.googleapis.com/v1', drive: 'https://www.googleapis.com/drive/v3', upload: 'https://www.googleapis.com/upload/drive/v3' }, CFG.endpoints || {});
+const FB = CFG.firebase && CFG.firebase.apiKey && CFG.firebase.projectId ? CFG.firebase : null;
+const FB_KEY = 'meetnote.fb', DRIVE_FOLDER_KEY = 'meetnote.driveFolder', DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file', DRIVE_FOLDER = 'MeetNote', MNOTE_MIME = 'application/x-mnote+zip';
+let fbSess = null, driveTok = null, cloudBusy = false;
+try { fbSess = JSON.parse(localStorage.getItem(FB_KEY) || 'null'); } catch {}
+const cerr = (code, message, extra) => Object.assign(new Error(message), { code, ...extra });
+async function jfetch(url, opt = {}) {
+  let r; try { r = await fetch(url, opt); } catch (e) { throw cerr('network', '네트워크에 연결할 수 없어요.', { cause: String(e && e.message || e) }); }
+  const text = await r.text(); let body = null; try { body = text ? JSON.parse(text) : null; } catch {}
+  if (!r.ok) throw cerr('http', (body && body.error && (body.error.message || body.error.status)) || ('HTTP ' + r.status), { status: r.status, body: text.slice(0, 300) });
+  return body;
+}
+/* Firebase 인증: Google ID 토큰 → Firebase 토큰(1시간), 이후에는 refresh 토큰으로 갱신 */
+async function fbAuth() {
+  if (!FB || !user) return null;
+  if (fbSess && fbSess.sub !== user.sub) fbSess = null;
+  if (fbSess && fbSess.exp > Date.now() + 60000) return fbSess;
+  const keep = o => { fbSess = o; try { localStorage.setItem(FB_KEY, JSON.stringify(o)); } catch {} return o; };
+  if (fbSess && fbSess.refreshToken) {
+    try {
+      const d = await jfetch(`${EP.sts}/token?key=${encodeURIComponent(FB.apiKey)}`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'grant_type=refresh_token&refresh_token=' + encodeURIComponent(fbSess.refreshToken) });
+      return keep({ sub: user.sub, uid: d.user_id, idToken: d.id_token, refreshToken: d.refresh_token, exp: Date.now() + (+d.expires_in || 3600) * 1000 });
+    } catch (e) { aiLog('warn', '목록 DB 토큰 갱신 실패', errInfo(e)); fbSess = null; }
+  }
+  if (!lastCredential || lastCredential.exp < Date.now() + 30000) throw cerr('relogin', 'Google 로그인이 오래돼 목록 DB에 연결할 수 없어요. 로그아웃 후 다시 로그인해 주세요.');
+  const d = await jfetch(`${EP.idp}/accounts:signInWithIdp?key=${encodeURIComponent(FB.apiKey)}`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ postBody: 'id_token=' + encodeURIComponent(lastCredential.token) + '&providerId=google.com', requestUri: location.origin, returnSecureToken: true, returnIdpCredential: true }) });
+  aiLog('info', '목록 DB 로그인', { uid: d.localId });
+  return keep({ sub: user.sub, uid: d.localId, idToken: d.idToken, refreshToken: d.refreshToken, exp: Date.now() + (+d.expiresIn || 3600) * 1000 });
+}
+const fsVal = v => typeof v === 'number' ? (Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v }) : v == null ? { nullValue: null } : { stringValue: String(v) };
+const fsUn = f => { const o = {}; for (const [k, v] of Object.entries(f || {})) o[k] = 'integerValue' in v ? +v.integerValue : 'doubleValue' in v ? v.doubleValue : 'stringValue' in v ? v.stringValue : 'timestampValue' in v ? v.timestampValue : null; return o; };
+const fsBase = a => `${EP.fs}/projects/${encodeURIComponent(FB.projectId)}/databases/(default)/documents/users/${encodeURIComponent(a.uid)}/meetings`;
+const safeId = id => String(id || '').replace(/[^\w-]/g, '').slice(0, 60) || uid();
+async function dbList() {
+  const a = await fbAuth(); const out = []; let page = '';
+  do {
+    const d = await jfetch(`${fsBase(a)}?pageSize=300&orderBy=${encodeURIComponent('updatedAt desc')}${page ? '&pageToken=' + encodeURIComponent(page) : ''}`, { headers: { authorization: 'Bearer ' + a.idToken } });
+    for (const doc of (d && d.documents) || []) out.push({ id: doc.name.split('/').pop(), ...fsUn(doc.fields) });
+    page = (d && d.nextPageToken) || '';
+  } while (page && out.length < 3000);
+  return out;
+}
+async function dbUpsert(m) {
+  const a = await fbAuth(); const fields = {}; for (const [k, v] of Object.entries(m)) if (k !== 'id') fields[k] = fsVal(v);
+  await jfetch(`${fsBase(a)}/${encodeURIComponent(safeId(m.id))}`, { method: 'PATCH', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ fields }) });
+}
+async function dbDelete(id) { const a = await fbAuth(); await jfetch(`${fsBase(a)}/${encodeURIComponent(safeId(id))}`, { method: 'DELETE', headers: { authorization: 'Bearer ' + a.idToken } }); }
+/* Drive 권한: 반드시 사용자가 누른 직후에 요청해야 팝업이 막히지 않는다 → 클라우드 동작의 맨 처음에 부른다 */
+function gsiReady() {
+  return new Promise((res, rej) => {
+    if (window.google && google.accounts && google.accounts.oauth2) return res();
+    initGoogle(); const t0 = Date.now();
+    const iv = setInterval(() => { if (window.google && google.accounts && google.accounts.oauth2) { clearInterval(iv); res(); } else if (Date.now() - t0 > 8000) { clearInterval(iv); rej(cerr('gsi', 'Google 로그인 모듈을 불러오지 못했어요. 인터넷 연결이나 광고 차단 설정을 확인하세요.')); } }, 100);
+  });
+}
+async function driveAuth({ force = false } = {}) {
+  if (!user || !authEnabled()) throw cerr('login', 'Google 로그인 후 쓸 수 있어요.');
+  if (!force && driveTok && driveTok.sub === user.sub && driveTok.exp > Date.now() + 60000) return driveTok.token;
+  await gsiReady();
+  return new Promise((res, rej) => {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: CFG.googleClientId, scope: DRIVE_SCOPE, hint: user.email || undefined, prompt: force ? 'consent' : '',
+      callback: r => {
+        if (!r || r.error || !r.access_token) return rej(cerr('drive_denied', 'Google Drive 권한을 받지 못했어요' + (r && r.error ? ` (${r.error})` : '') + '.'));
+        if (google.accounts.oauth2.hasGrantedAllScopes && !google.accounts.oauth2.hasGrantedAllScopes(r, DRIVE_SCOPE)) return rej(cerr('drive_scope', '권한 창에서 "Google Drive 파일" 항목을 체크해야 저장할 수 있어요.'));
+        driveTok = { sub: user.sub, token: r.access_token, exp: Date.now() + (+r.expires_in || 3600) * 1000 };
+        aiLog('info', 'Drive 권한 받음', { expiresIn: r.expires_in }); renderCloudState(); res(driveTok.token);
+      },
+      error_callback: e => rej(cerr(e && e.type === 'popup_failed_to_open' ? 'popup' : 'drive_denied', e && e.type === 'popup_failed_to_open' ? '권한 창(팝업)이 막혔어요. 주소창의 팝업 차단을 풀고 다시 눌러 주세요.' : 'Drive 권한 요청을 닫았어요.'))
+    });
+    client.requestAccessToken();
+  });
+}
+async function dfetch(path, opt = {}, retry = true) {
+  const tok = await driveAuth();
+  try { return await jfetch((path.startsWith('http') ? '' : EP.drive) + path, { ...opt, headers: { ...(opt.headers || {}), authorization: 'Bearer ' + tok } }); }
+  catch (e) { if (e.status === 401 && retry) { driveTok = null; return dfetch(path, opt, false); } throw e; }
+}
+async function driveFolder() {
+  let id = null; try { const o = JSON.parse(localStorage.getItem(DRIVE_FOLDER_KEY) || 'null'); if (o && o.sub === user.sub) id = o.id; } catch {}
+  if (id) { try { const f = await dfetch(`/files/${encodeURIComponent(id)}?fields=id,trashed`); if (f && !f.trashed) return id; } catch (e) { if (e.status !== 404) throw e; } }
+  const q = `name='${DRIVE_FOLDER}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  const d = await dfetch(`/files?q=${encodeURIComponent(q)}&spaces=drive&fields=${encodeURIComponent('files(id)')}&pageSize=5`);
+  id = d && d.files && d.files[0] ? d.files[0].id : (await dfetch('/files?fields=id', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: DRIVE_FOLDER, mimeType: 'application/vnd.google-apps.folder' }) })).id;
+  try { localStorage.setItem(DRIVE_FOLDER_KEY, JSON.stringify({ sub: user.sub, id })); } catch {}
+  return id;
+}
+const cloudMeta = bytes => ({ id: safeId(S.id), title: (S.title || '제목 없는 회의').slice(0, 120), when: S.meta.when || S.createdAt, duration: Math.round(S.duration || 0), bytes, updatedAt: new Date().toISOString() });
+const metaProps = m => ({ meetnoteId: m.id, title: m.title.slice(0, 100), when: String(m.when || '').slice(0, 40), duration: String(m.duration || 0) });   // appProperties: 값마다 124바이트 제한
+/* 이어 올리기(resumable): 녹음이 든 큰 파일도 진행률과 함께 올린다 */
+async function driveUpload(blob, name, meta, fileId, folder, onPct, signal) {
+  const tok = await driveAuth();
+  const body = { name, mimeType: MNOTE_MIME, appProperties: metaProps(meta), ...(fileId ? {} : { parents: [folder] }) };
+  let r; try {
+    r = await fetch(`${EP.upload}/files${fileId ? '/' + encodeURIComponent(fileId) : ''}?uploadType=resumable&fields=id`, { method: fileId ? 'PATCH' : 'POST', signal,
+      headers: { authorization: 'Bearer ' + tok, 'content-type': 'application/json; charset=UTF-8', 'x-upload-content-type': MNOTE_MIME, 'x-upload-content-length': String(blob.size) }, body: JSON.stringify(body) });
+  } catch (e) { if (e && e.name === 'AbortError') throw e; throw cerr('network', '네트워크에 연결할 수 없어요.'); }
+  if (!r.ok) { const t = await r.text(); throw cerr('http', 'Drive 업로드를 시작하지 못했어요 (HTTP ' + r.status + ')', { status: r.status, body: t.slice(0, 300) }); }
+  const loc = r.headers.get('location'); if (!loc) throw cerr('upload', 'Drive가 업로드 주소를 주지 않았어요.');
+  return new Promise((res, rej) => {
+    const x = new XMLHttpRequest(); x.open('PUT', loc); x.setRequestHeader('content-type', MNOTE_MIME);
+    x.upload.onprogress = e => { if (e.lengthComputable) onPct(e.loaded / e.total); };
+    x.onload = () => { if (x.status >= 200 && x.status < 300) { try { res(JSON.parse(x.responseText).id); } catch { rej(cerr('upload', 'Drive 응답을 읽지 못했어요.')); } } else rej(cerr('http', 'Drive 업로드 실패 (HTTP ' + x.status + ')', { status: x.status, body: (x.responseText || '').slice(0, 300) })); };
+    x.onerror = () => rej(cerr('network', '업로드 중 연결이 끊겼어요.'));
+    x.onabort = () => rej(Object.assign(new Error('취소됨'), { name: 'AbortError' }));
+    if (signal) signal.addEventListener('abort', () => x.abort());
+    x.send(blob);
+  });
+}
+async function driveList() {
+  const folder = await driveFolder(); const out = []; let page = '';
+  do {
+    const d = await dfetch(`/files?q=${encodeURIComponent(`'${folder}' in parents and trashed=false`)}&spaces=drive&orderBy=${encodeURIComponent('modifiedTime desc')}&pageSize=200&fields=${encodeURIComponent('nextPageToken,files(id,name,size,modifiedTime,appProperties)')}${page ? '&pageToken=' + encodeURIComponent(page) : ''}`);
+    for (const f of (d && d.files) || []) { const ap = f.appProperties || {}; out.push({ id: ap.meetnoteId || f.id, fileId: f.id, title: ap.title || f.name.replace(/\.mnote$/i, ''), when: ap.when || '', duration: +ap.duration || 0, bytes: +f.size || 0, updatedAt: f.modifiedTime }); }
+    page = (d && d.nextPageToken) || '';
+  } while (page && out.length < 3000);
+  return out;
+}
+const cloudExplain = e => {
+  if (!e) return '알 수 없는 오류';
+  if (e.code === 'http' && e.status === 403 && /drive|insufficient|scope/i.test(e.body || '')) return 'Drive 권한이 부족해요. 설정(⚙) → 계정·클라우드에서 Drive를 다시 연결해 주세요.';
+  if (e.code === 'http' && e.status === 403 && /quota|storage/i.test(e.body || '')) return 'Google Drive 저장 공간이 가득 찼어요.';
+  return e.message || String(e);
+};
+async function cloudSave() {
+  if (cloudBusy) return;
+  if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 저장해 주세요.'); return; }
+  if (!window.JSZip) { toast('파일 모듈을 불러오지 못했어요. 새로고침해 주세요.'); return; }
+  cloudBusy = true; const ctl = new AbortController(), t0 = performance.now();
+  try {
+    await driveAuth();                                   // 팝업이 막히지 않게 가장 먼저
+    progAbort = () => ctl.abort(); progOpen('클라우드에 저장하는 중', { local: true });
+    progSet(3, '회의록 파일을 만드는 중');
+    const blob = await buildZip(); if (ctl.signal.aborted) throw Object.assign(new Error('취소됨'), { name: 'AbortError' });
+    const meta = cloudMeta(blob.size);
+    progSet(8, 'Google Drive 폴더를 확인하는 중');
+    const folder = await driveFolder();
+    // 같은 회의를 다시 저장하면 같은 파일을 덮어쓴다: 이번에 연 파일 → 목록 DB의 기록 → Drive의 appProperties 순으로 찾는다
+    let fileId = S.cloud && S.cloud.fileId || null;
+    if (!fileId) { const d = await dfetch(`/files?q=${encodeURIComponent(`'${folder}' in parents and trashed=false and appProperties has { key='meetnoteId' and value='${meta.id}' }`)}&fields=${encodeURIComponent('files(id)')}&pageSize=1`); fileId = d && d.files && d.files[0] ? d.files[0].id : null; }
+    const name = `${safeName(S.title || '회의록')}_${stamp(S.createdAt)}.mnote`;
+    const up = id => driveUpload(blob, name, meta, id, folder, f => progSet(10 + f * 82, `Google Drive에 올리는 중 ${Math.round(f * 100)}% (${(blob.size / 1048576).toFixed(1)}MB)`), ctl.signal);
+    try { fileId = await up(fileId); } catch (e) { if (fileId && e.status === 404) fileId = await up(null); else throw e; }   // 지워진 파일이면 새로 만든다
+    S.cloud = { fileId };
+    let dbNote = '';
+    if (FB) { progSet(95, '목록에 기록하는 중'); try { await dbUpsert({ ...meta, fileId, name }); } catch (e) { aiLog('warn', '목록 DB 기록 실패(Drive에는 저장됨)', errInfo(e)); dbNote = ' 목록 DB에는 기록하지 못했어요. "내 회의록"의 "Drive와 목록 맞추기"로 맞출 수 있어요.'; } }
+    markClean();
+    aiLog('info', '클라우드 저장 완료', { bytes: blob.size, ms: Math.round(performance.now() - t0), db: FB ? !dbNote : 'off' });
+    toast('내 Google Drive에 저장했어요.' + dbNote, dbNote ? 9000 : 4000);
+  } catch (e) {
+    if (e && e.name === 'AbortError') toast('저장을 취소했어요.');
+    else { aiLog('error', '클라우드 저장 실패', errInfo(e)); toast('클라우드에 저장하지 못했어요: ' + cloudExplain(e), 8000); }
+  } finally { cloudBusy = false; progAbort = null; progClose(); }
+}
+let cloudRows = [];
+async function cloudLoadList() {
+  if (FB) { try { return { rows: await dbList(), src: 'db' }; } catch (e) { aiLog('warn', '목록 DB 읽기 실패 → Drive 목록 사용', errInfo(e)); } }
+  return { rows: await driveList(), src: 'drive' };
+}
+function renderCloudList(src) {
+  const el = $('#cloudList');
+  $('#cloudInfo').textContent = `파일: 내 Google Drive의 ${DRIVE_FOLDER} 폴더 · 목록: ${src === 'db' ? '목록 DB' : 'Google Drive'}${cloudRows.length ? ` · ${cloudRows.length}건` : ''}`;
+  if (!cloudRows.length) { el.innerHTML = '<div class="cloud-empty">아직 클라우드에 저장한 회의록이 없어요. 위쪽 <b>☁ 클라우드 저장</b>을 눌러 저장하세요.</div>'; return; }
+  const d = v => { const t = v ? new Date(v) : null; return t && !isNaN(t) ? t.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '-'; };
+  el.innerHTML = '<table><thead><tr><th>제목</th><th>회의 일시</th><th>길이</th><th>크기</th><th>저장</th><th></th></tr></thead><tbody>' + cloudRows.map((m, i) =>
+    `<tr class="${m.id === safeId(S.id) ? 'cur' : ''}"><td class="t" title="${esc(m.title || '')}">${esc(m.title || '제목 없는 회의')}</td><td class="n">${esc(d(m.when))}</td><td class="n">${m.duration ? fmt(m.duration) : '-'}</td><td class="n">${m.bytes ? (m.bytes / 1048576).toFixed(1) + 'MB' : '-'}</td><td class="n">${esc(d(m.updatedAt))}</td><td class="a"><button class="btn" data-copen="${i}">열기</button><button class="btn" data-cdel="${i}" style="color:var(--rec)">삭제</button></td></tr>`).join('') + '</tbody></table>';
+}
+async function cloudOpenList() {
+  try {
+    await driveAuth();
+    try { if (!$('#cloudDlg').open) $('#cloudDlg').showModal(); } catch {}
+    $('#cloudList').innerHTML = '<div class="cloud-empty busy-dots">목록을 불러오는 중</div>';
+    const { rows, src } = await cloudLoadList(); cloudRows = rows; renderCloudList(src);
+  } catch (e) { aiLog('error', '내 회의록 목록 실패', errInfo(e)); $('#cloudList').innerHTML = `<div class="cloud-empty">목록을 불러오지 못했어요: ${esc(cloudExplain(e))}</div>`; if (!$('#cloudDlg').open) toast('목록을 열지 못했어요: ' + cloudExplain(e), 7000); }
+}
+async function cloudOpenItem(m) {
+  if (rec.state !== 'idle') { toast('녹음 중에는 열 수 없어요.'); return; }
+  const ctl = new AbortController();
+  try {
+    await driveAuth(); $('#cloudDlg').close();
+    progAbort = () => ctl.abort(); progOpen('클라우드에서 여는 중', { local: true }); progSet(null, 'Google Drive에서 내려받는 중');
+    const tok = await driveAuth();
+    const r = await fetch(`${EP.drive}/files/${encodeURIComponent(m.fileId)}?alt=media`, { headers: { authorization: 'Bearer ' + tok }, signal: ctl.signal });
+    if (!r.ok) throw cerr('http', r.status === 404 ? 'Drive에서 파일을 찾을 수 없어요(지워졌을 수 있어요). "Drive와 목록 맞추기"를 눌러 주세요.' : 'HTTP ' + r.status, { status: r.status });
+    const blob = await r.blob(); progClose(); progAbort = null;
+    const before = S.id;
+    await openFile(new File([blob], (m.name || m.title || 'meeting') + '.mnote', { type: MNOTE_MIME }));
+    if (S.id !== before || safeId(S.id) === m.id) S.cloud = { fileId: m.fileId };
+    aiLog('info', '클라우드에서 열기', { bytes: blob.size });
+  } catch (e) {
+    if (e && e.name === 'AbortError') toast('열기를 취소했어요.');
+    else { aiLog('error', '클라우드 열기 실패', errInfo(e)); toast('열지 못했어요: ' + cloudExplain(e), 8000); }
+  } finally { progAbort = null; progClose(); }
+}
+async function cloudDeleteItem(m) {
+  if (!(await askConfirm('회의록을 삭제할까요?', `"${m.title || '제목 없는 회의'}"을(를) 목록에서 지우고 Drive 파일은 휴지통으로 옮깁니다. Drive 휴지통에서 30일 안에 되살릴 수 있어요.`, '삭제'))) return;
+  try {
+    try { await dfetch(`/files/${encodeURIComponent(m.fileId)}?fields=id`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ trashed: true }) }); } catch (e) { if (e.status !== 404) throw e; }
+    if (FB) { try { await dbDelete(m.id); } catch (e) { aiLog('warn', '목록 DB 삭제 실패', errInfo(e)); } }
+    if (S.cloud && S.cloud.fileId === m.fileId) S.cloud = null;
+    cloudRows = cloudRows.filter(x => x !== m); renderCloudList(FB ? 'db' : 'drive'); toast('삭제했어요.');
+  } catch (e) { aiLog('error', '클라우드 삭제 실패', errInfo(e)); toast('삭제하지 못했어요: ' + cloudExplain(e), 7000); }
+}
+/* Drive 폴더를 기준으로 목록 DB를 다시 맞춘다: Drive에 있는 것은 기록하고, Drive에 없는 기록은 지운다 */
+async function cloudSync() {
+  const btn = $('#cloudSync'); btn.disabled = true;
+  try {
+    await driveAuth();
+    const files = await driveList(); let added = 0, removed = 0;
+    if (FB) {
+      const have = await dbList(); const byId = new Map(files.map(f => [f.id, f]));
+      for (const f of files) { const h = have.find(x => x.id === f.id); if (!h || h.fileId !== f.fileId || h.updatedAt !== f.updatedAt) { await dbUpsert(f); added++; } }
+      for (const h of have) if (!byId.has(h.id)) { await dbDelete(h.id); removed++; }
+    }
+    cloudRows = files; renderCloudList(FB ? 'db' : 'drive');
+    toast(FB ? `Drive와 목록을 맞췄어요 (갱신 ${added}건, 정리 ${removed}건).` : 'Drive 목록을 다시 읽었어요.');
+  } catch (e) { aiLog('error', '목록 맞추기 실패', errInfo(e)); toast('목록을 맞추지 못했어요: ' + cloudExplain(e), 7000); }
+  finally { btn.disabled = false; }
+}
+function cloudSignOut() { fbSess = null; driveTok = null; lastCredential = null; try { localStorage.removeItem(FB_KEY); } catch {} renderCloudState(); }
+function renderCloudState() {
+  const el = $('#cloudState'); if (!el) return;
+  const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
+  el.innerHTML = row('Google 로그인', user ? esc(user.email || user.name || '로그인됨') : (authEnabled() ? '로그인 안 됨' : '설정 안 됨'))
+    + row('로그인 필수', CFG.requireLogin && authEnabled() ? '예' + (CFG_LOCKED ? ' (배포 설정으로 고정)' : '') : '아니오')
+    + row('파일 저장소', driveTok && user && driveTok.sub === user.sub && driveTok.exp > Date.now() ? 'Google Drive 연결됨' : 'Google Drive (저장·열기 때 권한 요청)')
+    + row('목록 DB', FB ? `Firestore (${esc(FB.projectId)})` : '사용 안 함 — Drive 목록으로 동작');
+  $('#driveConnect').disabled = $('#driveDisconnect').disabled = !(user && authEnabled());
+}
+$('#cloudSaveBtn').addEventListener('click', cloudSave);
+$('#cloudListBtn').addEventListener('click', cloudOpenList);
+$('#cloudRefresh').addEventListener('click', cloudOpenList);
+$('#cloudSync').addEventListener('click', cloudSync);
+$('#cloudClose').addEventListener('click', () => $('#cloudDlg').close());
+$('#cloudList').addEventListener('click', e => {
+  const o = e.target.closest('[data-copen]'), d = e.target.closest('[data-cdel]');
+  if (o) cloudOpenItem(cloudRows[+o.dataset.copen]); else if (d) cloudDeleteItem(cloudRows[+d.dataset.cdel]);
+});
+$('#driveConnect').addEventListener('click', async () => { try { await driveAuth({ force: true }); toast('Google Drive를 연결했어요.'); } catch (e) { toast(cloudExplain(e), 7000); } });
+$('#driveDisconnect').addEventListener('click', async () => {
+  try { await gsiReady(); if (driveTok) google.accounts.oauth2.revoke(driveTok.token, () => {}); } catch {}
+  driveTok = null; renderCloudState(); toast('이 앱의 Drive 권한을 해제했어요. 다음에 저장할 때 다시 물어봅니다.');
+});
 renderUser();
+renderCloudState();
 initGoogle();
 
 /* ---------- tooltips (usage help on hover) ---------- */

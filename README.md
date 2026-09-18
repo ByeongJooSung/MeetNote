@@ -13,6 +13,7 @@ android-capacitor/   APK 빌드 설정 (Capacitor)
 server/              발언자 구분·전사 파이썬 서비스 (faster-whisper + pyannote/resemblyzer)
 docs/LOCAL-LLM.md    LM Studio / Ollama 연결 방법
 docs/MNOTE-FORMAT.md .mnote 파일 구조
+docs/CLOUD-SETUP.md  Google 로그인·클라우드 저장(Drive + Firestore) 설정
 publish.sh           GitHub 저장소 생성 + Pages 배포 한 번에
 .github/workflows/   GitHub Pages 자동 배포, APK 빌드
 ```
@@ -72,9 +73,15 @@ python3 web/serve.py        # http://localhost:8080
    리디렉션 URI는 필요 없습니다(Google Identity Services 사용).
 3. 발급된 **클라이언트 ID**를 `web/config.js`의 `googleClientId`에 넣고 push. (파일을 고치지 않고 앱 헤더의 **로그인** 버튼 → 설정 창에 붙여 넣어도 되지만, 그 경우 그 브라우저에서만 적용됩니다.)
 4. 배포 주소에서 열면 로그인 화면이 먼저 뜨고, Google 계정으로 로그인하면 앱이 열립니다.
-   로그인 정보(이름·이메일·사진)는 브라우저에만 저장되고 서버로 보내지 않습니다.
+   로그인 정보(이름·이메일·사진)는 브라우저에만 저장됩니다. 목록 DB(Firestore)를 설정한 경우에만 Google ID 토큰으로 Firebase 인증을 합니다.
+   `googleClientId`를 `config.js`에 넣으면 로그인 필수가 고정되어 브라우저 설정으로 끌 수 없습니다.
    `requireLogin: false`로 두면 로그인 없이도 쓸 수 있고 헤더에 계정만 표시됩니다.
    `file://`로 연 경우와 Claude 아티팩트 안에서는 로그인이 꺼집니다.
+
+### 클라우드 저장 (비용 없이)
+- 파일(.mnote, 녹음 포함)은 **각 사용자의 Google Drive** `MeetNote` 폴더에, 목록(제목·일시·길이)은 **Firestore**에 기록합니다. 앱은 자신이 만든 Drive 파일만 볼 수 있는 `drive.file` 권한만 씁니다.
+- 헤더의 **☁ 클라우드 저장** / **내 회의록**으로 저장·열기·삭제. Firestore를 설정하지 않으면 목록도 Drive에서 읽습니다.
+- 설정 방법: [docs/CLOUD-SETUP.md](docs/CLOUD-SETUP.md)
 
 ## 6. AI 회의록 엔진
 | 엔진 | 어디서 | 준비 |
