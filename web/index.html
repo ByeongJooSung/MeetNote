@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="theme-color" content="#0F7B78">
 <script>try{var t=localStorage.getItem('meetnote.theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);var z=+localStorage.getItem('meetnote.ui');if(z>=0.8&&z<=1.3)document.documentElement.style.setProperty('--ui',z);}catch(e){}</script>
@@ -106,7 +106,7 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 #docEditor .tbl-wrap,#docReplay .tbl-wrap{margin:6px 0}
 #docEditor table,#docReplay table{font-size:10pt;line-height:1.3}
 #docEditor td,#docEditor th,#docReplay td,#docReplay th{padding:2px 7px;height:auto;min-width:40px}
-#docEditor.boxed,#docReplay.boxed{border:.5px solid var(--ink);padding:4px 8px;min-height:var(--doc-min,360px)}  /* 기본 높이 360px(기존 120px의 3배), 아래 손잡이로 조절 */
+#docEditor.boxed,#docReplay.boxed{border:.5px solid var(--ink);padding:4px 8px}
 .doc-resize{height:14px;margin:0 0 6px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;touch-action:none;outline:none}
 .doc-resize::before{content:"";width:56px;height:4px;border-radius:2px;background:var(--line)}
 .doc-resize:hover::before,.doc-resize:focus-visible::before,.doc-resize.on::before{background:var(--tape)}
@@ -148,7 +148,8 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .auto-bar[data-tone="ok"] .sdot{background:var(--ok)}.auto-bar[data-tone="wait"] .sdot{background:var(--wait);animation:pulse 1.4s ease-in-out infinite}.auto-bar[data-tone="bad"] .sdot{background:var(--rec)}
 .doc-content [data-auto]{border-left:3px solid var(--tape-soft);padding-left:8px}
 .doc-content [data-auto].tbl-wrap{border-left:0;padding-left:1px}
-#docEditor{min-height:var(--doc-min,40vh);padding-bottom:20vh}
+/* 입력란 높이는 고정(기본 360px, 아래 손잡이로 조절)이고 내용이 넘치면 안에서 스크롤 → 글이 길어져도 도구 모음·아래 항목이 멀어지지 않는다 */
+#docEditor,#docReplay{height:var(--doc-min,360px);min-height:120px;overflow-y:auto;overscroll-behavior:contain;padding-bottom:12px;scrollbar-gutter:stable}
 #docEditor.is-empty > p:first-child{position:relative}
 #docEditor.is-empty > p:first-child::before{content:"회의록 본문을 작성하세요. 오른쪽 메모·AI 회의록을 '회의록에 넣기'로 옮길 수 있습니다.";position:absolute;left:0;top:0;right:0;color:var(--ink2);pointer-events:none}
 .tchip{display:inline-block;vertical-align:1px;margin-left:6px;padding:0 7px;border-radius:999px;background:var(--tape-soft);color:var(--tape);font-size:11.5px;font-weight:600;line-height:1.6;cursor:pointer;user-select:none;-webkit-user-select:none}
@@ -284,7 +285,11 @@ aside.side{display:flex;flex-direction:column;min-height:0;background:var(--surf
 .tabs .split-btn{flex:none;border:0;border-left:1px solid var(--line);background:transparent;color:var(--ink2);padding:0 12px;cursor:pointer;font-size:12.5px;white-space:nowrap}
 .tabs .split-btn[aria-pressed="true"]{color:var(--tape);font-weight:600;background:var(--tape-soft)}
 @media (max-width:880px){.tabs .split-btn{display:none}}
-aside.side.split #paneTr{border-top:2px solid var(--line)}
+aside.side.split #paneMemo{flex:var(--split,55) 1 0}
+aside.side.split #paneTr{flex:calc(100 - var(--split,55)) 1 0}
+.split-bar{flex:none;height:10px;cursor:row-resize;display:flex;align-items:center;justify-content:center;background:var(--sunk);border-top:1px solid var(--line);border-bottom:1px solid var(--line);touch-action:none;outline:none}
+.split-bar::before{content:"";width:44px;height:3px;border-radius:2px;background:var(--seg)}
+.split-bar:hover::before,.split-bar:focus-visible::before,.split-bar.on::before{background:var(--tape)}
 .set-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
 .set-row .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .set-row .seg button{border:0;background:var(--surface);color:var(--ink);padding:6px 12px;cursor:pointer;font-size:13.5px;border-right:1px solid var(--line)}
@@ -477,6 +482,9 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   header.top .actions::-webkit-scrollbar{display:none}
   header.top .actions > *{flex:none}
   /* 좁은 화면: 고정된 헤더·푸터가 화면을 덜 차지하게 */
+  html{scroll-padding-top:150px}   /* 커서를 화면에 맞출 때 위에 고정된 헤더·도구 모음에 가리지 않게 */
+  body.kb header.top{position:static}
+  body.kb footer.transport{display:none}
   header.top .brand{display:none}
   header.top .titlebox{flex:1 1 100%}
   .title{font-size:16px;padding:0 4px}
@@ -669,6 +677,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
         <p id="replayEmpty" class="replay-empty" hidden>재생을 누르면 메모가 쓰였던 순서와 속도 그대로 나타납니다.</p>
       </div>
     </section>
+    <div class="split-bar" id="splitBar" hidden role="separator" aria-orientation="horizontal" aria-label="메모와 전사 구역 크기 조절" tabindex="0" title="끌어서 메모·전사 구역 크기 조절 (두 번 누르면 기본)"></div>
     <section class="pane" id="paneTr" role="tabpanel" aria-labelledby="tabTr" hidden>
       <div class="pane-tools">
         <label class="chk"><input type="checkbox" id="trOn" checked> 실시간 전사</label>
@@ -1085,12 +1094,27 @@ function placeToolbar() {
   toolbar.classList.add('inline'); fixToolbarTop();
 }
 // 키보드가 올라오면 브라우저가 화면(visual viewport)만 아래로 밀어 sticky 도구 모음이 화면 밖 위쪽에 남는다 → 밀린 만큼 top을 내려 준다
+/* 키보드가 올라온 동안(좁은 화면): 헤더 고정을 풀고 푸터를 숨겨 글 쓸 자리를 확보하고, 도구 모음은 화면 맨 위(top:0)에 붙인다.
+   예전에는 visualViewport.offsetTop만큼 top을 내려 보정했는데, 브라우저가 화면을 다시 맞추는 동안 값이 흔들려 도구 모음이 본문 위로 흘러내렸다 → 보정 제거 */
+let kbBase = 0, kbOpen = false;
+function checkKeyboard() {
+  const vv = window.visualViewport, h = vv ? vv.height : innerHeight;
+  if (h > kbBase) kbBase = h;
+  const ae = document.activeElement, typing = !!ae && (ae.isContentEditable || /^(INPUT|TEXTAREA)$/.test(ae.tagName));
+  let touch = false; try { touch = env.mobile; } catch {}
+  const open = (narrowMq.matches || touch) && typing && kbBase - h > 140;
+  if (open !== kbOpen) { kbOpen = open; document.body.classList.toggle('kb', open); }
+  fixToolbarTop();
+}
 function fixToolbarTop() {
   if (!toolbar.classList.contains('inline')) return;
-  const vv = window.visualViewport; const headH = narrowMq.matches ? document.querySelector('header.top').zrect().height : 0;   // 좁은 화면에서는 헤더도 위에 고정돼 있음
-  toolbar.style.top = Math.round(Math.max(headH, vv ? vv.offsetTop / UIZ : 0)) + 'px';
+  const headH = narrowMq.matches && !kbOpen ? document.querySelector('header.top').zrect().height : 0;   // 좁은 화면에서는 헤더도 위에 고정돼 있음
+  toolbar.style.top = Math.round(headH) + 'px';
 }
-if (window.visualViewport) { visualViewport.addEventListener('resize', fixToolbarTop); visualViewport.addEventListener('scroll', fixToolbarTop); }
+if (window.visualViewport) visualViewport.addEventListener('resize', checkKeyboard);
+window.addEventListener('resize', checkKeyboard);
+window.addEventListener('orientationchange', () => { kbBase = 0; setTimeout(checkKeyboard, 400); });
+document.addEventListener('focusin', () => setTimeout(checkKeyboard, 50)); document.addEventListener('focusout', () => setTimeout(checkKeyboard, 50));
 narrowMq.addEventListener?.('change', () => placeToolbar());
 const bothEditors = (ev, fn, opt) => [memoEditor, docEditor].forEach(ed => ed.addEventListener(ev, e => { if (ev !== 'scroll') setActive(ed); fn(e); }, opt));
 [memoEditor, docEditor].forEach(ed => ed.addEventListener('focusin', () => setActive(ed)));
@@ -3039,10 +3063,30 @@ function selectTab(which) {
     const show = both ? k !== 'ai' : k === which;
     $(t).setAttribute('aria-selected', String(show)); $(p).hidden = !show;
   }
-  document.querySelector('aside.side').classList.toggle('split', both);
+  document.querySelector('aside.side').classList.toggle('split', both); $('#splitBar').hidden = !both;
   $('#splitBtn').setAttribute('aria-pressed', String(splitOn));
   if (which === 'memo' || both) scheduleGutter();
 }
+(() => {   // 함께 보기 구역 조절: 메모 비율(%)을 끌어서 바꾸고 브라우저에 기억
+  const KEY = 'meetnote.splitPct', side = document.querySelector('aside.side'), bar = $('#splitBar');
+  const apply = p => { p = Math.min(85, Math.max(15, p)); side.style.setProperty('--split', p.toFixed(1)); return p; };
+  let pct = 55; try { const v = +localStorage.getItem(KEY); if (v >= 15 && v <= 85) pct = v; } catch {} apply(pct);
+  const save = () => { try { localStorage.setItem(KEY, pct.toFixed(1)); } catch {} scheduleGutter(); };
+  let drag = false;
+  bar.addEventListener('pointerdown', e => { drag = true; bar.classList.add('on'); try { bar.setPointerCapture(e.pointerId); } catch {} e.preventDefault(); });
+  bar.addEventListener('pointermove', e => {
+    if (!drag) return;
+    // 구역 높이 = 안쪽 여백 + (남는 높이 × 비율) 이므로, 막대가 포인터를 정확히 따라오게 여백과 막대 높이를 빼고 계산
+    const pad = el => { const c = getComputedStyle(el); return parseFloat(c.paddingTop) + parseFloat(c.paddingBottom); };
+    const memo = $('#paneMemo'), tr = $('#paneTr'), top = memo.zrect().top, bottom = tr.zrect().bottom, pm = pad(memo), pt = pad(tr), bh = bar.zrect().height;
+    const free = bottom - top - pm - pt - bh;
+    if (free > 50) pct = apply((e.zy - bh / 2 - top - pm) / free * 100);
+  });
+  const end = () => { if (!drag) return; drag = false; bar.classList.remove('on'); save(); };
+  bar.addEventListener('pointerup', end); bar.addEventListener('pointercancel', end);
+  bar.addEventListener('dblclick', () => { pct = apply(55); save(); });
+  bar.addEventListener('keydown', e => { if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return; e.preventDefault(); pct = apply(pct + (e.key === 'ArrowDown' ? 5 : -5)); save(); });
+})();
 $('#splitBtn').addEventListener('click', () => { splitOn = !splitOn; try { localStorage.setItem(SPLIT_KEY, splitOn ? '1' : '0'); } catch {} selectTab(curTab === 'ai' && splitOn ? 'memo' : curTab); });
 narrowMq.addEventListener?.('change', () => selectTab(curTab));
 $('#tabMemo').addEventListener('click', () => selectTab('memo'));
@@ -5291,7 +5335,7 @@ $('#photoGrid').addEventListener('click', e => {
 
 /* ---------- 회의 내용 영역 높이: 아래 손잡이를 끌어 조절(브라우저에 기억), 두 번 누르면 기본 높이 ---------- */
 const DOCH_KEY = 'meetnote.docMinH', DOCH_MIN = 120;
-const docMinPx = () => parseFloat(getComputedStyle(docEditor).minHeight) || 360;
+const docMinPx = () => parseFloat(getComputedStyle(docReplayOn ? $('#docReplay') : docEditor).height) || 360;
 (() => {
   const sheet = $('#docsheet'), grip = $('#docResize');
   const apply = px => { if (px) sheet.style.setProperty('--doc-min', px + 'px'); else sheet.style.removeProperty('--doc-min'); };
