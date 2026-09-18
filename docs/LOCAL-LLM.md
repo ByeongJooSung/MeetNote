@@ -28,6 +28,14 @@ OLLAMA_ORIGINS="*" ollama serve
    (http 접속에서는 마이크가 막히므로 "녹음 파일 붙이기" 방식으로 쓰면 됩니다.)
    APK로 설치한 앱은 `allowMixedContent`가 켜져 있어 `http://PC-IP:11434` 주소를 바로 쓸 수 있습니다.
 
+## 외부에서 접속할 때: 보안 토큰 (선택)
+서버를 터널(cloudflared 등)이나 포트 개방으로 인터넷에 열면 주소를 아는 누구나 모델을 쓸 수 있습니다. 서버에 API 키(토큰)를 걸고,
+MeetNote **⚙ 설정 → AI 엔진 → 보안 토큰**에 같은 값을 넣으세요. 요청마다 `Authorization: Bearer 토큰`으로 보냅니다.
+- LM Studio: Developer → Server Settings에서 인증(API 키) 사용 · vLLM / llama.cpp 서버: `--api-key 값`
+- Ollama는 자체 인증이 없어 앞단 프록시(Caddy·nginx)에서 `Authorization` 헤더를 검사하게 합니다.
+- 토큰은 기본으로 **그 탭을 닫으면 지워지고**, "이 브라우저에 기억"을 켠 경우에만 브라우저에 저장됩니다. 로그·.mnote 파일에는 남지 않습니다.
+- 브라우저가 미리 보내는 확인 요청(OPTIONS, CORS preflight)에는 토큰이 없으므로, 프록시를 쓴다면 OPTIONS는 인증 없이 통과시키세요.
+
 ## 모델 고르기 팁
 - 7B~8B 크기면 회의록 정리에 충분하고, 8GB VRAM 또는 16GB RAM(맥)이면 돌아갑니다.
 - 답이 영어로 나오면 더 큰 모델이거나 한국어 특화 모델(EXAONE, HyperCLOVA X SEED)을 써 보세요.

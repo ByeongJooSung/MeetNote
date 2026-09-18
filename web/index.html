@@ -760,6 +760,9 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   </select></label>
   <div id="aiLocalRow">
     <label class="field">서버 주소<input id="aiBase" placeholder="http://localhost:1234" autocomplete="off" spellcheck="false" inputmode="url"></label>
+    <label class="field">보안 토큰 (선택)<input id="aiToken" type="password" placeholder="서버에 API 키·토큰을 설정했다면 입력" autocomplete="off" spellcheck="false"></label>
+    <label class="chk" style="margin:-4px 0 8px"><input type="checkbox" id="aiTokenKeep"> 이 브라우저에 기억 (공용 PC에서는 끄세요)</label>
+    <p class="hint" style="margin:0 0 10px">서버를 인터넷(터널·포트 개방)으로 열었다면 토큰을 걸어 두세요. 요청마다 <code>Authorization: Bearer 토큰</code>으로 보냅니다. LM Studio: Developer → Server Settings의 인증(API 키), vLLM·llama.cpp: <code>--api-key</code>, Ollama: 앞단 프록시(Caddy·nginx)에서 검사.</p>
     <div class="row"><button id="aiModels" class="btn primary">연결 확인 · 모델 불러오기</button></div>
     <div class="conn" id="aiConn" hidden><span class="sdot"></span><span id="aiConnText"></span></div>
     <label class="field">모델<select id="aiModelSel"><option value="">모델을 먼저 불러오세요</option></select></label>
@@ -874,11 +877,20 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   </div>
 </dialog>
 
+<dialog id="openDlg" aria-labelledby="openTitle">
+  <h2 id="openTitle">회의록 불러오기</h2>
+  <div class="eng-row">
+    <button type="button" class="opt" id="openCloud" style="width:100%;text-align:left;background:none;font:inherit;color:inherit"><div><b>☁ 클라우드에서 (내 회의록)</b><span>Google Drive에 저장한 회의록 목록에서 골라 엽니다.</span></div></button>
+    <button type="button" class="opt" id="openLocal" style="width:100%;text-align:left;background:none;font:inherit;color:inherit"><div><b>내 컴퓨터에서 (.mnote 파일)</b><span>내려받아 둔 .mnote 파일을 엽니다. 파일을 화면에 끌어다 놓아도 됩니다.</span></div></button>
+  </div>
+  <div class="dlg-actions"><button class="btn" id="openCancel">취소</button></div>
+</dialog>
+
 <dialog id="cloudDlg" aria-labelledby="cloudTitle">
   <h2 id="cloudTitle">내 회의록</h2>
   <p class="hint" id="cloudInfo"></p>
   <div class="cloud-list" id="cloudList"></div>
-  <div class="dlg-actions"><button class="btn" id="cloudSync" title="Drive의 MeetNote 폴더를 읽어 목록을 다시 맞춥니다 (다른 기기에서 지웠거나 목록이 어긋났을 때)">Drive와 목록 맞추기</button><button class="btn" id="cloudRefresh">새로고침</button><button class="btn primary" id="cloudClose">닫기</button></div>
+  <div class="dlg-actions"><button class="btn" id="cloudSync" title="Drive의 MeetNote 폴더를 읽어 목록을 다시 맞춥니다 (다른 기기에서 지웠거나 목록이 어긋났을 때)">Drive와 목록 맞추기</button><button class="btn" id="cloudLocal" title="내려받아 둔 .mnote 파일 열기">내 컴퓨터에서 열기</button><button class="btn" id="cloudRefresh">새로고침</button><button class="btn primary" id="cloudClose">닫기</button></div>
 </dialog>
 
 <dialog id="refineDlg" aria-labelledby="refineTitle">
@@ -3588,6 +3600,7 @@ function localHint() {
 }
 function localErr(e) {
   const m = String(e && e.message || e);
+  if (e && (e.status === 401 || e.status === 403)) return llmToken() ? '서버가 보안 토큰을 거절했어요. 설정(⚙) → AI 엔진의 보안 토큰이 서버에 설정한 값과 같은지 확인하세요.' : '서버가 인증을 요구해요. 설정(⚙) → AI 엔진에 보안 토큰을 입력하세요.';
   if (/Failed to fetch|NetworkError|Load failed|network error/i.test(m)) return `서버(${localBase()})에 연결할 수 없어요.`;
   if (e && e.status) return `서버가 ${e.status} 오류를 돌려줬어요. ${(e.body || '').slice(0, 160)}`;
   return m;
@@ -3610,7 +3623,7 @@ function renderAIDlg() {
   $('#aiProvider').value = p;
   $('#aiLocalRow').hidden = !local;
   $('#aiKeyRow').hidden = p !== 'anthropic';
-  if (local) { const b = $('#aiBase'); b.value = ai.base || PROVIDER_DEF[p].base; b.placeholder = PROVIDER_DEF[p].base || 'http://서버주소:포트'; renderModelSel(); }
+  if (local) { const b = $('#aiBase'); b.value = ai.base || PROVIDER_DEF[p].base; b.placeholder = PROVIDER_DEF[p].base || 'http://서버주소:포트'; renderModelSel(); $('#aiToken').value = llmToken(); $('#aiTokenKeep').checked = llmTokenKept(); }
   $('#apiKeyState').textContent = apiKey ? '키가 적용돼 있어요(이 화면에서만 유지).' : '';
   $('#aiProvHelp').innerHTML = local ? PROVIDER_DEF[p].help : p === 'anthropic' ? 'Anthropic API 키는 이 화면에서만 쓰고 파일이나 브라우저 저장소에 남기지 않아요. 새로고침하면 다시 넣어야 해요.' : (ai.hasSample ? 'Claude 화면 안에서 열려 있어 바로 쓸 수 있어요. 첫 호출 때 허용을 물어봐요.' : ai.hasSample === false ? '이 페이지가 Claude 화면 밖에서 열려 있어요. 로컬 LLM(LM Studio·Ollama)이나 Anthropic API 키를 고르세요.' : 'Claude 연결을 확인하는 중이에요…');
   renderAILog();
@@ -3652,12 +3665,13 @@ $('#aiModel').addEventListener('change', e => { ai.model = e.target.value.trim()
 async function fetchModels() {
   const btn = $('#aiModels'); btn.disabled = true;
   ai.base = ($('#aiBase').value.trim() || PROVIDER_DEF[ai.provider].base).replace(/\/+$/, ''); $('#aiBase').value = ai.base;
+  saveLlmToken();   // 주소를 바꾼 뒤에도 입력한 토큰이 새 주소에 묶이게
   setConn('wait', '연결하는 중…');
   const t0 = performance.now();
   const tryGet = async (path) => {
     const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 8000);
     try {
-      const r = await fetch(ai.base + path, { signal: ctl.signal });
+      const r = await fetch(ai.base + path, { signal: ctl.signal, headers: llmHeaders({}) });
       const body = await r.text();
       aiLog(r.ok ? 'info' : 'warn', `GET ${path} → ${r.status}`, { ms: Math.round(performance.now() - t0), body: body.slice(0, 300) });
       if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), { status: r.status, body });
@@ -3683,12 +3697,27 @@ async function fetchModels() {
   } finally { btn.disabled = false; }
 }
 $('#aiModels').addEventListener('click', fetchModels);
+const saveLlmToken = () => setLlmToken($('#aiToken').value.trim(), $('#aiTokenKeep').checked);
+$('#aiToken').addEventListener('change', saveLlmToken); $('#aiToken').addEventListener('input', saveLlmToken);
+$('#aiTokenKeep').addEventListener('change', saveLlmToken);
 $('#apiKeySet').addEventListener('click', () => {
   apiKey = $('#apiKey').value.trim();
   if (!apiKey) { toast('API 키를 입력해 주세요.'); return; }
   ai.provider = 'anthropic'; saveAI(); aiLog('info', 'API 키 적용', { keyPrefix: apiKey.slice(0, 7) + '…', len: apiKey.length });
   $('#apiKeyState').textContent = '키가 적용돼 있어요(이 화면에서만 유지).'; renderAIStatus(); toast('키를 적용했어요. AI 회의록 탭에서 초안 작성을 누르세요.');
 });
+const TOKEN_KEY = 'meetnote.aiToken';
+function llmToken() {
+  try { const o = JSON.parse(sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY) || 'null'); return o && o[ai.provider + '|' + localBase()] || ''; } catch { return ''; }
+}
+function setLlmToken(tok, keep) {
+  const k = ai.provider + '|' + localBase();
+  for (const [st, on] of [[sessionStorage, true], [localStorage, keep]]) {
+    try { const o = JSON.parse(st.getItem(TOKEN_KEY) || '{}'); if (tok && on) o[k] = tok; else delete o[k]; if (Object.keys(o).length) st.setItem(TOKEN_KEY, JSON.stringify(o)); else st.removeItem(TOKEN_KEY); } catch {}
+  }
+}
+const llmTokenKept = () => { try { return !!(JSON.parse(localStorage.getItem(TOKEN_KEY) || '{}')[ai.provider + '|' + localBase()]); } catch { return false; } };
+const llmHeaders = h => { const t = llmToken(); return t ? { ...h, authorization: 'Bearer ' + t } : h; };
 async function callOpenAI(prompt, signal, onText, sysPrompt) {
   const base = localBase(), model = curModel();
   if (inClaudeSandbox()) throw Object.assign(new Error('Claude 화면 안에서는 로컬 서버를 부를 수 없어요.'), { code: 'sandbox' });
@@ -3697,10 +3726,10 @@ async function callOpenAI(prompt, signal, onText, sysPrompt) {
   const url = base + '/v1/chat/completions';
   const body = { model, stream: true, temperature: 0.3, max_tokens: 4096,
     messages: [{ role: 'system', content: sysPrompt || '당신은 회의록을 정리하는 비서입니다. 지시된 구조의 한국어 마크다운만 출력합니다.' }, { role: 'user', content: prompt }] };
-  aiLog('info', `POST ${url}`, { model, stream: true, promptChars: prompt.length });
+  aiLog('info', `POST ${url}`, { model, stream: true, promptChars: prompt.length, token: llmToken() ? '사용' : undefined });
   const t0 = performance.now();
   let r;
-  try { r = await fetch(url, { method: 'POST', signal, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
+  try { r = await fetch(url, { method: 'POST', signal, headers: llmHeaders({ 'content-type': 'application/json' }), body: JSON.stringify(body) }); }
   catch (e) { aiLog('error', 'fetch 실패', { url, ...errInfo(e) }); throw e; }
   const ct = r.headers.get('content-type') || '';
   aiLog(r.ok ? 'info' : 'error', `응답 ${r.status}`, { ms: Math.round(performance.now() - t0), contentType: ct });
@@ -4932,7 +4961,13 @@ async function newMeeting() {
 
 $('#saveBtn').addEventListener('click', save);
 $('#newBtn').addEventListener('click', newMeeting);
-$('#openBtn').addEventListener('click', () => $('#fileInput').click());
+$('#openBtn').addEventListener('click', () => {
+  if (user && authEnabled()) { try { $('#openDlg').showModal(); return; } catch {} }   // 클라우드를 쓸 수 있으면 어디서 열지 고른다
+  $('#fileInput').click();
+});
+$('#openLocal').addEventListener('click', () => { $('#openDlg').close(); $('#fileInput').click(); });
+$('#openCloud').addEventListener('click', () => { $('#openDlg').close(); cloudOpenList(); });
+$('#openCancel').addEventListener('click', () => $('#openDlg').close());
 $('#fileInput').addEventListener('change', e => { openFile(e.target.files[0]); e.target.value = ''; });
 window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => {
@@ -5071,8 +5106,11 @@ const SIDE_KEY = 'meetnote.sideW';
 
 /* ---------- Google sign-in (Google Identity Services) ---------- */
 const USER_KEY = 'meetnote.user', GCLIENT_KEY = 'meetnote.gclient';
-let user = null, lastCredential = null;
+const CRED_KEY = 'meetnote.cred';
+let user = null, lastCredential = null, credWaiters = [];
 try { const u = JSON.parse(localStorage.getItem(USER_KEY) || 'null'); if (u && u.exp * 1000 > Date.now()) user = u; } catch {}
+// Google ID 토큰(1시간짜리 신원 증명): 새로고침 뒤에도 목록 DB 로그인에 쓸 수 있게 보관
+try { const c = JSON.parse(localStorage.getItem(CRED_KEY) || 'null'); if (c && user && c.sub === user.sub && c.exp > Date.now() + 30000) lastCredential = c; } catch {}
 // 배포 설정(config.js)에 클라이언트 ID가 있으면 그 설정이 우선: 브라우저에 저장된 값으로 '로그인 필수'를 끌 수 없다
 const CFG_LOCKED = !!CFG.googleClientId;
 try { const g = JSON.parse(localStorage.getItem(GCLIENT_KEY) || 'null'); if (g && g.id && !CFG_LOCKED) { CFG.googleClientId = g.id; if (typeof g.require === 'boolean') CFG.requireLogin = g.require; } } catch {}
@@ -5118,9 +5156,13 @@ function decodeJwt(t) {
 }
 function onGoogleCredential(resp) {
   try {
-    const c = decodeJwt(resp.credential);
+    const c = decodeJwt(resp.credential), again = !!user && user.sub === c.sub;
     user = { sub: c.sub, name: c.name, email: c.email, picture: c.picture, exp: c.exp, iat: c.iat };
-    lastCredential = { token: resp.credential, exp: c.exp * 1000 };
+    lastCredential = { token: resp.credential, exp: c.exp * 1000, sub: c.sub };
+    try { localStorage.setItem(CRED_KEY, JSON.stringify(lastCredential)); } catch {}
+    credWaiters.splice(0).forEach(f => f());
+    if (FB) fbAuth().catch(e => aiLog('warn', '목록 DB 로그인 실패', errInfo(e)));   // 로그인 직후 refresh 토큰을 받아 둔다
+    if (again) { try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch {} renderUser(); return; }
     try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch {}
     if (!S.meta.author && user.name) { S.meta.author = user.name; $('#mAuthor').value = user.name; }
     renderUser(); toast(`${user.name || user.email}님, 환영합니다.`);
@@ -5133,7 +5175,7 @@ function gsiSetup() {
     $('#gsiBtn').innerHTML = '';
     google.accounts.id.renderButton($('#gsiBtn'), { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', locale: 'ko', width: 300 });
     gsiInit = true; $('#gateErr').hidden = true;
-    if (!user && CFG.requireLogin) { try { google.accounts.id.prompt(); } catch {} }
+    if ((!user && CFG.requireLogin) || needCredential()) { try { google.accounts.id.prompt(); } catch {} }
   } catch (e) { $('#gateErr').hidden = false; $('#gateErr').textContent = '로그인 모듈을 초기화하지 못했어요: ' + (e.message || e); }
 }
 function initGoogle() {
@@ -5190,6 +5232,17 @@ async function jfetch(url, opt = {}) {
   if (!r.ok) throw cerr('http', (body && body.error && (body.error.message || body.error.status)) || ('HTTP ' + r.status), { status: r.status, body: text.slice(0, 300) });
   return body;
 }
+const credValid = () => !!(lastCredential && user && lastCredential.sub === user.sub && lastCredential.exp > Date.now() + 30000);
+function needCredential() { return !!(FB && user && !(fbSess && fbSess.sub === user.sub && fbSess.refreshToken) && !credValid()); }
+// 자격 증명이 없으면 Google에 조용히 재발급을 요청하고 잠깐 기다린다(자동 로그인 허용 상태면 창 없이 끝남)
+function freshCredential(ms = 7000) {
+  if (credValid()) return Promise.resolve(true);
+  return new Promise(res => {
+    const t = setTimeout(() => res(credValid()), ms);
+    credWaiters.push(() => { clearTimeout(t); res(true); });
+    gsiReady().then(() => { try { google.accounts.id.prompt(); } catch {} }).catch(() => {});
+  });
+}
 /* Firebase 인증: Google ID 토큰 → Firebase 토큰(1시간), 이후에는 refresh 토큰으로 갱신 */
 async function fbAuth() {
   if (!FB || !user) return null;
@@ -5202,7 +5255,8 @@ async function fbAuth() {
       return keep({ sub: user.sub, uid: d.user_id, idToken: d.id_token, refreshToken: d.refresh_token, exp: Date.now() + (+d.expires_in || 3600) * 1000 });
     } catch (e) { aiLog('warn', '목록 DB 토큰 갱신 실패', errInfo(e)); fbSess = null; }
   }
-  if (!lastCredential || lastCredential.exp < Date.now() + 30000) throw cerr('relogin', 'Google 로그인이 오래돼 목록 DB에 연결할 수 없어요. 로그아웃 후 다시 로그인해 주세요.');
+  if (!credValid()) await freshCredential();
+  if (!credValid()) throw cerr('relogin', 'Google 로그인이 오래돼 목록 DB에 연결할 수 없어요. 로그아웃 후 다시 로그인해 주세요.');
   const d = await jfetch(`${EP.idp}/accounts:signInWithIdp?key=${encodeURIComponent(FB.apiKey)}`, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ postBody: 'id_token=' + encodeURIComponent(lastCredential.token) + '&providerId=google.com', requestUri: location.origin, returnSecureToken: true, returnIdpCredential: true }) });
   aiLog('info', '목록 DB 로그인', { uid: d.localId });
@@ -5398,7 +5452,7 @@ async function cloudSync() {
   } catch (e) { aiLog('error', '목록 맞추기 실패', errInfo(e)); toast('목록을 맞추지 못했어요: ' + cloudExplain(e), 7000); }
   finally { btn.disabled = false; }
 }
-function cloudSignOut() { fbSess = null; driveTok = null; lastCredential = null; try { localStorage.removeItem(FB_KEY); } catch {} renderCloudState(); }
+function cloudSignOut() { fbSess = null; driveTok = null; lastCredential = null; try { localStorage.removeItem(FB_KEY); localStorage.removeItem(CRED_KEY); } catch {} renderCloudState(); }
 function renderCloudState() {
   const el = $('#cloudState'); if (!el) return;
   const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
@@ -5413,6 +5467,7 @@ $('#cloudListBtn').addEventListener('click', cloudOpenList);
 $('#cloudRefresh').addEventListener('click', cloudOpenList);
 $('#cloudSync').addEventListener('click', cloudSync);
 $('#cloudClose').addEventListener('click', () => $('#cloudDlg').close());
+$('#cloudLocal').addEventListener('click', () => { $('#cloudDlg').close(); $('#fileInput').click(); });
 $('#cloudList').addEventListener('click', e => {
   const o = e.target.closest('[data-copen]'), d = e.target.closest('[data-cdel]');
   if (o) cloudOpenItem(cloudRows[+o.dataset.copen]); else if (d) cloudDeleteItem(cloudRows[+d.dataset.cdel]);
