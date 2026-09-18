@@ -3506,12 +3506,20 @@ function htmlBuilder(title) {
   const runsHtml = runs => runs.length ? runs.map(r => `<span style="${style(r.f || {})}">${xesc(r.t)}</span>`).join('') : '&nbsp;';
   const para = (runs, pp = {}) => `<p style="text-align:${(pp.align || 'left').toLowerCase()};margin:${px(pp.before || 0)}px 0 ${px(pp.after || 0)}px ${px(pp.indent || 0)}px;line-height:${(pp.line || 160) / 100}">${runsHtml(runs)}</p>`;
   const body = [];
+  const BOX_PAD = 8;  // 테두리 상자 안쪽 여백(px)
+  let inBox = false;
   return {
     para: (runs, pp) => body.push(para(runs, pp)),
-    table: (spec, colW, rowH) => {
-      const total = colW.reduce((a, b) => a + b, 0), k = total > HW.textW ? HW.textW / total : 1;
+    /* 회의 세부 내용 입력 영역: 페이지를 넘어가도 각 페이지에서 테두리가 닫히도록 clone */
+    boxStart: () => { inBox = true; body.push('<div class="body-box">'); },
+    boxEnd: () => { inBox = false; body.push('</div>'); },
+    table: (spec, colW, rowH, rowFixed) => {
+      const lim = inBox ? HW.textW - (BOX_PAD * 2 + 1) * HW.px : HW.textW;
+      const total = colW.reduce((a, b) => a + b, 0), k = total > lim ? lim / total : 1;
       const cw = colW.map(w => px(w * k));
-      const trs = spec.origin.map((row, r) => `<tr style="height:${px(rowH[r] || 1500)}px">${row.map(cell => {
+      /* 높이 고정은 양식 표(rowFixed 없음)와 사용자가 직접 조절한 행만. 내용으로 정해지는 행은 인쇄 글꼴 기준으로 자동.
+         짧은 행만 페이지 사이에서 쪼개지 않고, 긴 행은 다음 페이지로 이어지게 둔다. */
+      const trs = spec.origin.map((row, r) => `<tr${(rowH[r] || 1500) <= 6000 ? ' class="keep"' : ''}${!rowFixed || rowFixed[r] ? ` style="height:${px(rowH[r] || 1500)}px"` : ''}>${row.map(cell => {
         const diag = cell.d1 ? 'linear-gradient(to bottom right,transparent calc(50% - .5px),#000 calc(50% - .5px),#000 calc(50% + .5px),transparent calc(50% + .5px))' : cell.d2 ? 'linear-gradient(to top right,transparent calc(50% - .5px),#000 calc(50% - .5px),#000 calc(50% + .5px),transparent calc(50% + .5px))' : '';
         const bg = [diag, cell.fill ? `linear-gradient(${cell.fill},${cell.fill})` : ''].filter(Boolean).join(',');
         return `<td rowspan="${cell.rs}" colspan="${cell.cs}" style="${bg ? 'background:' + bg + ';' : ''}${cell.valign ? 'vertical-align:' + cell.valign + ';' : ''}">${cell.paras.map(runs => para(runs, { line: 130, align: cell.align })).join('') || '&nbsp;'}</td>`;
@@ -3526,7 +3534,8 @@ body{padding:16px}@media print{body{padding:0}}
 p{word-break:break-word}
 table{border-collapse:collapse;table-layout:fixed;margin:6px 0;page-break-inside:auto}
 td{border:.5px solid #000;padding:2px 7px;vertical-align:top;word-break:break-word}
-tr{page-break-inside:avoid}
+tr.keep{page-break-inside:avoid;break-inside:avoid}
+.body-box{width:${px(HW.textW)}px;box-sizing:border-box;min-height:120px;margin-top:-6.5px;padding:4px ${BOX_PAD}px;border:.5px solid #000;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 </style></head><body>${body.join('')}</body></html>`;
     }
   };
@@ -3553,7 +3562,10 @@ function inlineRuns(node, base = {}) {
   walk(node, base);
   return runs;
 }
-const splitRuns = runs => { const out = [[]]; for (const r of runs) { if (r.br) out.push([]); else out[out.length - 1].push(r); } return out; };
+const splitRuns = runs => {
+  if (runs.length && runs[runs.length - 1].br) runs = runs.slice(0, -1);  // 블록 끝의 <br>은 편집기가 넣는 자리표시라 줄로 치지 않음
+  const out = [[]]; for (const r of runs) { if (r.br) out.push([]); else out[out.length - 1].push(r); } return out;
+};
 function hwpxBlock(B, el, base = {}) {
   const tag = el.tagName;
   if (el.classList.contains('tbl-wrap') || tag === 'TABLE') {
@@ -3572,7 +3584,7 @@ function hwpxBlock(B, el, base = {}) {
       origin[p.r].push({ ...p, paras, fill: cssHex(cell.style.backgroundColor), d1: cell.classList.contains('d1'), d2: cell.classList.contains('d2') });
     }
     origin.forEach(a => a.sort((x, y) => x.c - y.c));
-    B.table({ rows, cols, origin }, colW, rowH);
+    B.table({ rows, cols, origin }, colW, rowH, [...table.rows].map(tr => !!parseFloat(tr.style.height)));
     return;
   }
   if (tag === 'UL' || tag === 'OL') {
@@ -3612,10 +3624,16 @@ function attendeesByOrg() {
   S.attendees.filter(a => a.name || a.org || a.title).forEach(a => { const k = a.org || ''; if (!groups.has(k)) groups.set(k, []); groups.get(k).push([a.name, a.title].filter(Boolean).join(' ')); });
   return [...groups].map(([org, ppl]) => (org ? `[${org}] ` : '') + ppl.join(', '));
 }
-function renderBody(B) {
-  const docEls = [...docEditor.children].filter(hasContent);
-  if (docEls.length) for (const el of docEls) hwpxBlock(B, el);
+function renderBody(B, { box = false } = {}) {
+  /* 입력한 그대로: 앞뒤 빈 줄만 빼고 사이의 빈 줄(엔터)은 빈 문단으로 유지 */
+  const els = [...docEditor.children];
+  let a = 0, b = els.length;
+  while (a < b && !hasContent(els[a])) a++;
+  while (b > a && !hasContent(els[b - 1])) b--;
+  if (box) B.boxStart?.();
+  if (a < b) for (const el of els.slice(a, b)) { if (hasContent(el)) hwpxBlock(B, el); else B.para([]); }
   else hwpxPlainLine(B, '(내용 없음)', F.muted);
+  if (box) B.boxEnd?.();
 }
 function renderAppendices(B, opts) {
   if (opts.notes) {
@@ -3654,7 +3672,7 @@ const TEMPLATES = {
         [labc(3, 0, '참석자'), { ...multiCell(3, 1, attLines), cs: 3 }]
       ] }, [wl, wv1, wl, wv2], [1500, 1500, 1500, Math.max(1500, 1100 * Math.max(1, attLines.length) + 500)]);
       B.table({ rows: 1, cols: 1, origin: [[cellSpec(0, 0, '회 의   세 부   내 용', { size: 1200, bold: true }, { align: 'CENTER' })]] }, [W], [1700]);
-      renderBody(B);
+      renderBody(B, { box: true });
       const acts = (S.meta.actions || []).filter(a => a.due || a.who || a.what || a.out);
       const n = Math.max(1, acts.length);
       const rows = [[{ ...labc(0, 0, '실행계획'), rs: n + 1 }, labc(0, 1, '기한'), labc(0, 2, '작업수행자'), labc(0, 3, '내용'), labc(0, 4, '산출물')]];
