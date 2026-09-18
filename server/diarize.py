@@ -197,7 +197,15 @@ def run_pipeline(src_path: str, lang: Optional[str], num_speakers: Optional[int]
         progress(14, "model", "음성 인식 모델 준비 중")
     model = load_whisper(); check()
     progress(16, "transcribe", "전사 준비 중 (음성 구간 탐지)")
-    segs_iter, info = model.transcribe(wav_path, language=(lang or None) if lang != "auto" else None, vad_filter=True, beam_size=BEAM, condition_on_previous_text=False)
+    # 환청(말이 없는데 같은 단어가 반복되는 현상) 억제: VAD로 무음 제거, 앞 문장에 끌려가지 않게, 같은 구절 재생성 금지, 압축률·확률이 나쁜 구간은 버림
+    kw = dict(language=(lang or None) if lang != "auto" else None, vad_filter=True, vad_parameters=dict(min_silence_duration_ms=500),
+              beam_size=BEAM, condition_on_previous_text=False, no_repeat_ngram_size=6, repetition_penalty=1.05,
+              compression_ratio_threshold=2.2, log_prob_threshold=-1.0, no_speech_threshold=0.6)
+    try:
+        segs_iter, info = model.transcribe(wav_path, **kw)
+    except TypeError:   # 오래된 faster-whisper: 모르는 인자는 빼고
+        for k in ("no_repeat_ngram_size", "repetition_penalty", "vad_parameters"): kw.pop(k, None)
+        segs_iter, info = model.transcribe(wav_path, **kw)
     dur = float(getattr(info, "duration", 0) or 0)
     mm = lambda t: f"{int(t // 60):02d}:{int(t % 60):02d}"
     dev = getattr(getattr(model, "model", None), "device", None) or ("cuda" if DEVICE == "cuda" else "cpu")
