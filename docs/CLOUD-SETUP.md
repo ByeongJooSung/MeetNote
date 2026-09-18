@@ -6,6 +6,7 @@ MeetNote는 서버 없이 동작합니다. 클라우드 저장은 아래처럼 �
 |---|---|---|
 | 회의록 파일(.mnote, 녹음 포함) | **각 사용자의 Google Drive** `MeetNote` 폴더 | 없음(사용자 Drive 용량 사용) |
 | 목록(제목·일시·길이·Drive 파일 id) | **Firestore** `users/{uid}/meetings/{회의 id}` | 무료 한도 안(문서 1건 ≈ 0.3KB) |
+| 내 설정(분석 방식·PC 서비스 주소·AI 엔진 주소 등, 토큰 제외) | **Firestore** `users/{uid}/settings/prefs` | 위와 같음. 규칙에 이 경로가 없으면 브라우저에만 기억 |
 | 로그인 | Google Identity Services + Firebase Auth | 없음 |
 
 - 앱은 `drive.file` 권한만 씁니다. **이 앱이 만든 파일만** 볼 수 있고, 사용자의 다른 Drive 파일은 볼 수 없습니다.
@@ -32,6 +33,14 @@ MeetNote는 서버 없이 동작합니다. 클라우드 저장은 아래처럼 �
            && request.resource.data.title is string && request.resource.data.title.size() <= 200
            && request.resource.data.fileId is string && request.resource.data.fileId.size() <= 200
            && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 300));
+       }
+       // 내 설정 동기화(발언자 분석 방식·PC 서비스 주소·발언자 수, AI 엔진 주소·모델 등. 토큰·키는 저장하지 않음)
+       match /users/{uid}/settings/{doc} {
+         allow read, delete: if request.auth != null && request.auth.uid == uid;
+         allow create, update: if request.auth != null && request.auth.uid == uid
+           && request.resource.data.keys().hasOnly(['json','updatedAt'])
+           && request.resource.data.json is string && request.resource.data.json.size() <= 4000
+           && request.resource.data.updatedAt is string && request.resource.data.updatedAt.size() <= 40;
        }
      }
    }

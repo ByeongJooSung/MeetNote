@@ -995,6 +995,14 @@ const $ = s => document.querySelector(s);
 /* 화면 배율(설정 → 화면): body에 CSS zoom을 걸면 getBoundingClientRect·마우스 좌표는 '확대된 px', style에 넣는 px은 '확대 전 px'이라 서로 어긋난다.
    그래서 앱 코드는 zrect()/e.zx/e.zy(모두 확대 전 px)만 쓰고, 화면 좌표가 필요한 API(elementFromPoint, innerWidth)에서만 UIZ를 곱하거나 나눈다. */
 let UIZ = 1;
+/* 설정이 바뀔 때마다 불린다: 바뀐 시각을 적어 두고, 로그인 상태면 1.5초 뒤 계정에 올린다(아래 '내 설정 동기화') */
+const PREFS_AT = 'meetnote.prefsAt';
+let prefsTimer = null, prefsOff = false, prefsApplying = false;
+function prefsTouch() {
+  if (prefsApplying) return;
+  try { localStorage.setItem(PREFS_AT, new Date().toISOString()); } catch {}
+  clearTimeout(prefsTimer); prefsTimer = setTimeout(() => { try { prefsPush(); } catch {} }, 1500);
+}
 const zRect = r => UIZ === 1 ? r : { left: r.left / UIZ, top: r.top / UIZ, right: r.right / UIZ, bottom: r.bottom / UIZ, width: r.width / UIZ, height: r.height / UIZ, x: r.x / UIZ, y: r.y / UIZ };
 Element.prototype.zrect = function () { return zRect(this.getBoundingClientRect()); };
 for (const [k, src] of [['zx', 'clientX'], ['zy', 'clientY']]) Object.defineProperty(MouseEvent.prototype, k, { get() { return this[src] / UIZ; }, configurable: true });
@@ -3527,6 +3535,7 @@ $('#refineGo').addEventListener('click', () => {
   refine.len = document.querySelector('input[name="refLen"]:checked')?.value || 'mid';
   refine.spk = document.querySelector('input[name="refSpk"]:checked')?.value || 'keep';
   try { localStorage.setItem(REFINE_KEY, JSON.stringify({ len: refine.len, spk: refine.spk })); } catch {}
+  prefsTouch();
   $('#refineDlg').close(); runRefine();
 });
 $('#refineUndo').addEventListener('click', () => {
@@ -3821,7 +3830,7 @@ const AI_KEY = 'meetnote.ai';
 const ai = { provider: 'auto', base: '', model: '', models: [], hasSample: null };
 try { Object.assign(ai, JSON.parse(localStorage.getItem(AI_KEY) || '{}')); } catch {}
 if (!Array.isArray(ai.models)) ai.models = [];
-const saveAI = () => { try { localStorage.setItem(AI_KEY, JSON.stringify({ provider: ai.provider, base: ai.base, model: ai.model, models: ai.models.slice(0, 100) })); } catch {} };
+const saveAI = () => { try { localStorage.setItem(AI_KEY, JSON.stringify({ provider: ai.provider, base: ai.base, model: ai.model, models: ai.models.slice(0, 100) })); } catch {} prefsTouch(); };
 const PROVIDER_DEF = {
   lmstudio: { base: 'http://localhost:1234', label: 'LM Studio', help: 'LM Studio → <b>Developer(&lt;/&gt;)</b> 탭에서 <b>Start Server</b>, Settings에서 <b>Enable CORS</b>를 켜세요. 모델을 로드한 뒤 <b>연결 확인 · 모델 불러오기</b>를 누르면 목록에서 고를 수 있어요.' },
   ollama: { base: 'http://localhost:11434', label: 'Ollama', help: 'Ollama는 다른 페이지의 요청을 기본으로 막아요. 환경변수 <code>OLLAMA_ORIGINS=*</code>를 넣고 재시작하세요(휴대폰에서 쓰려면 <code>OLLAMA_HOST=0.0.0.0</code>도). 예: <code>ollama pull qwen2.5:7b</code>' },
@@ -4612,6 +4621,12 @@ if (/^https?:$/.test(location.protocol) && !inClaude) {
 }
 try { Object.assign(diar, JSON.parse(localStorage.getItem(DIAR_KEY) || '{}')); } catch {}
 if (!diar.mode) diar.mode = 'browser';
+const saveDiar = () => { try { localStorage.setItem(DIAR_KEY, JSON.stringify(diar)); } catch {} prefsTouch(); };
+const cleanBase = v => String(v || '').trim().replace(/\/+$/, '');
+for (const pre of ['diar', 'ana']) {
+  $(`#${pre}Base`).addEventListener('change', e => { const v = cleanBase(e.target.value); if (!v || /^https?:\/\//i.test(v)) { diar.base = v || 'http://localhost:8765'; diar.embedded = false; saveDiar(); } });
+  $(`#${pre}N`).addEventListener('change', e => { const n = parseInt(e.target.value, 10); diar.n = n >= 1 && n <= 10 ? n : 0; saveDiar(); });
+}
 function browserDiarNote() {
   if (inClaude) return 'Claude 화면 안에서는 모델을 내려받을 수 없어 배포한 웹이나 앱에서만 쓸 수 있어요.';
   if (!window.Worker || !window.WebAssembly) return '이 브라우저는 내장 분석을 지원하지 않아요.';
@@ -4626,7 +4641,7 @@ function setupEngine(prefix) {
     const m = document.querySelector(`input[name="${prefix}Mode"]:checked`)?.value || 'browser';
     $(`#${prefix}Py`).hidden = m !== 'py';
     const note = $(`#${prefix}BrowserNote`); note.hidden = m !== 'browser'; if (m === 'browser') note.textContent = browserDiarNote();
-    diar.mode = m; try { localStorage.setItem(DIAR_KEY, JSON.stringify(diar)); } catch {}
+    if (diar.mode !== m) { diar.mode = m; saveDiar(); }
   };
   radios.forEach(r => { r.checked = r.value === diar.mode; r.addEventListener('change', apply); });
   apply();
@@ -4634,7 +4649,7 @@ function setupEngine(prefix) {
 $('#diarBtn').addEventListener('click', () => {
   if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 실행하세요.'); return; }
   if (!S.audioBlob) { toast('녹음 파일이 없어요. 녹음하거나 파일을 붙인 뒤 실행하세요.'); return; }
-  $('#diarBase').value = diar.base; $('#diarConn').hidden = true; setupEngine('diar');
+  $('#diarBase').value = diar.base; $('#diarN').value = diar.n || ''; $('#diarConn').hidden = true; setupEngine('diar');
   if (diar.embedded) { const c = $('#diarConn'); c.hidden = false; c.dataset.tone = 'ok'; $('#diarConnText').textContent = '이 앱에 내장된 분석 서버를 사용해요.'; }
   try { $('#diarDlg').showModal(); } catch {}
 });
@@ -4766,7 +4781,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function runDiarization({ base, n, title }) {
   if (!S.audioBlob) throw new Error('녹음 파일이 없어요. 녹음하거나 파일을 붙인 뒤 실행하세요.');
-  diar.base = (base || 'http://localhost:8765').replace(/\/+$/, ''); try { localStorage.setItem(DIAR_KEY, JSON.stringify(diar)); } catch {}
+  diar.base = (base || 'http://localhost:8765').replace(/\/+$/, ''); diar.n = n >= 1 && n <= 10 ? n : 0; saveDiar();
   const fd = new FormData();
   fd.append('audio', S.audioBlob, 'recording.' + (S.audioExt || mimeExt(S.audioMime)));
   fd.append('lang', ($('#lang').value || 'ko-KR').slice(0, 2));
@@ -5065,7 +5080,7 @@ function diarErrText(e) {
   return m;
 }
 function openAnalyzeDlg() {
-  $('#anaBase').value = diar.base; $('#anaN').value = ''; $('#anaConn').hidden = true; setupEngine('ana');
+  $('#anaBase').value = diar.base; $('#anaN').value = diar.n || ''; $('#anaConn').hidden = true; setupEngine('ana');
   try { $('#analyzeDlg').showModal(); } catch {}
 }
 $('#anaSkip').addEventListener('click', () => $('#analyzeDlg').close());
@@ -5452,7 +5467,7 @@ function onGoogleCredential(resp) {
     lastCredential = { token: resp.credential, exp: c.exp * 1000, sub: c.sub };
     try { localStorage.setItem(CRED_KEY, JSON.stringify(lastCredential)); } catch {}
     credWaiters.splice(0).forEach(f => f());
-    if (FB) fbAuth().catch(e => aiLog('warn', '목록 DB 로그인 실패', errInfo(e)));   // 로그인 직후 refresh 토큰을 받아 둔다
+    if (FB) fbAuth().then(() => prefsPull()).catch(e => aiLog('warn', '목록 DB 로그인 실패', errInfo(e)));   // 로그인 직후 refresh 토큰을 받아 두고, 계정에 저장된 설정을 불러온다
     if (again) { try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch {} renderUser(); return; }
     try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch {}
     if (!S.meta.author && user.name) { S.meta.author = user.name; $('#mAuthor').value = user.name; }
@@ -5570,6 +5585,43 @@ async function dbList() {
 async function dbUpsert(m) {
   const a = await fbAuth(); const fields = {}; for (const [k, v] of Object.entries(m)) if (k !== 'id') fields[k] = fsVal(v);
   await jfetch(`${fsBase(a)}/${encodeURIComponent(safeId(m.id))}`, { method: 'PATCH', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ fields }) });
+}
+/* 내 설정 동기화: 발언자 분석(방식·PC 서비스 주소·발언자 수), AI 엔진(종류·주소·모델), 다듬기 옵션을 계정에 저장해 다른 기기·브라우저에서도 이어 쓴다.
+   보안 토큰·API 키는 넣지 않는다. 규칙에 settings 경로가 없으면(403) 이 브라우저에만 기억한다 */
+const prefsDoc = a => `${EP.fs}/projects/${encodeURIComponent(FB.projectId)}/databases/(default)/documents/users/${encodeURIComponent(a.uid)}/settings/prefs`;
+const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0 }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk } });
+const prefs403 = e => { if (e && e.status === 403) { prefsOff = true; aiLog('warn', '설정 동기화 꺼짐: 목록 DB 규칙에 settings 경로가 없어요(이 브라우저에만 기억)'); renderCloudState(); return true; } return false; };
+async function prefsPush() {
+  if (!FB || !user || prefsOff) return;
+  try {
+    const a = await fbAuth(), at = localStorage.getItem(PREFS_AT) || new Date().toISOString();
+    await jfetch(prefsDoc(a), { method: 'PATCH', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ fields: { json: { stringValue: JSON.stringify(prefsLocal()) }, updatedAt: { stringValue: at } } }) });
+  } catch (e) { if (!prefs403(e)) aiLog('warn', '설정 동기화 실패', errInfo(e)); }
+}
+async function prefsPull() {
+  if (!FB || !user || prefsOff) return;
+  try {
+    const a = await fbAuth(); let d = null;
+    try { d = await jfetch(prefsDoc(a), { headers: { authorization: 'Bearer ' + a.idToken } }); } catch (e) { if (e.status === 404) { if (localStorage.getItem(PREFS_AT)) prefsPush(); return; } throw e; }
+    const f = fsUn(d.fields), mine = localStorage.getItem(PREFS_AT) || '';
+    if (!f.json || !(String(f.updatedAt || '') > mine)) { if (mine > String(f.updatedAt || '')) prefsPush(); return; }   // 내 쪽이 더 새 것이면 올린다
+    const o = JSON.parse(f.json); const url = v => typeof v === 'string' && v.length <= 200 && (v === '' || /^https?:\/\/[^\s<>"']+$/i.test(v));
+    prefsApplying = true;
+    try {
+      if (o.diar && typeof o.diar === 'object' && !diar.embedded) {
+        if (['browser', 'py'].includes(o.diar.mode)) diar.mode = o.diar.mode;
+        if (url(o.diar.base) && o.diar.base) diar.base = o.diar.base.replace(/\/+$/, '');
+        diar.n = Number.isInteger(o.diar.n) && o.diar.n >= 1 && o.diar.n <= 10 ? o.diar.n : 0;
+        try { localStorage.setItem(DIAR_KEY, JSON.stringify(diar)); } catch {}
+      }
+      if (o.ai && typeof o.ai === 'object' && ['auto', 'lmstudio', 'ollama', 'openai', 'anthropic'].includes(o.ai.provider) && url(o.ai.base) && (ai.provider !== o.ai.provider || (ai.base || '') !== o.ai.base || (ai.model || '') !== String(o.ai.model || ''))) {
+        ai.provider = o.ai.provider; ai.base = o.ai.base.replace(/\/+$/, ''); ai.model = String(o.ai.model || '').slice(0, 120); ai.models = ai.model ? [ai.model] : []; saveAI(); renderAIStatus();
+      }
+      if (o.refine && ['short', 'mid', 'long'].includes(o.refine.len) && ['keep', 'drop'].includes(o.refine.spk)) { refine.len = o.refine.len; refine.spk = o.refine.spk; try { localStorage.setItem(REFINE_KEY, JSON.stringify({ len: refine.len, spk: refine.spk })); } catch {} }
+      try { localStorage.setItem(PREFS_AT, String(f.updatedAt)); } catch {}
+      aiLog('info', '계정에 저장된 설정을 불러옴');
+    } finally { prefsApplying = false; }
+  } catch (e) { if (!prefs403(e) && e.code !== 'relogin') aiLog('warn', '설정 불러오기 실패', errInfo(e)); }
 }
 async function dbDelete(id) { const a = await fbAuth(); await jfetch(`${fsBase(a)}/${encodeURIComponent(safeId(id))}`, { method: 'DELETE', headers: { authorization: 'Bearer ' + a.idToken } }); }
 /* Drive 권한: 반드시 사용자가 누른 직후에 요청해야 팝업이 막히지 않는다 → 클라우드 동작의 맨 처음에 부른다 */
@@ -5764,6 +5816,7 @@ async function leaveService() {
       try {
         const a = await fbAuth();
         for (const m of await dbList()) { await dbDelete(m.id); done.db++; }
+        try { await jfetch(prefsDoc(a), { method: 'DELETE', headers: { authorization: 'Bearer ' + a.idToken } }); } catch {}
         await jfetch(`${EP.idp}/accounts:delete?key=${encodeURIComponent(FB.apiKey)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: a.idToken }) });
         done.account = true;
       } catch (e) { aiLog('error', '탈퇴: 목록 DB 정리 실패', errInfo(e)); }
@@ -5787,7 +5840,7 @@ function renderCloudState() {
   // 내부 구성(프로젝트 이름·클라이언트 ID 등)은 보여 주지 않고 연동 여부만 표시한다
   el.innerHTML = row('Google 계정', user ? esc(user.email || user.name || '로그인됨') + (isAdmin() ? ' <span class="hint">(관리자)</span>' : '') : '로그인 안 됨')
     + row('Google Drive', driveOn ? on : off + ' <span class="hint">(저장·열기 때 연동을 물어봐요)</span>')
-    + row('목록 동기화', FB ? (listOn ? on : off) : '사용 안 함');
+    + row('목록·설정 동기화', FB ? (listOn ? on + (prefsOff ? ' <span class="hint">(설정은 이 브라우저에만)</span>' : '') : off) : '사용 안 함');
   const can = !!(user && authEnabled());
   $('#driveConnect').hidden = driveOn; $('#driveDisconnect').hidden = !driveOn;
   $('#driveConnect').disabled = $('#leaveBtn').disabled = !can;
@@ -5812,6 +5865,7 @@ $('#driveDisconnect').addEventListener('click', async () => {
 renderUser();
 renderCloudState();
 initGoogle();
+if (FB && user && fbSess && fbSess.sub === user.sub) prefsPull();   // 이미 로그인된 상태로 열었을 때
 
 /* ---------- tooltips (usage help on hover) ---------- */
 (() => {
