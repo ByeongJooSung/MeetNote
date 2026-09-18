@@ -39,7 +39,7 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{height:100%}
+html,body{height:100%;overscroll-behavior-y:none}   /* 모바일 크롬: 아래로 당겨 새로고침(작성 중 내용이 날아감) 방지 */
 body{margin:0;height:100vh;height:100dvh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
   font-family:"IBM Plex Sans KR",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
   font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
@@ -134,7 +134,8 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 #docEditor{min-height:32vh;padding-bottom:48px}
 #docReplay{min-height:32vh;padding-bottom:48px}
 .tpl-row{display:flex;justify-content:flex-start;font-size:12.5px;color:var(--ink2);margin:-4px 0 10px}
-.tpl-row select{margin-left:4px;padding:3px 6px;font-size:12.5px}
+.tpl-row label{display:flex;align-items:center;min-width:0;max-width:100%;white-space:nowrap}
+.tpl-row select{margin-left:4px;padding:3px 6px;font-size:12.5px;min-width:0;max-width:100%;flex:1 1 auto;text-overflow:ellipsis}
 #mNotes{width:100%;border:1px solid var(--line);border-radius:7px;padding:8px 10px;background:var(--surface);font:inherit;font-size:14px;resize:vertical;margin-bottom:12px}
 .sect{font-size:13px;color:var(--ink2);font-weight:600;margin:14px 0 6px;letter-spacing:.02em}
 .sect-row{display:flex;align-items:center;justify-content:space-between}
@@ -196,6 +197,11 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .glyph-color{position:relative;font-weight:600;line-height:1;padding-bottom:3px}
 .glyph-color i{position:absolute;left:-1px;right:-1px;bottom:-2px;height:3px;border-radius:2px;background:var(--tc-red)}
 .toolbar.off .tb{opacity:.4;pointer-events:none}
+/* 모바일: 도구 모음을 작성 중인 편집기(회의 내용/메모) 바로 위에 붙인다. 키보드가 올라와도 보이게 top은 JS가 보정 */
+.toolbar.inline{max-width:none;margin:0 0 6px;padding:6px 0;background:var(--surface);border-bottom:1px solid var(--line);z-index:7}
+.toolbar.inline .tb-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.toolbar.inline .tb-row::-webkit-scrollbar{display:none}
+.toolbar.inline .tb{flex:none}
 
 .doc{position:relative;max-width:760px;margin:0 auto;padding-left:72px}
 #gutter{position:absolute;left:0;top:0;width:62px;height:100%;pointer-events:none}
@@ -447,7 +453,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
 
 @media (max-width:880px){
   body{height:auto;min-height:100vh}
-  main{grid-template-columns:1fr}
+  main{grid-template-columns:minmax(0,1fr)}   /* 1fr만 쓰면 한 줄짜리 도구 모음의 최소 폭 때문에 화면이 옆으로 넓어짐 */
   #splitter{display:none}
   .paper{overflow:visible;min-height:50vh}
   aside.side{border-left:0;border-top:1px solid var(--line);min-height:420px}
@@ -456,7 +462,8 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   .reel-wrap{grid-column:1/-1;order:-1}
   .doc,#paneMemo .doc{padding-left:56px}
   #gutter{width:50px}
-  .dochead{grid-template-columns:auto 1fr}
+  .dochead{grid-template-columns:auto minmax(0,1fr)}
+  .dochead input{min-width:0}
   .docsheet{padding:16px 12px 30px}
   .toolbar{top:0}
   .legend{display:none}
@@ -627,6 +634,11 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <section class="pane" id="paneTr" role="tabpanel" aria-labelledby="tabTr" hidden>
       <div class="pane-tools">
         <label class="chk"><input type="checkbox" id="trOn" checked> 실시간 전사</label>
+        <select id="trMode" aria-label="실시간 전사 방식" title="실시간 전사 방식 — 자동: 휴대폰은 기기 내 인식, PC는 브라우저 음성 인식">
+          <option value="auto">방식: 자동</option>
+          <option value="webspeech">브라우저 음성 인식 (즉시 표시, PC 권장)</option>
+          <option value="whisper">기기 내 인식 Whisper (20~30초 늦게, 휴대폰 권장)</option>
+        </select>
         <button class="btn" id="diarBtn" title="녹음을 분석해 발언자를 나눕니다">발언자 구분</button>
         <button class="btn" id="mapBtn" title="분석된 화자를 참석자와 연결합니다">참석자 매핑</button>
         <select id="lang" aria-label="전사 언어">
@@ -1014,8 +1026,25 @@ function setActive(el) {
   if (el === editor) return;
   editor = el; clearCellSel(); renderResizers(null); $('#tbTable').hidden = true;
   $('#tbTarget').textContent = isMemo() ? '메모' : '회의록';
-  updateToolbarLock();
+  updateToolbarLock(); placeToolbar();
 }
+/* 좁은 화면·터치 기기: 도구 모음을 작성 중인 편집기 바로 위로 옮긴다(넓은 화면에서는 원래 자리: 문서 위) */
+const narrowMq = window.matchMedia('(max-width:880px)');
+function placeToolbar() {
+  let touch = false; try { touch = env.mobile; } catch {}   // env는 아래에서 정의됨(초기화 전 호출 대비)
+  const inline = narrowMq.matches || touch;
+  if (!inline) { if (toolbar.classList.contains('inline')) { toolbar.classList.remove('inline'); toolbar.style.top = ''; $('#paper').prepend(toolbar); } return; }
+  const host = editor === memoEditor ? docEl : (docReplayOn ? $('#docReplay') : docEditor);
+  if (toolbar.nextElementSibling !== host) host.before(toolbar);
+  toolbar.classList.add('inline'); fixToolbarTop();
+}
+// 키보드가 올라오면 브라우저가 화면(visual viewport)만 아래로 밀어 sticky 도구 모음이 화면 밖 위쪽에 남는다 → 밀린 만큼 top을 내려 준다
+function fixToolbarTop() {
+  if (!toolbar.classList.contains('inline')) return;
+  const vv = window.visualViewport; toolbar.style.top = (vv ? Math.max(0, Math.round(vv.offsetTop)) : 0) + 'px';
+}
+if (window.visualViewport) { visualViewport.addEventListener('resize', fixToolbarTop); visualViewport.addEventListener('scroll', fixToolbarTop); }
+narrowMq.addEventListener?.('change', () => placeToolbar());
 const bothEditors = (ev, fn, opt) => [memoEditor, docEditor].forEach(ed => ed.addEventListener(ev, e => { if (ev !== 'scroll') setActive(ed); fn(e); }, opt));
 [memoEditor, docEditor].forEach(ed => ed.addEventListener('focusin', () => setActive(ed)));
 function withEditor(el, fn) { const prev = editor; editor = el; try { return fn(); } finally { editor = prev; } }
@@ -2547,7 +2576,7 @@ $('#clockStart').addEventListener('click', startClock);
 
 function togglePause() {
   if (rec.state === 'recording') {
-    rec.accum = elapsed(); if (rec.mr) rec.mr.pause(); rec.state = 'paused'; recogStop();
+    rec.accum = elapsed(); if (rec.mr) rec.mr.pause(); rec.state = 'paused'; recogStop();   // 기기 내 전사는 일시정지 동안 소리를 모으지 않을 뿐 계속 켜 둔다
   } else if (rec.state === 'paused') {
     if (rec.mr) rec.mr.resume(); rec.startPerf = performance.now(); rec.state = 'recording'; recogStart(); kick();
   }
@@ -2556,7 +2585,7 @@ function togglePause() {
 function stopRec() {
   if (rec.state !== 'recording' && rec.state !== 'paused') return;
   if (rec.state === 'recording') rec.accum = elapsed();
-  recogStop();
+  recogStop(); live.stop(true);
   if (rec.mode === 'clock') {
     S.duration = +rec.accum.toFixed(2);
     const wasAuto = auto.on && autoEngineOk();
@@ -2724,8 +2753,16 @@ $('#docReplayChk').addEventListener('change', e => {
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recog = null, recogWanted = false, segStart = null;
 function setInterim(t) { $('#interim').textContent = t; }
+/* 방식: 휴대폰(안드로이드)은 녹음과 브라우저 음성 인식이 마이크를 함께 쓰지 못해 글자가 나오지 않는 경우가 많다
+   → 자동일 때 휴대폰은 기기 내 Whisper로, PC는 브라우저 음성 인식으로 */
+const TRMODE_KEY = 'meetnote.trMode';
+try { const m = localStorage.getItem(TRMODE_KEY); if (['auto', 'webspeech', 'whisper'].includes(m)) $('#trMode').value = m; } catch {}
+const liveMode = () => { const m = $('#trMode').value; return m === 'auto' ? ((env.mobile || !SR) ? 'whisper' : 'webspeech') : m; };
+$('#trMode').addEventListener('change', e => { try { localStorage.setItem(TRMODE_KEY, e.target.value); } catch {} if (rec.state === 'recording') { recogStop(); live.stop(false); setTimeout(recogStart, 300); } });
 function recogStart() {
-  if (!SR || !$('#trOn').checked || rec.state !== 'recording' || rec.mode !== 'mic') return;
+  if (!$('#trOn').checked || rec.state !== 'recording' || rec.mode !== 'mic') return;
+  if (liveMode() === 'whisper') { live.start(); return; }
+  if (!SR) return;
   recogWanted = true;
   if (!recog) {
     recog = new SR();
@@ -2752,6 +2789,8 @@ function recogStart() {
       if (recogWanted && rec.state === 'recording') { try { recog.start(); } catch {} }
     };
     recog.onerror = e => {
+      if (e.error !== 'no-speech' && e.error !== 'aborted') aiLog('warn', '브라우저 음성 인식 오류', { error: e.error });
+      if (e.error === 'audio-capture') { recogWanted = false; toast('이 기기에서는 녹음 중에 브라우저 음성 인식이 마이크를 쓰지 못해요. 전사 탭에서 방식을 "기기 내 인식"으로 바꿔 보세요.', 8000); }
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
         recogWanted = false;
         toast('이 환경에서는 실시간 전사를 쓸 수 없어요. 녹음과 메모는 그대로 기록됩니다.', 6000);
@@ -2761,12 +2800,109 @@ function recogStart() {
   recog.lang = $('#lang').value;
   try { recog.start(); } catch {}
 }
+/* 기기 내 실시간 전사: 마이크 소리를 16kHz로 받아 20초쯤(조용한 지점에서) 끊어 Whisper 워커에 보낸다. 글자는 20~30초 늦게 표시.
+   녹음(MediaRecorder)과 같은 마이크 스트림을 쓰므로 휴대폰에서도 동시에 동작한다. 발언자 구분은 녹음 후 '발언자 구분'에서 */
+const live = (() => {
+  const CH = 20;   // 구간 길이(초)
+  let ctx = null, node = null, src = null, mute = null, buf = [], bufLen = 0, chunkT0 = null, sr = 16000;
+  let worker = null, queue = [], busy = false, seq = 0, device = 'wasm', on = false, failed = false, asked = false, watchdog = null;
+  const status = t => { if (on || busy || queue.length) setInterim(t); };
+  async function modelCached() { try { const c = await caches.open('transformers-cache'); return (await c.keys()).some(r => r.url.includes(WHISPER_ID)); } catch { return false; } }
+  function resample(f32, from) {
+    if (from === 16000) return f32;
+    const ratio = from / 16000, len = Math.floor(f32.length / ratio), out = new Float32Array(len);
+    for (let i = 0; i < len; i++) { const p = i * ratio, j = Math.floor(p), f = p - j; out[i] = f32[j] * (1 - f) + (f32[Math.min(f32.length - 1, j + 1)] || 0) * f; }
+    return out;
+  }
+  function cut(force) {
+    if (!bufLen || chunkT0 == null) return;
+    const all = new Float32Array(bufLen); let o = 0; for (const b of buf) { all.set(b, o); o += b.length; }
+    let end = all.length;
+    if (!force) {   // 마지막 4초 안에서 가장 조용한 지점에서 끊어 말이 잘리지 않게
+      const frame = Math.round(sr * 0.02), from = Math.max(0, all.length - 4 * sr); let bestE = Infinity;
+      for (let i = from; i + frame <= all.length; i += frame) { let e = 0; for (let j = i; j < i + frame; j++) e += all[j] * all[j]; if (e < bestE) { bestE = e; end = i + (frame >> 1); } }
+    }
+    const part = resample(all.slice(0, end), sr), rest = all.slice(end), t0 = chunkT0;
+    buf = rest.length ? [rest] : []; bufLen = rest.length; chunkT0 = rest.length ? t0 + end / sr : null;
+    let energy = 0; for (let i = 0; i < part.length; i += 16) energy += part[i] * part[i];
+    if (part.length < 16000 * 1 || energy / (part.length / 16) < 1e-6) return;   // 너무 짧거나 무음이면 보내지 않음
+    queue.push({ id: ++seq, audio: part, offset: t0 }); pump();
+  }
+  function pump() {
+    if (busy || !queue.length || failed) return;
+    const job = queue.shift(); busy = true;
+    if (!worker) {
+      const url = URL.createObjectURL(new Blob([DIAR_WORKER_SRC], { type: 'text/javascript' })); worker = new Worker(url, { type: 'module' });
+      worker.onmessage = e => {
+        const m = e.data;
+        if (m.type === 'dl') { const pct = m.total ? Math.round(m.loaded / m.total * 100) : 0; status(`기기 내 전사: ${m.cached ? '저장된 모델 불러오는 중' : '모델 내려받는 중(처음 한 번)'} ${pct}%`); }
+        else if (m.type === 'liveDone') {
+          clearTimeout(watchdog); busy = false;
+          if (m.segs.length) { for (const g of m.segs) S.segments.push({ t0: +g.t0.toFixed(2), t1: +g.t1.toFixed(2), text: g.text }); markDirty(); renderTranscript(); scheduleTimeline(); const pane = $('#paneTr'); pane.scrollTop = pane.scrollHeight; }
+          status(on ? `기기 내 전사 중 · ${fmt(elapsed())}까지 듣는 중 (글자는 20~30초 늦게 표시돼요)${queue.length ? ` · 대기 ${queue.length}구간` : ''}` : (queue.length ? `전사 마무리 중 · ${queue.length}구간 남음` : ''));
+          if (!on && !queue.length) finish(); else pump();
+        } else if (m.type === 'liveError' || m.type === 'error') fail(m.message);
+      };
+      worker.onerror = ev => fail(ev.message || '전사 모듈을 불러오지 못했어요');
+    }
+    status(`기기 내 전사: ${fmt(job.offset)}부터 인식 중…`);
+    clearTimeout(watchdog); watchdog = setTimeout(() => fail('응답 없음(3분)'), 180000);
+    worker.postMessage({ type: 'live', id: job.id, audio: job.audio, offset: job.offset, language: whisperLang($('#lang').value), device }, [job.audio.buffer]);
+  }
+  function fail(msg) {
+    clearTimeout(watchdog); busy = false; queue = [];
+    aiLog('error', '기기 내 실시간 전사 실패', { message: String(msg).slice(0, 300), device });
+    if (device === 'webgpu') {   // GPU에서 실패하면 CPU로 한 번 더
+      device = 'wasm'; try { localStorage.setItem(DIAR_CPU_KEY, String(Date.now())); } catch {}
+      if (worker) { worker.terminate(); worker = null; } aiLog('warn', '기기 내 전사: CPU로 전환'); status('기기 내 전사: GPU 오류로 CPU로 바꿔 계속해요'); if (!on) finish(); return;
+    }
+    failed = true; if (worker) { worker.terminate(); worker = null; }
+    setInterim(''); toast('기기 내 실시간 전사를 계속할 수 없어요. 녹음은 그대로 진행되고, 끝난 뒤 "발언자 구분"으로 전사할 수 있어요.', 8000);
+  }
+  function finish() { if (worker) { worker.terminate(); worker = null; } setInterim(''); aiLog('info', '기기 내 실시간 전사 종료', { segments: S.segments.length }); }
+  function teardownAudio() { try { node && node.disconnect(); src && src.disconnect(); mute && mute.disconnect(); ctx && ctx.close(); } catch {} ctx = node = src = mute = null; }
+  async function start() {
+    if (on || failed || !rec.stream) return;
+    if (inClaude || location.protocol === 'file:' || !window.Worker) { toast('이 화면에서는 기기 내 전사를 쓸 수 없어요.'); return; }
+    on = true;
+    if (!asked && !(await modelCached())) {
+      asked = true;
+      const okGo = await askConfirm('기기 내 실시간 전사', `음성 인식 모델(약 200MB)을 처음 한 번 내려받아요. 와이파이가 아니면 데이터가 쓰일 수 있어요. 받은 뒤에는 이 기기에 저장돼 다시 받지 않아요. 녹음은 이미 진행 중이에요.`, '내려받고 전사');
+      if (!okGo) { on = false; $('#trOn').checked = false; toast('실시간 전사를 껐어요. 녹음은 계속돼요.'); return; }
+    }
+    if (rec.state !== 'recording' || !rec.stream) { on = false; return; }
+    device = 'wasm';
+    try { if (navigator.gpu && await navigator.gpu.requestAdapter() && !(Date.now() - (+localStorage.getItem(DIAR_CPU_KEY) || 0) < 7 * 864e5)) device = 'webgpu'; } catch {}
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext; ctx = new AC(); sr = ctx.sampleRate;
+      src = ctx.createMediaStreamSource(rec.stream); node = ctx.createScriptProcessor(4096, 1, 1); mute = ctx.createGain(); mute.gain.value = 0;
+      node.onaudioprocess = ev => {
+        if (rec.state !== 'recording') return;                       // 일시정지 중에는 모으지 않음
+        const d = ev.inputBuffer.getChannelData(0);
+        if (chunkT0 == null) chunkT0 = Math.max(0, elapsed() - d.length / sr);
+        buf.push(new Float32Array(d)); bufLen += d.length;
+        if (bufLen >= CH * sr) cut(false);
+      };
+      src.connect(node); node.connect(mute); mute.connect(ctx.destination);
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      aiLog('info', '기기 내 실시간 전사 시작', { device, sampleRate: sr });
+      status('기기 내 전사 준비 중 · 첫 글자는 20~30초 뒤에 나와요');
+    } catch (e) { on = false; teardownAudio(); aiLog('error', '기기 내 전사 오디오 준비 실패', errInfo(e)); toast('기기 내 전사를 시작하지 못했어요: ' + (e.message || e)); }
+  }
+  function stop(flush = true) {
+    if (!on) return; on = false;
+    if (flush && bufLen >= sr) cut(true);           // 남은 소리(1초 이상)도 마저 전사
+    buf = []; bufLen = 0; chunkT0 = null; teardownAudio();
+    if (!busy && !queue.length) finish(); else status(`전사 마무리 중 · ${queue.length + (busy ? 1 : 0)}구간 남음`);
+  }
+  return { start, stop, get active() { return on || busy || queue.length > 0; }, reset() { failed = false; } };
+})();
 function recogStop() {
   recogWanted = false;
   if (recog) { try { recog.stop(); } catch {} }
   setInterim(''); segStart = null;
 }
-$('#trOn').addEventListener('change', e => { if (e.target.checked) recogStart(); else recogStop(); });
+$('#trOn').addEventListener('change', e => { if (e.target.checked) { live.reset(); recogStart(); } else { recogStop(); live.stop(false); } });
 $('#lang').addEventListener('change', () => { if (recogWanted) { recogStop(); setTimeout(recogStart, 300); } });
 
 function sortSegments() {
@@ -4598,7 +4734,16 @@ async function segmentSpeakers(audio, offset, base) {
   }
   return out;
 }
+async function liveChunk(d) {
+  try {
+    await load(d.device);
+    const res = await asr(d.audio, { language: d.language, task: 'transcribe', return_timestamps: true });
+    const segs = (res.chunks || []).map(c => ({ t0: (c.timestamp[0] ?? 0) + d.offset, t1: (c.timestamp[1] ?? (c.timestamp[0] ?? 0) + 2) + d.offset, text: (c.text || '').replace(/\\s+/g, ' ').trim() })).filter(x => x.text);
+    post({ type: 'liveDone', id: d.id, segs });
+  } catch (err) { post({ type: 'liveError', id: d.id, message: String(err && err.message || err) }); }
+}
 self.onmessage = async e => {
+  if (e.data && e.data.type === 'live') return liveChunk(e.data);
   const { audio, sr, language, device, startChunk = 0, prevWords = [] } = e.data;
   try {
     await load(device);
@@ -5002,6 +5147,7 @@ function renderAll() {
   renderPhotoList();
   refine.prev = null; $('#refineUndo').hidden = true;
   obsFlush(); histReset();
+  placeToolbar();
 }
 
 /* ---------- 회의 사진(붙임) ---------- */
