@@ -1,0 +1,11 @@
+# Render.com 한 번에 배포: 저장소 연결 → Blueprint. 무료 인스턴스는 CPU가 느리고 15분 유휴 시 잠듭니다.
+services:
+  - type: web
+    name: meetnote
+    runtime: docker
+    plan: starter
+    envVars:
+      - key: PORT
+        value: "8765"
+      - key: WHISPER_MODEL
+        value: small

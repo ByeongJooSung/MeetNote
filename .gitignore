@@ -6,10 +6,12 @@ android-capacitor/package-lock.json
 *.hwpx
 .DS_Store
 Thumbs.db
-
+# 로컬 실행 환경 (커밋하지 않음)
 server/.venv/
 server/ffmpeg*/
+server/*.wav
 *.pyc
 __pycache__/
-desktop/dist/
+# 데스크톱(exe) 빌드 결과물 (PyInstaller)
 desktop/build/
+desktop/dist/

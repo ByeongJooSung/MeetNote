@@ -6,8 +6,14 @@ MeetNote 발언자 구분 서비스 (로컬 파이썬)
               3) 둘 다 없으면 화자 1명으로 반환
 실행: pip install -r requirements.txt && python diarize.py   (http://localhost:8765)
 """
-import os, io, tempfile, subprocess, shutil, json, math, threading, time, uuid
-from typing import Optional, List
+import os, sys, tempfile, subprocess, shutil, threading, time, uuid, webbrowser
+# PyInstaller exe에서 ctranslate2(Whisper)와 torch(resemblyzer)의 OpenMP 런타임 충돌·numba 캐시 문제 방지
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+os.environ.setdefault("OMP_NUM_THREADS", str(max(1, min(8, (os.cpu_count() or 4) // 2))))
+os.environ.setdefault("MKL_NUM_THREADS", os.environ["OMP_NUM_THREADS"])
+os.environ.setdefault("NUMBA_CACHE_DIR", os.path.join(tempfile.gettempdir(), "meetnote-numba"))
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+from typing import Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
@@ -16,9 +22,43 @@ WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
 DEVICE = os.environ.get("DEVICE", "auto")          # auto | cpu | cuda
 COMPUTE = os.environ.get("COMPUTE", "int8")         # int8 (CPU) | float16 (GPU)
 HF_TOKEN = os.environ.get("HF_TOKEN", "")
+DIARIZER = os.environ.get("DIARIZER", "auto")   # auto | none (전사만)
+BEAM = int(os.environ.get("BEAM_SIZE", "5"))
 PORT = int(os.environ.get("PORT", "8765"))
 PRELOAD = os.environ.get("PRELOAD", "1") != "0"   # 시작 시 모델을 미리 내려받아 첫 분석을 빠르게
 MODEL_SIZE = {"tiny": "75", "base": "145", "small": "460", "medium": "1500", "large-v3": "3000"}
+
+def _base_dir():
+    """실행 위치: 소스 실행이면 server/, PyInstaller exe면 압축이 풀린 임시 폴더."""
+    return getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+
+def _find_ffmpeg():
+    if shutil.which("ffmpeg"): return
+    exe_dir = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))
+    roots = [os.path.join(exe_dir, "ffmpeg"), exe_dir, os.path.join(_base_dir(), "ffmpeg"), os.path.join(exe_dir, "..", "ffmpeg"), r"C:\ffmpeg", os.path.expanduser("~/ffmpeg")]
+    name = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+    for root in roots:
+        if not os.path.isdir(root): continue
+        for dp, _, fn in os.walk(root):
+            if name in fn:
+                os.environ["PATH"] = dp + os.pathsep + os.environ.get("PATH", "")
+                print(f"[ffmpeg] {dp} 사용"); return
+    try:  # pip 패키지에 동봉된 ffmpeg (imageio-ffmpeg)
+        import imageio_ffmpeg
+        exe = imageio_ffmpeg.get_ffmpeg_exe()
+        d = os.path.dirname(exe)
+        if os.path.basename(exe) != name:  # 파일 이름이 ffmpeg-win64-v7.x.exe 형태라 심볼릭 복사
+            link = os.path.join(tempfile.gettempdir(), "meetnote-ffmpeg"); os.makedirs(link, exist_ok=True)
+            dst = os.path.join(link, name)
+            if not os.path.exists(dst): shutil.copy2(exe, dst)
+            d = link
+        os.environ["PATH"] = d + os.pathsep + os.environ.get("PATH", "")
+        print(f"[ffmpeg] imageio-ffmpeg 동봉본 사용 ({d})")
+    except Exception:
+        pass
+_find_ffmpeg()
+
+WEB_DIR = next((d for d in [os.path.join(_base_dir(), "web"), os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "web")] if os.path.isfile(os.path.join(d, "index.html"))), None)
 
 app = FastAPI(title="MeetNote diarize")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -59,8 +99,12 @@ def load_pyannote():
 
 def load_encoder():
     global _encoder
+    if DIARIZER == "none": return None
     if _encoder is None:
         try:
+            try:
+                import torch; torch.set_num_threads(int(os.environ["OMP_NUM_THREADS"]))
+            except Exception: pass
             from resemblyzer import VoiceEncoder
             _encoder = VoiceEncoder()
             print("[diarizer] resemblyzer fallback")
@@ -109,20 +153,26 @@ def diarize_pyannote(wav_path, num_speakers):
     ann = pipe(wav_path, **kw)
     return [(seg.start, seg.end, lab) for seg, _, lab in ann.itertracks(yield_label=True)]
 
-def diarize_embeddings(wav, sr, segments, num_speakers):
+def diarize_embeddings(wav, sr, segments, num_speakers, progress=None, cancelled=lambda: False):
     enc = load_encoder()
     if enc is None or not segments: return None
     from resemblyzer import preprocess_wav
     embs, keep = [], []
-    for s in segments:
+    t0 = time.time(); n = len(segments)
+    for i, s in enumerate(segments):
+        if cancelled(): raise Cancelled()
         a, b = int(s["t0"] * sr), int(s["t1"] * sr)
         chunk = wav[a:b]
         if len(chunk) < sr * 0.6: continue
         try:
             embs.append(enc.embed_utterance(preprocess_wav(chunk, source_sr=sr)))
             keep.append(s)
-        except Exception:
-            continue
+        except Exception as e:
+            print("[embeddings] 구간 건너뜀:", e); continue
+        if progress and (i % 3 == 0 or i == n - 1):
+            progress(80 + 14 * (i + 1) / n, "diarize", f"목소리 특징 비교 {i + 1}/{n}")
+        if i == 0: print(f"[embeddings] 첫 구간 {time.time() - t0:.1f}s (torch 초기화 포함)")
+    print(f"[embeddings] {len(keep)}구간 {time.time() - t0:.1f}s")
     if len(embs) < 2: return [(s["t0"], s["t1"], "0") for s in segments]
     X = np.stack(embs)
     from sklearn.cluster import AgglomerativeClustering
@@ -146,18 +196,31 @@ def run_pipeline(src_path: str, lang: Optional[str], num_speakers: Optional[int]
     else:
         progress(14, "model", "음성 인식 모델 준비 중")
     model = load_whisper(); check()
-    progress(16, "transcribe", "전사 중")
-    segs_iter, info = model.transcribe(wav_path, language=(lang or None) if lang != "auto" else None, vad_filter=True, beam_size=5)
+    progress(16, "transcribe", "전사 준비 중 (음성 구간 탐지)")
+    segs_iter, info = model.transcribe(wav_path, language=(lang or None) if lang != "auto" else None, vad_filter=True, beam_size=BEAM, condition_on_previous_text=False)
     dur = float(getattr(info, "duration", 0) or 0)
+    mm = lambda t: f"{int(t // 60):02d}:{int(t % 60):02d}"
+    dev = getattr(getattr(model, "model", None), "device", None) or ("cuda" if DEVICE == "cuda" else "cpu")
+    est = f" · {'GPU' if str(dev).startswith('cuda') else 'CPU'}에서는 약 {max(1, int(dur / 60 * (0.1 if str(dev).startswith('cuda') else 0.5)))}~{max(2, int(dur / 60 * (0.2 if str(dev).startswith('cuda') else 1.0)))}분 예상" if dur else ""
+    progress(17, "transcribe", f"전사 시작 (녹음 {mm(dur)}{est}). 첫 문장이 나오면 시간이 올라가요.")
+    print(f"[transcribe] 녹음 {mm(dur)} 시작{est}")
     segments = []
+    t_last = time.time()
     for sg in segs_iter:
         check()
         if sg.text.strip():
             segments.append({"t0": round(sg.start, 2), "t1": round(sg.end, 2), "text": sg.text.strip()})
         if dur > 0:
-            progress(16 + min(54, 54 * sg.end / dur), "transcribe", f"전사 중 {int(sg.end // 60):02d}:{int(sg.end % 60):02d} / {int(dur // 60):02d}:{int(dur % 60):02d}")
-    progress(72, "diarize", "발언자 분석 중"); check()
+            progress(16 + min(54, 54 * sg.end / dur), "transcribe", f"전사 중 {mm(sg.end)} / {mm(dur)}")
+        if time.time() - t_last > 10:
+            t_last = time.time(); print(f"[transcribe] {mm(sg.end)} / {mm(dur)} ({len(segments)}문장)")
+    progress(72, "diarize", "발언자 분석 준비 중"); check()
+    print(f"[transcribe] 완료 {len(segments)}문장")
     turns = None
+    if DIARIZER == "none":
+        print("[diarize] DIARIZER=none → 발언자 분석 건너뜀")
+        progress(95, "finalize", "정리 중")
+        return {"language": getattr(info, "language", lang), "duration": dur or None, "segments": [{**s, "spk": "0"} for s in segments], "diarizer": "none"}
     try:
         turns = diarize_pyannote(wav_path, num_speakers)
     except Exception as e:
@@ -165,9 +228,11 @@ def run_pipeline(src_path: str, lang: Optional[str], num_speakers: Optional[int]
     check()
     if turns is None:
         try:
-            wav, sr = read_wav(wav_path)
+            t_r = time.time(); wav, sr = read_wav(wav_path); print(f"[diarize] 오디오 읽기 {time.time() - t_r:.1f}s")
             progress(80, "diarize", "목소리 특징을 비교하는 중")
-            turns = diarize_embeddings(wav, sr, segments, num_speakers)
+            turns = diarize_embeddings(wav, sr, segments, num_speakers, progress, cancelled)
+        except Cancelled:
+            raise
         except Exception as e:
             print("[embeddings] 실패:", e)
     check()
@@ -194,12 +259,18 @@ async def diarize(audio: UploadFile = File(...), lang: Optional[str] = Form("ko"
 # ---- 진행률을 보고하는 작업(job) API ----
 JOBS = {}
 JOBS_LOCK = threading.Lock()
+RUN_LOCK = threading.Lock()   # 분석은 한 번에 하나만 (CPU 경쟁 방지)
 
 def _job_worker(job_id: str, src: str, tmpdir: str, lang, num_speakers):
     job = JOBS[job_id]
     def progress(pct, stage, msg=""):
         job.update({"pct": round(float(pct), 1), "stage": stage, "message": msg, "updated": time.time()})
     try:
+        if not RUN_LOCK.acquire(blocking=False):
+            job.update({"stage": "queued", "message": "앞 작업이 끝나길 기다리는 중", "pct": 3})
+            while not RUN_LOCK.acquire(timeout=0.5):
+                if job.get("cancel"): raise Cancelled()
+        if job.get("cancel"): raise Cancelled()
         job["state"] = "running"
         result = run_pipeline(src, lang, num_speakers, progress, lambda: job.get("cancel", False))
         job.update({"state": "done", "result": result, "pct": 100, "stage": "done", "message": "완료"})
@@ -210,6 +281,8 @@ def _job_worker(job_id: str, src: str, tmpdir: str, lang, num_speakers):
     except Exception as e:
         job.update({"state": "error", "error": f"{type(e).__name__}: {e}"})
     finally:
+        try: RUN_LOCK.release()
+        except RuntimeError: pass
         shutil.rmtree(tmpdir, ignore_errors=True)
         job["finished"] = time.time()
 
@@ -260,6 +333,15 @@ def health():
     return {"ok": True, "whisper": WHISPER_MODEL, "ready": _whisper is not None,
             "diarizer": "pyannote" if HF_TOKEN else ("resemblyzer" if _encoder else "none"), "ffmpeg": bool(shutil.which("ffmpeg"))}
 
+# ---- 웹 앱을 같은 주소에서 제공 (exe/도커 배포용) ----
+if WEB_DIR:
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
+    @app.get("/", include_in_schema=False)
+    def _index():
+        return FileResponse(os.path.join(WEB_DIR, "index.html"))
+    app.mount("/", StaticFiles(directory=WEB_DIR), name="web")
+
 if __name__ == "__main__":
     import uvicorn
     print(f"MeetNote 발언자 구분 서비스: http://localhost:{PORT}  (whisper={WHISPER_MODEL}, HF_TOKEN={'설정됨' if HF_TOKEN else '없음 → 경량 군집 사용'})")
@@ -267,4 +349,7 @@ if __name__ == "__main__":
         print("[경고] ffmpeg가 없어요. 분석이 실패합니다. Windows: winget install ffmpeg / macOS: brew install ffmpeg")
     if PRELOAD:
         threading.Thread(target=_preload, daemon=True).start()
+    if WEB_DIR and os.environ.get("OPEN_BROWSER", "1") != "0":
+        print(f"[web] MeetNote 앱: http://localhost:{PORT}/")
+        threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{PORT}/")).start()
     uvicorn.run(app, host="0.0.0.0", port=PORT)

@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="ko" data-theme="dark" style="color-scheme: dark;"><head><!-- frame-runtime --><!-- /frame-runtime -->
+<html lang="ko">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0F7B78">
@@ -9,10 +10,10 @@
 <link rel="manifest" href="manifest.webmanifest">
 <title>MeetNote</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
-<script data-app="" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script data-app="" src="config.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script data-app src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script data-app src="config.js"></script>
 <style>
 :root{
   --bg:#EDF0F4;--surface:#FFFFFF;--sunk:#E3E7ED;--ink:#1C2638;--ink2:#5A6578;--line:#D4DAE3;
@@ -63,7 +64,6 @@ header.top{display:flex;align-items:center;gap:10px 14px;padding:10px 20px;backg
 .btn.primary{background:var(--tape);border-color:var(--tape);color:#fff}
 .btn.primary:hover:not(:disabled){filter:brightness(1.08);background:var(--tape)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.icon-btn{width:32px;padding:6px 0;text-align:center}
 .mic-btn{display:inline-flex;align-items:center;gap:7px}
 .sdot{width:8px;height:8px;border-radius:50%;background:var(--seg);flex:none}
 [data-tone="ok"] .sdot{background:var(--ok)}
@@ -131,9 +131,6 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .spk{border:0;border-radius:6px;padding:1px 7px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink);background:var(--sunk);margin-bottom:3px}
 .spk[data-k="0"]{background:#DCEFED;color:#0F7B78}.spk[data-k="1"]{background:#D6E8F5;color:#2B6CA3}.spk[data-k="2"]{background:#FADFC8;color:#C0650F}.spk[data-k="3"]{background:#E8DDF3;color:#8656AB}.spk[data-k="4"]{background:#D9EEDC;color:#3A7C55}.spk[data-k="5"]{background:#FBDADA;color:#D0443F}
 .pane-tools .btn{padding:4px 10px;font-size:13px}
-.rec-list{font-size:13px;margin:6px 0 0;padding-left:18px}
-.rec-list li{margin:2px 0}
-.rec-list code{background:var(--sunk);padding:0 4px;border-radius:4px}
 #diarDlg{width:min(600px,calc(100vw - 32px))}
 #diarDlg .field{margin:8px 0}
 #diarDlg input,#diarDlg select,#spkDlg input,#spkDlg select{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface)}
@@ -255,13 +252,6 @@ select{border:1px solid var(--line);background:var(--surface);border-radius:8px;
 .interim{color:var(--ink2);font-size:14px;margin:8px 0 0}
 
 .ai-tools{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
-.keybox{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13.5px}
-.keybox p{margin:0 0 8px;color:var(--ink2)}
-.keybox .row{display:flex;gap:6px}
-.keybox input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface)}
-.keybox .field{margin:8px 0}
-.keybox .field input{width:100%}
-.keybox code{background:var(--sunk);padding:0 4px;border-radius:4px}
 .hx-opts{display:flex;flex-direction:column;gap:8px;margin:10px 0}
 .md{font-size:14.5px;line-height:1.7}
 .md h1{font-size:19px;margin:4px 0 10px;line-height:1.35}
@@ -424,32 +414,32 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
 
 <div id="splash" aria-hidden="true">
   <div class="splash-in">
-    <svg width="64" height="64" viewBox="0 0 22 22" aria-hidden="true"><circle cx="7" cy="11" r="5" fill="none" stroke="currentColor" stroke-width="2"></circle><circle cx="15" cy="11" r="5" fill="none" stroke="var(--tape)" stroke-width="2"></circle><circle cx="7" cy="11" r="1.5" fill="currentColor"></circle><circle cx="15" cy="11" r="1.5" fill="var(--tape)"></circle></svg>
+    <svg width="64" height="64" viewBox="0 0 22 22" aria-hidden="true"><circle cx="7" cy="11" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="15" cy="11" r="5" fill="none" stroke="var(--tape)" stroke-width="2"/><circle cx="7" cy="11" r="1.5" fill="currentColor"/><circle cx="15" cy="11" r="1.5" fill="var(--tape)"/></svg>
     <div class="splash-name">MeetNote</div>
     <div class="splash-sub">녹음과 함께 쓰는 회의록</div>
     <div class="splash-bar"><i></i></div>
   </div>
 </div>
-<div id="gate" hidden="">
+<div id="gate" hidden>
   <div class="gate-card">
-    <div class="brand"><svg width="26" height="26" viewBox="0 0 22 22" aria-hidden="true"><circle cx="7" cy="11" r="5" fill="none" stroke="currentColor" stroke-width="2"></circle><circle cx="15" cy="11" r="5" fill="none" stroke="var(--tape)" stroke-width="2"></circle><circle cx="7" cy="11" r="1.5" fill="currentColor"></circle><circle cx="15" cy="11" r="1.5" fill="var(--tape)"></circle></svg>MeetNote</div>
+    <div class="brand"><svg width="26" height="26" viewBox="0 0 22 22" aria-hidden="true"><circle cx="7" cy="11" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="15" cy="11" r="5" fill="none" stroke="var(--tape)" stroke-width="2"/><circle cx="7" cy="11" r="1.5" fill="currentColor"/><circle cx="15" cy="11" r="1.5" fill="var(--tape)"/></svg>MeetNote</div>
     <p>계정으로 로그인하면 회의록 작성 화면으로 이동합니다.</p>
     <div id="gsiBtn"></div>
-    <button class="btn gate-google" id="gateSetupBtn" hidden=""><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.8 6C12.3 13.5 17.7 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.1-10 7.1-17z"></path><path fill="#FBBC05" d="M10.4 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.7l7.8-6z"></path><path fill="#34A853" d="M24 48c6.2 0 11.6-2 15.4-5.5l-7.5-5.8c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.7-4-13.6-9.8l-7.8 6C6.5 42.6 14.6 48 24 48z"></path></svg>Google 계정으로 로그인</button>
-    <p class="gate-note" id="gateNote" hidden=""></p>
-    <p class="gate-err" id="gateErr" hidden=""></p>
-    <div class="gate-actions" id="gateSkipRow" hidden=""><button class="btn" id="gateSkip">게스트로 시작</button></div>
+    <button class="btn gate-google" id="gateSetupBtn" hidden><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.8 6C12.3 13.5 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.1-10 7.1-17z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.2 0 11.6-2 15.4-5.5l-7.5-5.8c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.7-4-13.6-9.8l-7.8 6C6.5 42.6 14.6 48 24 48z"/></svg>Google 계정으로 로그인</button>
+    <p class="gate-note" id="gateNote" hidden></p>
+    <p class="gate-err" id="gateErr" hidden></p>
+    <div class="gate-actions" id="gateSkipRow" hidden><button class="btn" id="gateSkip">게스트로 시작</button></div>
     <p class="gate-foot">로그인 정보는 이 기기에만 저장되며 서버로 보내지 않습니다.</p>
   </div>
 </div>
 <header class="top">
   <div class="brand">
-    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="7" cy="11" r="5" fill="none" stroke="currentColor" stroke-width="2"></circle><circle cx="15" cy="11" r="5" fill="none" stroke="var(--tape)" stroke-width="2"></circle><circle cx="7" cy="11" r="1.5" fill="currentColor"></circle><circle cx="15" cy="11" r="1.5" fill="var(--tape)"></circle></svg>
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="7" cy="11" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="15" cy="11" r="5" fill="none" stroke="var(--tape)" stroke-width="2"/><circle cx="7" cy="11" r="1.5" fill="currentColor"/><circle cx="15" cy="11" r="1.5" fill="var(--tape)"/></svg>
     MeetNote
   </div>
   <div class="titlebox">
     <input id="title" class="title" placeholder="회의 제목" aria-label="회의 제목" autocomplete="off">
-    <div class="meta"><span id="metaDate"></span> <span id="dirtyMark" class="dirty" hidden="">· 저장하지 않은 변경</span></div>
+    <div class="meta"><span id="metaDate"></span> <span id="dirtyMark" class="dirty" hidden>· 저장하지 않은 변경</span></div>
   </div>
   <div class="actions">
     <button id="micBtn" class="btn mic-btn" data-tone="wait"><span class="sdot"></span>마이크</button>
@@ -457,10 +447,10 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <button id="openBtn" class="btn">회의록 불러오기</button>
     <button id="saveBtn" class="btn primary">.mnote로 저장</button>
     <button id="hwpxBtn" class="btn" title="PDF · 한글(HWPX) · Word로 내보내기">내보내기</button>
-    <button id="bgPill" class="bgpill" hidden="" title="분석 진행 상황 보기"><span class="sdot"></span><span id="bgText">분석 중</span><span class="mini"><i id="bgBar"></i></span></button>
-    <button id="loginBtn" class="btn login-btn" hidden="" title="Google 계정으로 로그인"><svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.8 6C12.3 13.5 17.7 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.1-10 7.1-17z"></path><path fill="#FBBC05" d="M10.4 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.7l7.8-6z"></path><path fill="#34A853" d="M24 48c6.2 0 11.6-2 15.4-5.5l-7.5-5.8c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.7-4-13.6-9.8l-7.8 6C6.5 42.6 14.6 48 24 48z"></path></svg>로그인</button>
-    <span id="userBox" class="user" hidden=""><img id="userPic" alt=""><span class="name" id="userName"></span><button id="signOut" class="btn">로그아웃</button></span>
-    <input id="fileInput" type="file" accept=".mnote" hidden="">
+    <button id="bgPill" class="bgpill" hidden title="분석 진행 상황 보기"><span class="sdot"></span><span id="bgText">분석 중</span><span class="mini"><i id="bgBar"></i></span></button>
+    <button id="loginBtn" class="btn login-btn" hidden title="Google 계정으로 로그인"><svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.8 6C12.3 13.5 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.1-10 7.1-17z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.2 0 11.6-2 15.4-5.5l-7.5-5.8c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.7-4-13.6-9.8l-7.8 6C6.5 42.6 14.6 48 24 48z"/></svg>로그인</button>
+    <span id="userBox" class="user" hidden><img id="userPic" alt=""><span class="name" id="userName"></span><button id="signOut" class="btn">로그아웃</button></span>
+    <input id="fileInput" type="file" accept=".mnote" hidden>
   </div>
 </header>
 
@@ -468,7 +458,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div class="paper" id="paper">
     <div class="toolbar" id="toolbar" role="toolbar" aria-label="서식 도구">
       <div class="tb-row">
-        <button type="button" class="tb tb-block" data-pop="block" aria-haspopup="true" title="문단 형식"><span id="tbBlockLbl">본문</span><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"></path></svg></button>
+        <button type="button" class="tb tb-block" data-pop="block" aria-haspopup="true" title="문단 형식"><span id="tbBlockLbl">본문</span><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
         <span class="tb-sep"></span>
         <button type="button" class="tb" data-cmd="bold" title="굵게 (Ctrl+B)" aria-label="굵게" aria-pressed="false"><b>B</b></button>
         <button type="button" class="tb" data-cmd="italic" title="기울임 (Ctrl+I)" aria-label="기울임" aria-pressed="false"><i style="font-family:Georgia,'Times New Roman',serif;font-size:16px">I</i></button>
@@ -476,16 +466,16 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
         <button type="button" class="tb" data-cmd="strikeThrough" title="취소선" aria-label="취소선" aria-pressed="false"><s>S</s></button>
         <span class="tb-sep"></span>
         <button type="button" class="tb" data-pop="color" aria-haspopup="true" title="글자 색" aria-label="글자 색"><span class="glyph-color">가<i id="tbColorBar"></i></span></button>
-        <button type="button" class="tb" data-pop="hilite" aria-haspopup="true" title="형광펜" aria-label="형광펜"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 12l6.5-6.5 2 2L6 14H4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path><path d="M11.5 4.5l1-1 2 2-1 1" fill="none" stroke="currentColor" stroke-width="1.5"></path><rect x="2" y="15.5" width="14" height="2" rx="1" fill="var(--wait)"></rect></svg></button>
+        <button type="button" class="tb" data-pop="hilite" aria-haspopup="true" title="형광펜" aria-label="형광펜"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 12l6.5-6.5 2 2L6 14H4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M11.5 4.5l1-1 2 2-1 1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="15.5" width="14" height="2" rx="1" fill="var(--wait)"/></svg></button>
         <span class="tb-sep"></span>
-        <button type="button" class="tb" data-cmd="insertUnorderedList" title="글머리표 목록" aria-label="글머리표 목록" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="3.5" cy="4.5" r="1.3" fill="currentColor"></circle><circle cx="3.5" cy="9" r="1.3" fill="currentColor"></circle><circle cx="3.5" cy="13.5" r="1.3" fill="currentColor"></circle><path d="M7 4.5h9M7 9h9M7 13.5h9" stroke="currentColor" stroke-width="1.5"></path></svg></button>
-        <button type="button" class="tb" data-cmd="insertOrderedList" title="번호 목록" aria-label="번호 목록" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><text x="1" y="6.5" font-size="5.5" fill="currentColor" font-family="sans-serif">1</text><text x="1" y="11" font-size="5.5" fill="currentColor" font-family="sans-serif">2</text><text x="1" y="15.5" font-size="5.5" fill="currentColor" font-family="sans-serif">3</text><path d="M7 4.5h9M7 9h9M7 13.5h9" stroke="currentColor" stroke-width="1.5"></path></svg></button>
-        <button type="button" class="tb" data-cmd="clear" title="서식 지우기" aria-label="서식 지우기"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 4h9M8.5 4l-2.5 10" stroke="currentColor" stroke-width="1.5" fill="none"></path><path d="M11 11l5 5M16 11l-5 5" stroke="var(--rec)" stroke-width="1.5"></path></svg></button>
+        <button type="button" class="tb" data-cmd="insertUnorderedList" title="글머리표 목록" aria-label="글머리표 목록" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="3.5" cy="4.5" r="1.3" fill="currentColor"/><circle cx="3.5" cy="9" r="1.3" fill="currentColor"/><circle cx="3.5" cy="13.5" r="1.3" fill="currentColor"/><path d="M7 4.5h9M7 9h9M7 13.5h9" stroke="currentColor" stroke-width="1.5"/></svg></button>
+        <button type="button" class="tb" data-cmd="insertOrderedList" title="번호 목록" aria-label="번호 목록" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><text x="1" y="6.5" font-size="5.5" fill="currentColor" font-family="sans-serif">1</text><text x="1" y="11" font-size="5.5" fill="currentColor" font-family="sans-serif">2</text><text x="1" y="15.5" font-size="5.5" fill="currentColor" font-family="sans-serif">3</text><path d="M7 4.5h9M7 9h9M7 13.5h9" stroke="currentColor" stroke-width="1.5"/></svg></button>
+        <button type="button" class="tb" data-cmd="clear" title="서식 지우기" aria-label="서식 지우기"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 4h9M8.5 4l-2.5 10" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M11 11l5 5M16 11l-5 5" stroke="var(--rec)" stroke-width="1.5"/></svg></button>
         <span class="tb-sep"></span>
-        <button type="button" class="tb" data-pop="table" aria-haspopup="true" title="표 넣기"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="3" width="14" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"></rect><path d="M2 7h14M2 11h14M7 3v12M11.5 3v12" stroke="currentColor" stroke-width="1.2"></path></svg>표 넣기</button>
+        <button type="button" class="tb" data-pop="table" aria-haspopup="true" title="표 넣기"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="3" width="14" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 7h14M2 11h14M7 3v12M11.5 3v12" stroke="currentColor" stroke-width="1.2"/></svg>표 넣기</button>
         <span class="tb-target" id="tbTarget">회의록</span>
       </div>
-      <div class="tb-row tb-table" id="tbTable" hidden="">
+      <div class="tb-row tb-table" id="tbTable" hidden>
         <span class="tb-label">표</span>
         <button type="button" class="tb" data-tbl="rowAbove">위에 행</button>
         <button type="button" class="tb" data-tbl="rowBelow">아래에 행</button>
@@ -498,9 +488,9 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
         <button type="button" class="tb" data-tbl="merge" title="셀 여러 칸을 드래그하거나 Shift+클릭으로 고른 뒤 누르세요">셀 병합</button>
         <button type="button" class="tb" data-tbl="split">병합 풀기</button>
         <span class="tb-sep"></span>
-        <button type="button" class="tb" data-tbl="cellbg" aria-haspopup="true"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="2" fill="var(--bg-yellow)" stroke="currentColor" stroke-width="1.2"></rect></svg>셀 배경</button>
-        <button type="button" class="tb" data-tbl="d1" title="왼쪽 위에서 오른쪽 아래로 사선"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.2"></rect><path d="M1.5 1.5l13 13" stroke="currentColor" stroke-width="1.2"></path></svg>사선</button>
-        <button type="button" class="tb" data-tbl="d2" title="왼쪽 아래에서 오른쪽 위로 사선"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.2"></rect><path d="M1.5 14.5l13-13" stroke="currentColor" stroke-width="1.2"></path></svg>사선</button>
+        <button type="button" class="tb" data-tbl="cellbg" aria-haspopup="true"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="2" fill="var(--bg-yellow)" stroke="currentColor" stroke-width="1.2"/></svg>셀 배경</button>
+        <button type="button" class="tb" data-tbl="d1" title="왼쪽 위에서 오른쪽 아래로 사선"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 1.5l13 13" stroke="currentColor" stroke-width="1.2"/></svg>사선</button>
+        <button type="button" class="tb" data-tbl="d2" title="왼쪽 아래에서 오른쪽 위로 사선"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 14.5l13-13" stroke="currentColor" stroke-width="1.2"/></svg>사선</button>
         <span class="tb-sep"></span>
         <button type="button" class="tb" data-tbl="selmode" aria-pressed="false" title="켜면 칸을 눌러서 여러 칸을 고를 수 있어요 (터치 화면용)">칸 선택</button>
         <button type="button" class="tb" data-tbl="resetWidth" title="드래그로 바꾼 열 너비와 행 높이를 되돌립니다">크기 초기화</button>
@@ -523,20 +513,20 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
         <table><thead><tr><th style="width:32%">소속</th><th style="width:28%">이름</th><th style="width:28%">직급</th><th></th></tr></thead><tbody id="attBody"></tbody></table>
       </div>
       <div class="sect sect-row"><span>회의 내용</span><span class="sect-tools">
-        <label class="switch" id="autoWrap" title="녹음 중 전사와 메모를 바탕으로 본문을 주기적으로 자동 작성합니다"><input type="checkbox" id="autoChk" disabled=""> 자동 작성</label>
-        <select id="autoEvery" aria-label="자동 작성 주기" title="자동 작성 주기"><option value="2">2분마다</option><option value="5" selected="">5분마다</option><option value="10">10분마다</option></select>
-        <button class="btn" id="autoNow" hidden="" title="지금 바로 본문을 갱신합니다">지금 갱신</button>
-        <label class="switch"><input type="checkbox" id="docReplayChk" disabled=""> 따라 쓰기</label>
+        <label class="switch" id="autoWrap" title="녹음 중 전사와 메모를 바탕으로 본문을 주기적으로 자동 작성합니다"><input type="checkbox" id="autoChk" disabled> 자동 작성</label>
+        <select id="autoEvery" aria-label="자동 작성 주기" title="자동 작성 주기"><option value="2">2분마다</option><option value="5" selected>5분마다</option><option value="10">10분마다</option></select>
+        <button class="btn" id="autoNow" hidden title="지금 바로 본문을 갱신합니다">지금 갱신</button>
+        <label class="switch"><input type="checkbox" id="docReplayChk" disabled> 따라 쓰기</label>
       </span></div>
-      <div id="autoBar" class="auto-bar" hidden=""><span class="sdot"></span><span id="autoText"></span></div>
+      <div id="autoBar" class="auto-bar" hidden><span class="sdot"></span><span id="autoText"></span></div>
       <div id="docEditor" class="doc-content" contenteditable="true" role="textbox" aria-multiline="true" aria-label="회의록 본문" spellcheck="false"></div>
-      <div id="docReplay" class="doc-content" hidden=""></div>
-      <p id="docReplayEmpty" class="replay-empty" hidden="">재생을 누르면 본문이 쓰였던 순서와 속도 그대로 나타납니다.</p>
-      <div class="att" id="tplActions" hidden="">
+      <div id="docReplay" class="doc-content" hidden></div>
+      <p id="docReplayEmpty" class="replay-empty" hidden>재생을 누르면 본문이 쓰였던 순서와 속도 그대로 나타납니다.</p>
+      <div class="att" id="tplActions" hidden>
         <div class="att-head"><b>실행계획</b><button class="btn" id="actAdd">행 추가</button></div>
         <table><thead><tr><th style="width:16%">기한</th><th style="width:18%">작업수행자</th><th>내용</th><th style="width:20%">산출물</th><th></th></tr></thead><tbody id="actBody"></tbody></table>
       </div>
-      <div id="tplNotes" hidden="">
+      <div id="tplNotes" hidden>
         <div class="sect">특이사항</div>
         <textarea id="mNotes" rows="3" placeholder="특이사항이 있으면 적으세요."></textarea>
       </div>
@@ -552,20 +542,20 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     </div>
     <section class="pane" id="paneMemo" role="tabpanel" aria-labelledby="tabMemo">
       <div class="pane-tools">
-        <label class="switch"><input type="checkbox" id="replayChk" disabled=""> 따라 쓰기</label>
+        <label class="switch"><input type="checkbox" id="replayChk" disabled> 따라 쓰기</label>
         <button class="btn" id="memoToDoc" title="메모 전체를 회의록 본문 끝에 넣습니다">회의록에 넣기</button>
       </div>
       <div class="doc" id="doc">
-        <div id="replayBanner" class="banner" hidden="">따라 쓰기 재생 중 · 편집하려면 따라 쓰기를 끄세요.</div>
+        <div id="replayBanner" class="banner" hidden>따라 쓰기 재생 중 · 편집하려면 따라 쓰기를 끄세요.</div>
         <div id="gutter" aria-hidden="false"></div>
         <div id="editor" class="doc-content" contenteditable="true" role="textbox" aria-multiline="true" aria-label="회의 메모" spellcheck="false"></div>
-        <div id="replay" class="doc-content" hidden=""></div>
-        <p id="replayEmpty" class="replay-empty" hidden="">재생을 누르면 메모가 쓰였던 순서와 속도 그대로 나타납니다.</p>
+        <div id="replay" class="doc-content" hidden></div>
+        <p id="replayEmpty" class="replay-empty" hidden>재생을 누르면 메모가 쓰였던 순서와 속도 그대로 나타납니다.</p>
       </div>
     </section>
-    <section class="pane" id="paneTr" role="tabpanel" aria-labelledby="tabTr" hidden="">
+    <section class="pane" id="paneTr" role="tabpanel" aria-labelledby="tabTr" hidden>
       <div class="pane-tools">
-        <label class="chk"><input type="checkbox" id="trOn" checked=""> 실시간 전사</label>
+        <label class="chk"><input type="checkbox" id="trOn" checked> 실시간 전사</label>
         <button class="btn" id="diarBtn" title="녹음을 분석해 발언자를 나눕니다">발언자 구분</button>
         <button class="btn" id="mapBtn" title="분석된 화자를 참석자와 연결합니다">참석자 매핑</button>
         <select id="lang" aria-label="전사 언어">
@@ -578,24 +568,24 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
       <div id="segList"></div>
       <p id="interim" class="interim"></p>
     </section>
-    <section class="pane" id="paneAi" role="tabpanel" aria-labelledby="tabAi" hidden="">
+    <section class="pane" id="paneAi" role="tabpanel" aria-labelledby="tabAi" hidden>
       <div class="ai-tools">
         <button id="aiGo" class="btn primary">초안 작성</button>
-        <button id="aiStop" class="btn" hidden="">중지</button>
-        <button id="aiEdit" class="btn" disabled="">편집</button>
-        <button id="aiToNotes" class="btn" disabled="">복사</button>
-        <button id="aiToDoc" class="btn" disabled="" title="초안을 회의록 본문 끝에 넣습니다">회의록에 넣기</button>
+        <button id="aiStop" class="btn" hidden>중지</button>
+        <button id="aiEdit" class="btn" disabled>편집</button>
+        <button id="aiToNotes" class="btn" disabled>복사</button>
+        <button id="aiToDoc" class="btn" disabled title="초안을 회의록 본문 끝에 넣습니다">회의록에 넣기</button>
         <button id="aiSettingsBtn" class="btn" title="AI 엔진·모델 설정과 로그">⚙ AI 설정</button>
       </div>
-      <div class="pane-tools" style="margin-top:-4px"><label class="chk"><input type="checkbox" id="aiTimes" checked=""> 타임라인 시간 표시</label></div>
+      <div class="pane-tools" style="margin-top:-4px"><label class="chk"><input type="checkbox" id="aiTimes" checked> 타임라인 시간 표시</label></div>
       <div class="ai-status"><span class="sdot" id="aiDot"></span><span id="aiStatus">확인 중…</span><button class="link" id="aiStatusLink">설정</button></div>
-      <div id="aiErr" class="ai-err" hidden="">
+      <div id="aiErr" class="ai-err" hidden>
         <p><b>초안을 만들지 못했어요.</b> <span id="aiErrMsg"></span></p>
         <p id="aiErrHint" class="hint"></p>
         <div class="row"><button class="btn" id="aiErrLog">로그 보기</button><button class="btn" id="aiErrRetry">다시 시도</button></div>
       </div>
       <div id="aiOut" class="md"></div>
-      <textarea id="aiEditArea" hidden="" aria-label="회의록 초안 편집"></textarea>
+      <textarea id="aiEditArea" hidden aria-label="회의록 초안 편집"></textarea>
     </section>
   </aside>
 </main>
@@ -603,9 +593,9 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
 <footer class="transport">
   <div class="rec-group">
     <button id="recBtn" class="recbtn" data-state="idle"><span class="rdot"></span><span id="recLbl">녹음 시작</span></button>
-    <button id="stopBtn" class="btn" disabled="">정지</button>
-    <button id="attachBtn" class="btn" hidden="" title="휴대폰 녹음 앱 등으로 따로 녹음한 파일을 이 회의에 붙입니다">녹음 파일 붙이기</button>
-    <input id="audioInput" type="file" accept="audio/*,audio/mp4,audio/x-m4a,audio/m4a,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm,.3gp,.amr,.caf" hidden="">
+    <button id="stopBtn" class="btn" disabled>정지</button>
+    <button id="attachBtn" class="btn" hidden title="휴대폰 녹음 앱 등으로 따로 녹음한 파일을 이 회의에 붙입니다">녹음 파일 붙이기</button>
+    <input id="audioInput" type="file" accept="audio/*,audio/mp4,audio/x-m4a,audio/m4a,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm,.3gp,.amr,.caf" hidden>
     <div class="clock"><span id="timer" class="num">00:00</span><span id="recState"></span></div>
   </div>
   <div class="reel-wrap">
@@ -622,15 +612,15 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     </div>
   </div>
   <div class="play-group">
-    <button id="playBtn" class="btn" disabled="">재생</button>
-    <select id="rate" aria-label="재생 속도" disabled="">
+    <button id="playBtn" class="btn" disabled>재생</button>
+    <select id="rate" aria-label="재생 속도" disabled>
       <option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option>
     </select>
-    <button id="syncBtn" class="btn" hidden="">싱크 조정</button>
+    <button id="syncBtn" class="btn" hidden>싱크 조정</button>
   </div>
 </footer>
 
-<div id="toast" role="status" aria-live="polite" hidden=""></div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
 
 <dialog id="micDlg" aria-labelledby="micTitle">
   <h2 id="micTitle">마이크 설정</h2>
@@ -639,7 +629,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <button id="micRequest" class="btn primary">마이크 권한 요청</button>
     <button id="micRecheck" class="btn">상태 다시 확인</button>
   </div>
-  <div id="micDeviceBox" hidden="">
+  <div id="micDeviceBox" hidden>
     <label class="field">입력 장치<select id="micDevice"></select></label>
     <div class="meter-wrap">
       <div class="meter" aria-hidden="true"><div id="micLevel" class="meter-bar"></div></div>
@@ -648,7 +638,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <p class="hint" id="micTestHint">소리 테스트를 누르고 말해 보세요. 막대가 움직이면 녹음할 준비가 끝난 거예요. 고른 장치는 다음 녹음부터 쓰입니다.</p>
   </div>
   <div id="micHelp" class="mic-help"></div>
-  <div id="micAlt" class="mic-alt" hidden="">
+  <div id="micAlt" class="mic-alt" hidden>
     <h3>마이크 권한 없이 기록하기</h3>
     <p>휴대폰 기본 녹음 앱으로 녹음하고, 여기서는 시계만 켜고 메모하세요. 회의가 끝나면 녹음 파일을 붙여 시점을 맞출 수 있어요.</p>
     <ol>
@@ -665,13 +655,13 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
 <dialog id="hwpxDlg" aria-labelledby="hwpxTitle">
   <h2 id="hwpxTitle">내보내기</h2>
   <div class="eng-row fmt-row">
-    <label class="opt"><input type="radio" name="expFmt" value="pdf" checked=""><div><b>PDF</b><span>인쇄 창에서 "PDF로 저장"</span></div></label>
+    <label class="opt"><input type="radio" name="expFmt" value="pdf" checked><div><b>PDF</b><span>인쇄 창에서 "PDF로 저장"</span></div></label>
     <label class="opt"><input type="radio" name="expFmt" value="hwpx"><div><b>한글 (HWPX)</b><span>한컴오피스 2014+</span></div></label>
     <label class="opt"><input type="radio" name="expFmt" value="docx"><div><b>Word (DOCX)</b><span>MS Word · 구글 문서</span></div></label>
   </div>
   <label class="field" style="margin:10px 0 4px">회의록 양식<select id="expTpl"></select></label>
   <div class="hx-opts">
-    <label class="chk"><input type="checkbox" id="hxChips" checked=""> 문단 끝 시간 표기(출처용)</label>
+    <label class="chk"><input type="checkbox" id="hxChips" checked> 문단 끝 시간 표기(출처용)</label>
     <label class="chk"><input type="checkbox" id="hxNotes"> 부록: 메모</label>
     <label class="chk"><input type="checkbox" id="hxMinutes"> 부록: AI 회의록 초안</label>
     <label class="chk"><input type="checkbox" id="hxTranscript"> 부록: 전사 전문(발언자 포함)</label>
@@ -694,11 +684,11 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div id="aiLocalRow">
     <label class="field">서버 주소<input id="aiBase" placeholder="http://localhost:1234" autocomplete="off" spellcheck="false" inputmode="url"></label>
     <div class="row"><button id="aiModels" class="btn primary">연결 확인 · 모델 불러오기</button></div>
-    <div class="conn" id="aiConn" hidden=""><span class="sdot"></span><span id="aiConnText"></span></div>
+    <div class="conn" id="aiConn" hidden><span class="sdot"></span><span id="aiConnText"></span></div>
     <label class="field">모델<select id="aiModelSel"><option value="">모델을 먼저 불러오세요</option></select></label>
-    <label class="field" id="aiModelCustomRow" hidden="">모델 이름 직접 입력<input id="aiModel" placeholder="예: qwen2.5:7b" autocomplete="off" spellcheck="false"></label>
+    <label class="field" id="aiModelCustomRow" hidden>모델 이름 직접 입력<input id="aiModel" placeholder="예: qwen2.5:7b" autocomplete="off" spellcheck="false"></label>
   </div>
-  <div id="aiKeyRow" hidden="">
+  <div id="aiKeyRow" hidden>
     <label class="field">Anthropic API 키<input id="apiKey" type="password" placeholder="sk-ant-…" autocomplete="off"></label>
     <div class="row"><button id="apiKeySet" class="btn">키 적용</button><span class="hint" id="apiKeyState"></span></div>
   </div>
@@ -724,12 +714,12 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <label class="opt"><input type="radio" name="anaMode" value="browser"><div><b>브라우저 내장</b><span>설치 없이 이 기기에서 분석. 처음 한 번 모델(약 90MB)을 받아요.</span></div></label>
     <label class="opt"><input type="radio" name="anaMode" value="py"><div><b>PC 서비스 (정확)</b><span>파이썬 서비스로 보내 분석. 화자 수가 많거나 긴 회의에 유리해요.</span></div></label>
   </div>
-  <p class="hint" id="anaBrowserNote" hidden=""></p>
-  <div id="anaPy" hidden="">
+  <p class="hint" id="anaBrowserNote" hidden></p>
+  <div id="anaPy" hidden>
     <label class="field">서비스 주소<input id="anaBase" placeholder="http://localhost:8765" inputmode="url"></label>
     <label class="field">발언자 수 (비우면 자동)<input id="anaN" type="number" min="1" max="10" inputmode="numeric"></label>
   </div>
-  <div class="conn" id="anaConn" hidden=""><span class="sdot"></span><span id="anaConnText"></span></div>
+  <div class="conn" id="anaConn" hidden><span class="sdot"></span><span id="anaConnText"></span></div>
   <div class="dlg-actions"><button class="btn" id="anaSkip">건너뛰기</button><button class="btn primary" id="anaGo">분석 시작</button></div>
 </dialog>
 
@@ -748,13 +738,13 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <label class="opt"><input type="radio" name="diarMode" value="browser"><div><b>브라우저 내장</b><span>설치 없이 이 기기에서 분석. 처음 한 번 모델(약 90MB)을 받아요.</span></div></label>
     <label class="opt"><input type="radio" name="diarMode" value="py"><div><b>PC 서비스 (정확)</b><span>파이썬 서비스로 보내 분석. 화자 수가 많거나 긴 회의에 유리해요.</span></div></label>
   </div>
-  <p class="hint" id="diarBrowserNote" hidden=""></p>
-  <div id="diarPy" hidden="">
+  <p class="hint" id="diarBrowserNote" hidden></p>
+  <div id="diarPy" hidden>
     <label class="field">서비스 주소<input id="diarBase" placeholder="http://localhost:8765" inputmode="url"></label>
     <label class="field">발언자 수 (비우면 자동)<input id="diarN" type="number" min="1" max="10" inputmode="numeric"></label>
     <p class="hint">저장소의 <code>server/</code> 폴더에서 <code>pip install -r requirements.txt</code> → <code>python diarize.py</code></p>
   </div>
-  <div class="conn" id="diarConn" hidden=""><span class="sdot"></span><span id="diarConnText"></span></div>
+  <div class="conn" id="diarConn" hidden><span class="sdot"></span><span id="diarConnText"></span></div>
   <div class="dlg-actions"><button class="btn" id="diarCancel">취소</button><button class="btn primary" id="diarGo">실행</button></div>
 </dialog>
 
@@ -807,7 +797,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   </div>
 </dialog>
 
-<script data-app="">
+<script data-app>
 (() => {
 'use strict';
 const APP_SOURCE = (() => {
@@ -2532,7 +2522,7 @@ audio.addEventListener('error', () => {
   }
 });
 
-let syncBase = 0, listenTimer = null;
+let listenTimer = null;
 function openSyncDlg(first) {
   const sel = $('#syncLine');
   sel.innerHTML = '';
@@ -3810,6 +3800,12 @@ $('#mWhen').addEventListener('change', e => { S.meta.when = e.target.value ? new
 /* ---------- speaker diarization ---------- */
 const DIAR_KEY = 'meetnote.diar';
 let diar = { base: 'http://localhost:8765' };
+// 같은 주소에서 서버가 함께 돌아가면(exe·도커 배포) 그 주소를 기본으로
+if (/^https?:$/.test(location.protocol) && !inClaude) {
+  fetch(location.origin + '/health', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(j => {
+    if (j && ('whisper' in j)) { diar.base = location.origin; diar.mode = 'py'; diar.embedded = true; try { localStorage.setItem(DIAR_KEY, JSON.stringify(diar)); } catch {} aiLog('info', '내장 분석 서버 감지', { base: diar.base, whisper: j.whisper, diarizer: j.diarizer, ready: j.ready }); }
+  }).catch(() => {});
+}
 try { Object.assign(diar, JSON.parse(localStorage.getItem(DIAR_KEY) || '{}')); } catch {}
 if (!diar.mode) diar.mode = 'browser';
 function browserDiarNote() {
@@ -3834,6 +3830,7 @@ $('#diarBtn').addEventListener('click', () => {
   if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 실행하세요.'); return; }
   if (!S.audioBlob) { toast('녹음 파일이 없어요. 녹음하거나 파일을 붙인 뒤 실행하세요.'); return; }
   $('#diarBase').value = diar.base; $('#diarConn').hidden = true; setupEngine('diar');
+  if (diar.embedded) { const c = $('#diarConn'); c.hidden = false; c.dataset.tone = 'ok'; $('#diarConnText').textContent = '이 앱에 내장된 분석 서버를 사용해요.'; }
   try { $('#diarDlg').showModal(); } catch {}
 });
 $('#diarCancel').addEventListener('click', () => $('#diarDlg').close());
@@ -4716,4 +4713,6 @@ sampleP.then(s => {
 renderMic();
 checkMic();
 })();
-</script></body></html>
+</script>
+</body>
+</html>
