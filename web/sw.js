@@ -7,7 +7,8 @@ self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  // 앱 자신의 옛 캐시(meetnote-*)만 지운다. 내장 분석 모델 캐시(transformers-cache 등)는 배포와 무관하게 유지
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('meetnote-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', e => {
   const req = e.request;

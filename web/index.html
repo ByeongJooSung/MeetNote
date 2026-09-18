@@ -4033,9 +4033,12 @@ async function load(device) {
   if (loadedFor === device) return;
   T = T || await import(${JSON.stringify(TJS_URL)});
   T.env.allowLocalModels = false;
+  // 모델은 브라우저 Cache Storage에 저장돼 다음부터는 내려받지 않고 읽기만 한다. 저장본이 있으면 진행 문구를 '불러오는 중'으로
+  let cached = false;
+  try { const c = await caches.open(T.env.cacheKey || 'transformers-cache'); cached = (await c.keys()).some(r => r.url.includes(${JSON.stringify(WHISPER_ID)})); } catch {}
   const files = {};
   const pc = name => p => {
-    if (p.status === 'progress' && p.file) { files[name + '/' + p.file] = [p.loaded || 0, p.total || 0]; let l = 0, t = 0; for (const k in files) { l += files[k][0]; t += files[k][1]; } post({ type: 'dl', loaded: l, total: t, file: p.file }); }
+    if (p.status === 'progress' && p.file) { files[name + '/' + p.file] = [p.loaded || 0, p.total || 0]; let l = 0, t = 0; for (const k in files) { l += files[k][0]; t += files[k][1]; } post({ type: 'dl', loaded: l, total: t, file: p.file, cached }); }
     else if (p.status === 'ready') post({ type: 'stage', msg: name + ' 준비됨' });
   };
   post({ type: 'stage', msg: '음성 인식 모델을 불러오는 중' });
@@ -4137,6 +4140,8 @@ async function diarizeBrowser({ title }) {
   if (location.protocol === 'file:') throw new Error('파일로 직접 연 페이지에서는 내장 분석이 동작하지 않아요. 배포 주소나 로컬 서버(python serve.py)로 열어 주세요.');
   const device = navigator.gpu ? 'webgpu' : 'wasm';
   aiLog('info', '내장 발언자 구분 시작', { device, bytes: S.audioBlob.size, lang: $('#lang').value });
+  // 저장 공간이 부족해도 브라우저가 모델 캐시를 임의로 지우지 않도록 영구 저장 요청
+  try { navigator.storage?.persist?.().then(ok => aiLog('info', '영구 저장소', { granted: ok })); } catch {}
   const t0 = performance.now();
   let cancelled = false;
   progAbort = () => { cancelled = true; if (diarWorker) { diarWorker.terminate(); diarWorker = null; } };
@@ -4151,7 +4156,7 @@ async function diarizeBrowser({ title }) {
       const w = getDiarWorker();
       w.onmessage = e => {
         const m = e.data;
-        if (m.type === 'dl') { const pct = m.total ? m.loaded / m.total : 0; progSet(4 + pct * 24, `모델 내려받는 중 ${Math.round(pct * 100)}% (${Math.round(m.loaded / 1048576)}/${Math.round(m.total / 1048576)}MB)`); }
+        if (m.type === 'dl') { const pct = m.total ? m.loaded / m.total : 0; progSet(4 + pct * 24, `${m.cached ? '저장된 모델 불러오는 중' : '모델 내려받는 중 (처음 한 번만)'} ${Math.round(pct * 100)}% (${Math.round(m.loaded / 1048576)}/${Math.round(m.total / 1048576)}MB)`); }
         else if (m.type === 'stage') progSet(m.pct != null ? m.pct : null, m.msg);
         else if (m.type === 'log') aiLog('warn', m.msg);
         else if (m.type === 'done') res(m.result);
