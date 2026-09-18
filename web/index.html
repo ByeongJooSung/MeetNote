@@ -3974,7 +3974,7 @@ function progSet(pct, stage) {
 function progClose() { clearInterval(progTimer); progTimer = null; progState.active = false; $('#bgPill').hidden = true; try { $('#progDlg').close(); } catch {} }
 $('#progBg').addEventListener('click', () => { try { $('#progDlg').close(); } catch {} $('#bgPill').hidden = false; progTick(); toast('분석은 계속 진행돼요. 위쪽 표시를 누르면 다시 볼 수 있어요.'); });
 $('#bgPill').addEventListener('click', () => { if (!progState.active) return; $('#bgPill').hidden = true; try { $('#progDlg').showModal(); } catch {} });
-$('#progCancel').addEventListener('click', () => { if (progAbort) progAbort(); });
+$('#progCancel').addEventListener('click', () => { if (!progAbort) return; aiLog('info', '분석 취소 요청', { stage: progState.stage }); $('#progStage').textContent = '취소하는 중…'; progAbort(); });
 $('#progDlg').addEventListener('cancel', e => { e.preventDefault(); $('#progBg').click(); });
 
 function uploadForm(url, fd, onUp, signal) {
@@ -4193,16 +4193,19 @@ async function diarizeBrowser({ title }) {
   // 저장 공간이 부족해도 브라우저가 모델 캐시를 임의로 지우지 않도록 영구 저장 요청
   try { navigator.storage?.persist?.().then(ok => aiLog('info', '영구 저장소', { granted: ok })); } catch {}
   const t0 = performance.now();
-  let cancelled = false;
-  progAbort = () => { cancelled = true; if (diarWorker) { diarWorker.terminate(); diarWorker = null; } };
+  /* 취소: 워커를 끝내는 것만으로는 결과를 기다리는 Promise가 끝나지 않아 창이 닫히지 않았음 → 기다리는 작업과 경쟁시켜 즉시 중단 */
+  let cancelled = false, fireCancel = null;
+  const cancelP = new Promise((_, rej) => { fireCancel = () => rej(Object.assign(new Error('취소됨'), { name: 'AbortError' })); });
+  cancelP.catch(() => {});
+  progAbort = () => { cancelled = true; if (diarWorker) { diarWorker.terminate(); diarWorker = null; } fireCancel(); };
   progOpen(title, { local: true });
   try {
     progSet(2, '오디오를 읽는 중');
-    const { audio: pcm, sr, duration } = await decodeTo16k(S.audioBlob);
+    const { audio: pcm, sr, duration } = await Promise.race([decodeTo16k(S.audioBlob), cancelP]);
     if (cancelled) throw Object.assign(new Error('취소됨'), { name: 'AbortError' });
     aiLog('info', '오디오 디코딩', { seconds: Math.round(duration), samples: pcm.length });
     progSet(4, `모델을 준비하는 중 (${device === 'webgpu' ? 'WebGPU' : 'CPU'})`);
-    const result = await new Promise((res, rej) => {
+    const result = await Promise.race([cancelP, new Promise((res, rej) => {
       const w = getDiarWorker();
       w.onmessage = e => {
         const m = e.data;
@@ -4214,7 +4217,7 @@ async function diarizeBrowser({ title }) {
       };
       w.onerror = ev => { aiLog('error', '워커 로드 실패', { message: ev.message, file: ev.filename, line: ev.lineno }); rej(new Error(ev.message || '내장 분석 모듈을 불러오지 못했어요.')); };
       w.postMessage({ audio: pcm, sr, language: whisperLang($('#lang').value), device }, [pcm.buffer]);
-    });
+    })]);
     if (cancelled) throw Object.assign(new Error('취소됨'), { name: 'AbortError' });
     return await applyDiarResult(result, t0);
   } catch (e) {
