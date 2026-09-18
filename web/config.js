@@ -3,13 +3,13 @@
 window.MEETNOTE_CONFIG = {
   // Google Cloud Console → API 및 서비스 → 사용자 인증 정보 → OAuth 클라이언트 ID(웹 애플리케이션)
   // "승인된 JavaScript 원본"에 배포 주소(예: https://아이디.github.io)와 http://localhost:8080 을 추가하세요.
-  googleClientId: "",          // 예: "1234567890-abc123.apps.googleusercontent.com"
+  googleClientId: "622282166227-c7m54699gmk9j7q5pvmm92upqradhtrl.apps.googleusercontent.com",
   requireLogin: true,          // true: Google 로그인해야 앱 사용 가능(클라이언트 ID를 넣으면 브라우저에서 끌 수 없음)
 
   // 클라우드 저장: 파일(.mnote)은 각 사용자의 Google Drive에, 목록은 Firestore에 기록합니다.
   // 비워 두면 목록도 Drive에서 읽습니다(목록 DB 없이 동작).
   firebase: {
-    apiKey: "",                // Firebase 콘솔 → 프로젝트 설정 → 일반 → 웹 API 키
-    projectId: ""              // Firebase 프로젝트 ID
+    apiKey: "AIzaSyCWluB9FYIfrfG5DTBgqgKuY1Diubkv7_I",   // Firebase 콘솔 → 프로젝트 설정 → 일반 → 웹 API 키
+    projectId: "meetnote-1c25a"   // Firebase 프로젝트 ID
   }
 };
