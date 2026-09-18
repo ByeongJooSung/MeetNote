@@ -413,6 +413,9 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 .cloud-empty{padding:22px 12px;text-align:center;color:var(--ink2);font-size:13.5px}
 .set-kv{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13.5px;margin:8px 0 12px}
 .set-kv dt{color:var(--ink2)}.set-kv dd{margin:0}
+dialog textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--ink);font:inherit;font-size:13.5px;line-height:1.5;resize:vertical}
+#draftOptDlg,#refineDlg{width:min(600px,calc((100vw - 32px) / var(--ui,1)))}
+#draftSecs{gap:6px 14px}
 /* 설정 창 */
 #aiDlg{width:min(600px,calc((100vw - 32px) / var(--ui,1)))}
 .set-tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:6px 0 12px}
@@ -670,6 +673,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
         <button class="btn" id="diarBtn" title="녹음을 분석해 발언자를 나눕니다">발언자 구분</button>
         <button class="btn" id="mapBtn" title="분석된 화자를 참석자와 연결합니다">참석자 매핑</button>
         <button class="btn primary" id="trToDoc" title="전사 내용을 바탕으로 AI가 회의록을 작성해 왼쪽 '회의 내용'에 넣습니다 (메모가 있으면 함께 반영)">전사로 회의록 작성</button>
+        <button class="btn" id="draftOptBtn2" title="AI에 보내는 지시문 조절: 분량·문체·발언자 표시·포함 항목·추가 지시">작성 옵션</button>
         <select id="lang" aria-label="전사 언어">
           <option value="ko-KR">한국어</option>
           <option value="en-US">English</option>
@@ -701,6 +705,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
         <button id="aiEdit" class="btn" disabled>편집</button>
         <button id="aiToNotes" class="btn" disabled>복사</button>
         <button id="aiToDoc" class="btn" disabled title="초안을 회의록 본문 끝에 넣습니다">회의록에 넣기</button>
+        <button id="draftOptBtn" class="btn" title="AI에 보내는 지시문 조절: 분량·문체·발언자 표시·포함 항목·추가 지시">작성 옵션</button>
       </div>
       <div class="pane-tools" style="margin-top:-4px"><label class="chk"><input type="checkbox" id="aiTimes" checked> 타임라인 시간 표시</label></div>
       <div class="ai-status"><span class="sdot" id="aiDot"></span><span id="aiStatus">확인 중…</span><button class="link" id="aiStatusLink">설정</button></div>
@@ -955,6 +960,22 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div class="dlg-actions"><button class="btn" id="cloudSync" title="Drive의 MeetNote 폴더를 읽어 목록을 다시 맞춥니다 (다른 기기에서 지웠거나 목록이 어긋났을 때)">Drive와 목록 맞추기</button><button class="btn" id="cloudRefresh">새로고침</button><button class="btn primary" id="cloudClose">닫기</button></div>
 </dialog>
 
+<dialog id="draftOptDlg" aria-labelledby="draftOptTitle">
+  <h2 id="draftOptTitle">AI 작성 옵션</h2>
+  <p><b>AI 회의록 초안</b>과 <b>전사로 회의록 작성</b>에 적용됩니다. AI에 보내는 지시문을 여기서 조절하세요.</p>
+  <div class="sect">분량</div>
+  <div class="set-row"><span class="seg" data-opt="len"><button type="button" data-v="short">짧게</button><button type="button" data-v="mid">중간</button><button type="button" data-v="long">길게</button></span></div>
+  <div class="sect">문체</div>
+  <div class="set-row"><span class="seg" data-opt="tone"><button type="button" data-v="auto">AI에 맡김</button><button type="button" data-v="gaejo">개조식 (~함)</button><button type="button" data-v="narr">서술식 (~했습니다)</button></span></div>
+  <div class="sect">발언자 표시</div>
+  <div class="set-row"><span class="seg" data-opt="spk"><button type="button" data-v="keep">포함</button><button type="button" data-v="drop">제외</button></span></div>
+  <div class="sect">포함할 항목</div>
+  <div class="set-row" id="draftSecs"></div>
+  <label class="field">추가 지시 (선택)<textarea id="draftExtra" rows="4" maxlength="800" placeholder="AI에게 더 시키고 싶은 것을 적으세요.&#10;예) 우리 팀 용어: 'PG사'는 결제대행사, 'QA'는 품질검증&#10;예) 결정 사항은 표로 정리&#10;예) 일정은 'M월 D일' 형식으로 통일"></textarea></label>
+  <details style="margin:6px 0"><summary class="hint" style="cursor:pointer">AI에 보낼 지시문 미리 보기</summary><pre id="draftPreview" style="max-height:220px;overflow:auto;white-space:pre-wrap;font-size:12px"></pre></details>
+  <div class="dlg-actions"><button class="btn" id="draftOptReset">기본값</button><span style="flex:1"></span><button class="btn" id="draftOptCancel">취소</button><button class="btn primary" id="draftOptOk">저장</button></div>
+</dialog>
+
 <dialog id="refineDlg" aria-labelledby="refineTitle">
   <h2 id="refineTitle">회의록 스타일로 다듬기</h2>
   <p>회의 내용을 회의록 문체(개조식)로 정리합니다. 내용에 없는 사실은 더하지 않고, 표는 그대로 둡니다. 결과가 마음에 들지 않으면 <b>되돌리기</b>를 누르세요.</p>
@@ -969,6 +990,9 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <label class="opt"><input type="radio" name="refSpk" value="keep"><div><b>포함</b><span>누가 말했는지·담당자를 "(홍길동)"처럼 남김</span></div></label>
     <label class="opt"><input type="radio" name="refSpk" value="drop"><div><b>제외</b><span>"화자 1" 같은 발언자 표현을 빼고 내용만 서술</span></div></label>
   </div>
+  <div class="sect">문체</div>
+  <div class="set-row"><span class="seg" id="refToneSeg"><button type="button" data-v="gaejo">개조식 (~함)</button><button type="button" data-v="narr">서술식 (~했습니다)</button></span></div>
+  <label class="field">추가 지시 (선택)<textarea id="refExtra" rows="3" maxlength="800" placeholder="예) 영문 약어는 그대로 두기&#10;예) 금액은 천 단위 쉼표로 표기&#10;예) '검토 필요' 항목은 맨 아래로 모으기"></textarea></label>
   <p class="hint" id="refineEngine"></p>
   <div class="dlg-actions"><button class="btn" id="refineCancel">취소</button><button class="btn primary" id="refineGo">다듬기</button></div>
 </dialog>
@@ -2829,6 +2853,36 @@ $('#docReplayChk').addEventListener('change', e => {
   if (docReplayOn) toast('본문 따라 쓰기: 재생하면 본문이 쓰인 순서대로 나타나요. 편집하려면 끄세요.');
 });
 
+/* ---------- 전사 문단 통합: 같은 발언자의 말이 다음 구간으로 이어지면 한 문단으로 합친다 ----------
+   - 발언자가 같고, 사이가 짧으면(2.5초 이내) 합친다. 앞 구간이 문장 중간에서 끊겼으면(마침표 없이 끝남) 6초까지 이어진 말로 본다
+   - 문단이 너무 길어지지 않게 500자·2분에서 끊는다(끊을 때는 문장이 끝난 자리에서) */
+const SEG_MERGE = { gap: 2.5, gapOpen: 6, maxChars: 500, maxDur: 120 };
+const endsSentence = t => /[.!?。…]["'”’)\]]*$/.test(String(t || '').trim());
+function canMergeSeg(prev, g) {
+  if (!prev || (prev.spk || '') !== (g.spk || '')) return false;
+  const gap = g.t0 - prev.t1, known = !!prev.spk;
+  // 발언자를 아직 모르는 전사(녹음 중 실시간 전사)는 다른 사람의 말이 섞일 수 있어 더 짧게·보수적으로 묶는다
+  const lim = known ? SEG_MERGE : { gap: 1.2, gapOpen: 4, maxChars: 260, maxDur: 45 };
+  if (gap < -1 || gap > (endsSentence(prev.text) ? lim.gap : lim.gapOpen)) return false;
+  if (g.t1 - prev.t0 > lim.maxDur) return false;
+  return prev.text.length + g.text.length + 1 <= lim.maxChars || (!endsSentence(prev.text) && prev.text.length < lim.maxChars * 1.3);
+}
+function mergeSegments(list) {
+  const out = [];
+  for (const g of [...list].sort((a, b) => a.t0 - b.t0 || a.t1 - b.t1)) {
+    const prev = out[out.length - 1];
+    if (canMergeSeg(prev, g)) { prev.text = (prev.text + ' ' + g.text).replace(/\s+/g, ' ').trim(); prev.t1 = Math.max(prev.t1, g.t1); }
+    else out.push({ ...g });
+  }
+  return out;
+}
+// 녹음 중에 들어오는 구간: 바로 앞 구간과 이어지면 그 문단에 붙인다
+function pushSegment(g) {
+  const last = S.segments.length ? S.segments.reduce((a, b) => (b.t0 >= a.t0 ? b : a)) : null;
+  if (last && g.t0 >= last.t0 && canMergeSeg(last, g)) { last.text = (last.text + ' ' + g.text).replace(/\s+/g, ' ').trim(); last.t1 = Math.max(last.t1, g.t1); }
+  else S.segments.push(g);
+}
+
 /* ---------- live transcription (Web Speech API) ---------- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recog = null, recogWanted = false, segStart = null;
@@ -2855,7 +2909,7 @@ function recogStart() {
         if (r.isFinal) {
           const text = r[0].transcript.trim();
           if (text) {
-            S.segments.push({ t0: +segStart.toFixed(2), t1: +elapsed().toFixed(2), text });
+            pushSegment({ t0: +segStart.toFixed(2), t1: +elapsed().toFixed(2), text });
             markDirty(); renderTranscript(); scheduleTimeline();
             const pane = $('#paneTr'); pane.scrollTop = pane.scrollHeight;
           }
@@ -2917,7 +2971,7 @@ const live = (() => {
         if (m.type === 'dl') { const pct = m.total ? Math.round(m.loaded / m.total * 100) : 0; status(`기기 내 전사: ${m.cached ? '저장된 모델 불러오는 중' : '모델 내려받는 중(처음 한 번)'} ${pct}%`); }
         else if (m.type === 'liveDone') {
           clearTimeout(watchdog); busy = false;
-          if (m.segs.length) { for (const g of m.segs) S.segments.push({ t0: +g.t0.toFixed(2), t1: +g.t1.toFixed(2), text: g.text }); markDirty(); renderTranscript(); scheduleTimeline(); const pane = $('#paneTr'); pane.scrollTop = pane.scrollHeight; }
+          if (m.segs.length) { for (const g of m.segs) pushSegment({ t0: +g.t0.toFixed(2), t1: +g.t1.toFixed(2), text: g.text }); markDirty(); renderTranscript(); scheduleTimeline(); const pane = $('#paneTr'); pane.scrollTop = pane.scrollHeight; }
           status(on ? `기기 내 전사 중 · ${fmt(elapsed())}까지 듣는 중 (글자는 20~30초 늦게 표시돼요)${queue.length ? ` · 대기 ${queue.length}구간` : ''}` : (queue.length ? `전사 마무리 중 · ${queue.length}구간 남음` : ''));
           if (!on && !queue.length) finish(); else pump();
         } else if (m.type === 'liveError' || m.type === 'error') fail(m.message);
@@ -3150,6 +3204,25 @@ function mdToHtml(md) {
   return out.join('');
 }
 
+/* 작성 옵션: AI 초안·'전사로 회의록 작성'에 쓰는 프롬프트를 사용자가 조절한다(분량·문체·화자·포함 항목·추가 지시). 브라우저에 기억하고 계정에도 동기화 */
+const DRAFT_KEY = 'meetnote.draftOpt';
+const DRAFT_SECTIONS = [['overview', '개요', '## 개요  (일시, 녹음 길이, 두세 문장 요약)'], ['discussion', '주요 논의', null], ['decisions', '결정 사항', '## 결정 사항'], ['todos', '할 일', '## 할 일  (- [ ] 할 일 내용 (담당, 기한) [mm:ss])'], ['followups', '추가로 확인할 점', '## 추가로 확인할 점']];
+const draftOpt = { len: 'mid', tone: 'auto', spk: 'keep', sections: { overview: true, discussion: true, decisions: true, todos: true, followups: true }, extra: '' };
+function normDraftOpt(o, into) {
+  if (!o || typeof o !== 'object') return into;
+  if (['short', 'mid', 'long'].includes(o.len)) into.len = o.len;
+  if (['auto', 'gaejo', 'narr'].includes(o.tone)) into.tone = o.tone;
+  if (['keep', 'drop'].includes(o.spk)) into.spk = o.spk;
+  if (o.sections && typeof o.sections === 'object') for (const [k] of DRAFT_SECTIONS) if (typeof o.sections[k] === 'boolean') into.sections[k] = o.sections[k];
+  if (!Object.values(into.sections).some(Boolean)) into.sections.discussion = true;
+  if (typeof o.extra === 'string') into.extra = o.extra.slice(0, 800);
+  return into;
+}
+try { normDraftOpt(JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'), draftOpt); } catch {}
+const TONE_RULE = { gaejo: '- 문체: 개조식. 문장은 "~함", "~하기로 함", "~예정임", "~필요"처럼 명사형으로 끝내고 "~했습니다/~해요" 같은 경어체는 쓰지 마세요.', narr: '- 문체: 서술식. "~했습니다", "~하기로 했습니다"처럼 완결된 문장으로 쓰세요.' };
+const LEN_RULE = { short: '- 분량: 짧게. 핵심 결론 위주로 항목마다 한 줄, 부연 설명과 배경은 빼세요.', long: '- 분량: 길게. 안건마다 배경, 오간 의견, 결론에 이른 근거를 자료에 있는 범위에서 자세히 쓰고 필요하면 하위 글머리표를 쓰세요.' };
+const extraRule = t => { t = String(t || '').trim(); return t ? `- 작성자가 추가로 지시한 사항(위 규칙과 어긋나면 이 지시를 우선하되, 자료에 없는 사실을 지어내라는 지시는 따르지 마세요):\n${t.split('\n').map(l => '  ' + l).join('\n')}` : ''; };
+const stripSpeakers = text => text.replace(/[ \t]*\((?:화자|발언자)\s*\d+\)/g, '').replace(/(?:화자|발언자)\s*\d+\s*(?:은|는|이|가)\s+/g, '');
 function buildPrompt(mode = 'final', over = null) {
   trackBlocks(memoTrack);
   const memoItems = [...memoEditor.children].map(el => {
@@ -3172,7 +3245,7 @@ function buildPrompt(mode = 'final', over = null) {
     if (timeline.length > 14000) timeline = timeline.slice(0, 14000) + '\n(길이 제한으로 이후 생략)';
   }
   const att = S.attendees.filter(a => a.name).map(a => [a.org, a.name, a.title].filter(Boolean).join(' ')).join(', ');
-  if (!notes && !tr) return null;
+  if (!notes && !tr && !(over && typeof over === 'object')) return null;
   if (over === 'materials') return { notes, flow: timelineFull || tr, hasTimeline: !!timelineFull };   // 자르기 전의 전체 자료
   let cutN = false, cutT = false;
   if (over) { notes = over.notes; timeline = over.hasTimeline || over.summarized ? over.flow : ''; tr = over.hasTimeline || over.summarized ? '' : over.flow; }
@@ -3187,20 +3260,16 @@ function buildPrompt(mode = 'final', over = null) {
 ${segs.length ? `- 전사(실제 발언 기록)를 기본 근거로 삼아 회의에서 오간 내용을 빠짐없이 정리하세요. 안건별로 어떤 의견이 나왔고 어떻게 결론 났는지가 드러나야 합니다. 인사·잡담·말버릇은 빼세요.
 - 전사에는 음성 인식 오류가 있습니다. 앞뒤 문맥으로 뜻이 분명하면 바른 말로 고쳐 쓰고, 고유명사·수치처럼 확신할 수 없는 것은 들린 대로 적고 "(확인 필요)"를 붙이세요.
 - 메모는 작성자가 중요하다고 직접 적은 표시입니다. 메모에 있는 항목은 반드시 회의록에 포함하고, 메모와 전사가 어긋나면 메모를 따르되 "(확인 필요)"를 붙이세요. 메모가 없으면 전사만으로 작성하세요.
-- <타임라인>은 메모와 발언을 시간순으로 합친 것입니다. 각 메모가 어떤 발언 중에 적혔는지 대조해서 그 부분을 더 구체적으로 쓰고, 누가 말했는지 반영하세요.` : `- 전사가 없으므로 작성자의 메모만 근거로 작성하세요.`}
+- <타임라인>은 메모와 발언을 시간순으로 합친 것입니다. 각 메모가 어떤 발언 중에 적혔는지 대조해서 그 부분을 더 구체적으로 쓰${draftOpt.spk === 'drop' ? '세요.' : '고, 누가 말했는지 반영하세요.'}` : `- 전사가 없으므로 작성자의 메모만 근거로 작성하세요.`}
 - 자료에 없는 사실(참석자 이름, 수치, 담당자, 기한 등)은 지어내지 말고 필요한 곳에 "(확인 필요)"라고 적으세요.
 - 항목마다 근거가 된 시점을 [mm:ss] 형식으로 그 줄의 맨 끝에만 붙이세요. 문장 중간이나 제목에는 시간을 쓰지 마세요. 자료에 적힌 시점만 사용하세요.
-- 전사에 발언자 이름이 있으면 "결정 사항"과 "할 일"에 발언자를 반영하세요.
-- 아래 구조를 따르세요:
+${draftOpt.spk === 'drop' ? '- 발언자 표시는 쓰지 마세요: "화자 1", "OOO이 ~라고 말함" 같은 표현 없이 내용만 서술하세요. 단, 할 일의 담당자가 실제 이름으로 나오면 담당자로는 적으세요.' : '- 전사에 발언자 이름이 있으면 "주요 논의", "결정 사항", "할 일"에 누가 말했는지 반영하세요.'}
+${[TONE_RULE[draftOpt.tone], LEN_RULE[draftOpt.len], extraRule(draftOpt.extra)].filter(Boolean).join('\n')}
+- 아래 구조를 따르세요${live ? '' : '(적힌 항목만, 이 순서로)'}:
 ${live ? `## 회의 안건
 ## 주요 논의  (주제별 글머리표. 전사가 있으면 누가 어떤 의견을 냈고 어떻게 정리됐는지를 쓰고, 각 줄 끝에 [mm:ss])
 ## 결정 사항
-## 할 일  (- [ ] 할 일 내용 (담당, 기한) [mm:ss])` : `# 회의 제목
-## 개요  (일시, 녹음 길이, 두세 문장 요약)
-## 주요 논의  (주제별 글머리표. 전사가 있으면 누가 어떤 의견을 냈고 어떻게 정리됐는지를 쓰고, 각 줄 끝에 [mm:ss])
-## 결정 사항
-## 할 일  (- [ ] 할 일 내용 (담당, 기한) [mm:ss])
-## 추가로 확인할 점`}
+## 할 일  (- [ ] 할 일 내용 (담당, 기한) [mm:ss])` : ['# 회의 제목', ...DRAFT_SECTIONS.filter(([k]) => draftOpt.sections[k]).map(([k, , line]) => line || `## 주요 논의  (주제별 글머리표. ${draftOpt.spk === 'drop' ? '어떤 의견이 나왔고' : '전사가 있으면 누가 어떤 의견을 냈고'} 어떻게 정리됐는지를 쓰고, 각 줄 끝에 [mm:ss])`)].join('\n')}
 - 인사말이나 설명 없이 마크다운 본문만 출력하세요.
 
 회의 제목: ${S.title || '(제목 없음)'}
@@ -3423,8 +3492,10 @@ toolbar.addEventListener('click', e => { const b = e.target.closest('[data-hist]
 
 /* ---------- 회의록 스타일로 다듬기: 회의 내용을 AI가 회의록 문체로 정리 (분량·화자 언급 선택, 되돌리기) ---------- */
 const REFINE_KEY = 'meetnote.refine';
-const refine = { len: 'mid', spk: 'keep', running: false, ctl: null, prev: null };
-try { const o = JSON.parse(localStorage.getItem(REFINE_KEY) || '{}'); if (['short', 'mid', 'long'].includes(o.len)) refine.len = o.len; if (['keep', 'drop'].includes(o.spk)) refine.spk = o.spk; } catch {}
+const refine = { len: 'mid', spk: 'keep', tone: 'gaejo', extra: '', running: false, ctl: null, prev: null };
+function normRefine(o) { if (!o || typeof o !== 'object') return; if (['short', 'mid', 'long'].includes(o.len)) refine.len = o.len; if (['keep', 'drop'].includes(o.spk)) refine.spk = o.spk; if (['gaejo', 'narr'].includes(o.tone)) refine.tone = o.tone; if (typeof o.extra === 'string') refine.extra = o.extra.slice(0, 800); }
+try { normRefine(JSON.parse(localStorage.getItem(REFINE_KEY) || '{}')); } catch {}
+const saveRefine = () => { try { localStorage.setItem(REFINE_KEY, JSON.stringify({ len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra })); } catch {} prefsTouch(); };
 // 본문 → 마크다운. 표는 {{표N}} 자리표시로 빼 두었다가 결과에 원래 표를 되돌려 넣는다
 function docToMd() {
   const tables = [], L = [];
@@ -3461,13 +3532,13 @@ function refinePrompt(md, hasTables) {
   return `당신은 공공기관·기업의 회의록을 다듬는 편집자입니다. 아래 <본문>을 회의록 문체로 다듬어 마크다운으로 출력하세요.
 
 규칙:
-- 문체: 개조식. 문장은 "~함", "~하기로 함", "~예정임", "~필요"처럼 명사형으로 끝내고, "~했습니다/~해요" 같은 구어체·경어체는 쓰지 마세요. 군더더기와 중복을 없애고 문장은 간결하게.
+${TONE_RULE[refine.tone]} 군더더기와 중복을 없애고 문장은 간결하게.
 - 본문에 없는 사실(이름, 수치, 기한, 결정)은 절대 더하지 마세요. 본문의 수치·고유명사·기한은 그대로 두세요.
 - 분량: ${len}
 - 화자 언급: ${spk}
 - 구조: 본문의 제목(##) 구성과 순서를 유지하세요. 본문에 없는 문서 제목이나 새 최상위 제목을 만들지 마세요. 제목이 하나도 없으면 "## 주요 논의", "## 결정 사항", "## 할 일"로 나누세요. 할 일은 "- [ ] 내용 (담당, 기한)" 형식.
 - 줄 끝의 [mm:ss] 시간 표기는 해당 항목을 남길 때 그대로 줄 끝에 두세요. 새로 만들지는 마세요.${hasTables ? '\n- {{표1}} 같은 자리표시 줄은 표가 들어갈 자리입니다. 글자 하나 바꾸지 말고 한 줄 그대로 같은 위치에 두세요.' : ''}
-- 인사말·설명·코드블록 표시 없이 마크다운 본문만 출력하세요.
+${extraRule(refine.extra) ? extraRule(refine.extra) + '\n' : ''}- 인사말·설명·코드블록 표시 없이 마크다운 본문만 출력하세요.
 
 회의 제목: ${S.title || '(제목 없음)'}
 
@@ -3510,7 +3581,7 @@ async function runRefine() {
     text = text.replace(/^```(?:markdown|md)?\s*\n/i, '').replace(/\n```\s*$/, '').trim();
     if (!text) throw Object.assign(new Error('모델이 빈 응답을 보냈어요.'), { code: 'empty_completion' });
     // 화자 제외: 작은 모델이 "(화자 1)"을 남기는 일이 있어 번호로 된 발언자 표기는 한 번 더 걷어 낸다
-    if (refine.spk === 'drop') text = text.replace(/[ \t]*\((?:화자|발언자)\s*\d+\)/g, '').replace(/(?:화자|발언자)\s*\d+\s*(?:은|는|이|가)\s+/g, '');
+    if (refine.spk === 'drop') text = stripSpeakers(text);
     const prev = serializeDoc();
     const nodes = mdToDocNodes(text, true), used = new Set(), outNodes = [];
     for (const n of nodes) {
@@ -3532,15 +3603,17 @@ $('#refineBtn').addEventListener('click', () => {
   if (refine.running) { refine.ctl?.abort(); return; }
   document.querySelectorAll('input[name="refLen"]').forEach(r => { r.checked = r.value === refine.len; });
   document.querySelectorAll('input[name="refSpk"]').forEach(r => { r.checked = r.value === refine.spk; });
+  document.querySelectorAll('#refToneSeg [data-v]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === refine.tone))); $('#refExtra').value = refine.extra;
   $('#refineEngine').textContent = `AI 엔진: ${providerLabel()}${curModel() ? ' · ' + curModel() : ''} (바꾸려면 위쪽 ⚙ 설정)`;
   try { $('#refineDlg').showModal(); } catch {}
 });
 $('#refineCancel').addEventListener('click', () => $('#refineDlg').close());
+$('#refToneSeg').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) document.querySelectorAll('#refToneSeg [data-v]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
 $('#refineGo').addEventListener('click', () => {
   refine.len = document.querySelector('input[name="refLen"]:checked')?.value || 'mid';
   refine.spk = document.querySelector('input[name="refSpk"]:checked')?.value || 'keep';
-  try { localStorage.setItem(REFINE_KEY, JSON.stringify({ len: refine.len, spk: refine.spk })); } catch {}
-  prefsTouch();
+  refine.tone = document.querySelector('#refToneSeg [aria-pressed="true"]')?.dataset.v || 'gaejo'; refine.extra = $('#refExtra').value.trim().slice(0, 800);
+  saveRefine();
   $('#refineDlg').close(); runRefine();
 });
 $('#refineUndo').addEventListener('click', () => {
@@ -3691,6 +3764,7 @@ async function runAI(opts) {
     } else {
       throw Object.assign(new Error('이 페이지는 Claude 화면 밖에서 열려 있어 Claude를 바로 부를 수 없어요.'), { code: 'no_sample' });
     }
+    if (draftOpt.spk === 'drop') text = stripSpeakers(text);
     S.minutes = text.trim(); renderMd(S.minutes); markDirty();
     if (toDoc && S.minutes) {
       setDocBusy(false);
@@ -3764,6 +3838,31 @@ $('#aiErrLog').addEventListener('click', () => openAIDlg('log'));
 $('#aiErrRetry').addEventListener('click', runAI);
 $('#aiGo').addEventListener('click', runAI);
 $('#trToDoc').addEventListener('click', () => runAI({ toDoc: true }));
+(() => {   // 작성 옵션 창: 창 안에서는 임시 값(tmp)을 바꾸고 '저장'을 눌러야 반영된다
+  const dlg = $('#draftOptDlg'); let tmp = null;
+  const paint = () => {
+    dlg.querySelectorAll('.seg[data-opt]').forEach(seg => seg.querySelectorAll('[data-v]').forEach(b => b.setAttribute('aria-pressed', String(tmp[seg.dataset.opt] === b.dataset.v))));
+    $('#draftSecs').innerHTML = DRAFT_SECTIONS.map(([k, label]) => `<label class="chk"><input type="checkbox" data-sec="${k}"${tmp.sections[k] ? ' checked' : ''}> ${label}</label>`).join('');
+    preview();
+  };
+  const preview = () => {   // 실제로 보낼 지시문(자료 부분 제외)을 그대로 보여 준다
+    const keep = JSON.parse(JSON.stringify({ ...draftOpt })); Object.assign(draftOpt, JSON.parse(JSON.stringify(tmp)));
+    try { const pr = buildPrompt('final', { notes: '(메모)', flow: '(전사)', hasTimeline: false }) || ''; $('#draftPreview').textContent = pr.split('\n회의 제목:')[0]; }
+    catch { $('#draftPreview').textContent = ''; } finally { Object.assign(draftOpt, keep); }
+  };
+  const open = () => { tmp = JSON.parse(JSON.stringify(draftOpt)); $('#draftExtra').value = tmp.extra; paint(); try { dlg.showModal(); } catch {} };
+  $('#draftOptBtn').addEventListener('click', open); $('#draftOptBtn2').addEventListener('click', open);
+  dlg.addEventListener('click', e => { const b = e.target.closest('.seg[data-opt] [data-v]'); if (b) { tmp[b.closest('.seg').dataset.opt] = b.dataset.v; paint(); } });
+  dlg.addEventListener('change', e => { const c = e.target.closest('[data-sec]'); if (!c) return; tmp.sections[c.dataset.sec] = c.checked; if (!Object.values(tmp.sections).some(Boolean)) { tmp.sections.discussion = true; toast('항목은 하나 이상 있어야 해서 "주요 논의"를 남겼어요.'); } paint(); });
+  $('#draftExtra').addEventListener('input', e => { tmp.extra = e.target.value.slice(0, 800); preview(); });
+  $('#draftOptReset').addEventListener('click', () => { tmp = { len: 'mid', tone: 'auto', spk: 'keep', sections: { overview: true, discussion: true, decisions: true, todos: true, followups: true }, extra: '' }; $('#draftExtra').value = ''; paint(); });
+  $('#draftOptCancel').addEventListener('click', () => dlg.close());
+  $('#draftOptOk').addEventListener('click', () => {
+    normDraftOpt(tmp, draftOpt); draftOpt.extra = (tmp.extra || '').trim().slice(0, 800);
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draftOpt)); } catch {} prefsTouch();
+    dlg.close(); toast('작성 옵션을 저장했어요. 다음 작성부터 적용됩니다.');
+  });
+})();
 $('#aiStop').addEventListener('click', () => aiCtl?.abort());
 
 /* ---------- file delivery (browser / PWA / Capacitor APK) ---------- */
@@ -4043,7 +4142,7 @@ async function localDraft(mode, signal, onText, onStage = () => {}) {
       const sums = [];
       for (let i = 0; i < parts.length; i++) {
         onStage(`회의가 길어 ${parts.length}구간으로 나눠 정리하는 중 (${i + 1}/${parts.length})`);
-        const pr = `아래는 회의의 일부(구간 ${i + 1}/${parts.length})입니다. 회의록 작성에 필요한 사실만 한국어 글머리표로 요약하세요.\n- 결정, 할 일(담당·기한), 수치, 이름, 쟁점은 빠뜨리지 마세요. 자료에 없는 내용은 쓰지 마세요.\n- 각 줄 끝에 근거 시점을 자료에 있는 [mm:ss] 그대로 붙이세요.\n- 발언자가 표시돼 있으면 누가 말했는지 남기세요.\n- 설명이나 인사말 없이 요약만 출력하세요.\n\n<자료>\n${parts[i]}\n</자료>`;
+        const pr = `아래는 회의의 일부(구간 ${i + 1}/${parts.length})입니다. 회의록 작성에 필요한 사실만 한국어 글머리표로 요약하세요.\n- 결정, 할 일(담당·기한), 수치, 이름, 쟁점은 빠뜨리지 마세요. 자료에 없는 내용은 쓰지 마세요.\n- 각 줄 끝에 근거 시점을 자료에 있는 [mm:ss] 그대로 붙이세요.${draftOpt.spk === 'drop' ? '' : '\n- 발언자가 표시돼 있으면 누가 말했는지 남기세요.'}\n- 설명이나 인사말 없이 요약만 출력하세요.\n\n<자료>\n${parts[i]}\n</자료>`;
         const t = (await send(pr, () => {}, 900) || '').trim();
         sums.push(`### 구간 ${i + 1}/${parts.length}\n${t}`);
       }
@@ -4798,6 +4897,7 @@ $('#mapOk').addEventListener('click', () => {
     if (!S.speakers[t] && S.speakers[id]) S.speakers[t] = S.speakers[id];
     delete S.speakers[id]; merged++;
   }
+  if (merged) S.segments = mergeSegments(S.segments);   // 같은 사람이 된 구간들이 이어지면 한 문단으로
   $('#mapDlg').close(); markDirty(); renderTranscript(); scheduleTimeline();
   aiLog('info', '발언자 매핑 적용', { merged, speakers: speakerIds().length });
   toast(merged ? `발언자 ${merged}명을 합쳤어요. 이제 ${speakerIds().length}명입니다.` : '발언자 이름을 적용했어요.');
@@ -4916,8 +5016,9 @@ async function runDiarization({ base, n, title }) {
   } finally { progAbort = null; progClose(); }
 }
 async function applyDiarResult(result, t0) {
-  const segs = (result.segments || []).map(s => ({ t0: +(+s.t0).toFixed(2), t1: +(+s.t1).toFixed(2), text: String(s.text || '').trim(), spk: s.spk != null ? String(s.spk) : undefined })).filter(s => s.text);
-  aiLog('info', '발언자 구분 완료', { ms: Math.round(performance.now() - t0), segments: segs.length, speakers: new Set(segs.map(s => s.spk)).size, diarizer: result.diarizer });
+  const rawSegs = (result.segments || []).map(s => ({ t0: +(+s.t0).toFixed(2), t1: +(+s.t1).toFixed(2), text: String(s.text || '').trim(), spk: s.spk != null ? String(s.spk) : undefined })).filter(s => s.text);
+  const segs = mergeSegments(rawSegs);      // 같은 발언자의 이어지는 말은 한 문단으로
+  aiLog('info', '발언자 구분 완료', { ms: Math.round(performance.now() - t0), segments: segs.length, before: rawSegs.length, speakers: new Set(segs.map(s => s.spk)).size, diarizer: result.diarizer });
   if (!segs.length) throw new Error('전사 결과가 비어 있어요. 녹음에 말소리가 있는지 확인하세요.');
   progSet(100, '완료');
   if (S.segments.length) { progClose(); if (!(await askConfirm('전사를 바꿀까요?', `기존 전사 ${S.segments.length}개를 분석 결과 ${segs.length}개로 바꿉니다.`, '바꾸기'))) return false; }
@@ -5679,7 +5780,7 @@ async function dbUpsert(m) {
 /* 내 설정 동기화: 발언자 분석(방식·PC 서비스 주소·발언자 수), AI 엔진(종류·주소·모델), 다듬기 옵션을 계정에 저장해 다른 기기·브라우저에서도 이어 쓴다.
    보안 토큰·API 키는 넣지 않는다. 규칙에 settings 경로가 없으면(403) 이 브라우저에만 기억한다 */
 const prefsDoc = a => `${EP.fs}/projects/${encodeURIComponent(FB.projectId)}/databases/(default)/documents/users/${encodeURIComponent(a.uid)}/settings/prefs`;
-const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0 }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk } });
+const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0 }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, sections: draftOpt.sections, extra: draftOpt.extra } });
 const prefs403 = e => { if (e && e.status === 403) { prefsOff = true; aiLog('warn', '설정 동기화 꺼짐: 목록 DB 규칙에 settings 경로가 없어요(이 브라우저에만 기억)'); renderCloudState(); return true; } return false; };
 async function prefsPush() {
   if (!FB || !user || prefsOff) return;
@@ -5707,7 +5808,8 @@ async function prefsPull() {
       if (o.ai && typeof o.ai === 'object' && ['auto', 'lmstudio', 'ollama', 'openai', 'anthropic'].includes(o.ai.provider) && url(o.ai.base) && (ai.provider !== o.ai.provider || (ai.base || '') !== o.ai.base || (ai.model || '') !== String(o.ai.model || ''))) {
         ai.provider = o.ai.provider; ai.base = o.ai.base.replace(/\/+$/, ''); ai.model = String(o.ai.model || '').slice(0, 120); ai.models = ai.model ? [ai.model] : []; saveAI(); renderAIStatus();
       }
-      if (o.refine && ['short', 'mid', 'long'].includes(o.refine.len) && ['keep', 'drop'].includes(o.refine.spk)) { refine.len = o.refine.len; refine.spk = o.refine.spk; try { localStorage.setItem(REFINE_KEY, JSON.stringify({ len: refine.len, spk: refine.spk })); } catch {} }
+      if (o.refine) { normRefine(o.refine); try { localStorage.setItem(REFINE_KEY, JSON.stringify({ len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra })); } catch {} }
+      if (o.draft) { normDraftOpt(o.draft, draftOpt); try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draftOpt)); } catch {} }
       try { localStorage.setItem(PREFS_AT, String(f.updatedAt)); } catch {}
       aiLog('info', '계정에 저장된 설정을 불러옴');
     } finally { prefsApplying = false; }
@@ -6159,7 +6261,7 @@ if (FB && user && fbSess && fbSess.sub === user.sub) prefsPull();   // 이미 �
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft };
 renderAll();
 selectTab(curTab);
 if (!['auto', 'lmstudio', 'ollama', 'openai', 'anthropic'].includes(ai.provider)) ai.provider = 'auto';
