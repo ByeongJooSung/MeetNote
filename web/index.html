@@ -133,7 +133,7 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .doc-title{font-size:20px;font-weight:700;margin:0 0 14px;text-align:center;letter-spacing:-.01em}
 #docEditor{min-height:32vh;padding-bottom:48px}
 #docReplay{min-height:32vh;padding-bottom:48px}
-.tpl-row{display:flex;justify-content:flex-start;font-size:12.5px;color:var(--ink2);margin:-4px 0 6px}
+.tpl-row{display:flex;justify-content:flex-start;font-size:12.5px;color:var(--ink2);margin:-4px 0 10px}
 .tpl-row select{margin-left:4px;padding:3px 6px;font-size:12.5px}
 #mNotes{width:100%;border:1px solid var(--line);border-radius:7px;padding:8px 10px;background:var(--surface);font:inherit;font-size:14px;resize:vertical;margin-bottom:12px}
 .sect{font-size:13px;color:var(--ink2);font-weight:600;margin:14px 0 6px;letter-spacing:.02em}
@@ -524,8 +524,8 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
       </div>
     </div>
     <div class="docsheet" id="docsheet">
-      <div class="tpl-row"><label>회의록 양식 <select id="tplSel" aria-label="회의록 양식"></select></label></div>
       <div class="doc-title" id="docTitle">회의록</div>
+      <div class="tpl-row"><label>회의록 양식 <select id="tplSel" aria-label="회의록 양식"></select></label></div>
       <div class="dochead">
         <label for="mWhen">일시</label><input id="mWhen" type="datetime-local">
         <label for="mPlace">장소</label><input id="mPlace" placeholder="예: 3층 대회의실">
@@ -541,6 +541,8 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
         <select id="autoEvery" aria-label="자동 작성 주기" title="자동 작성 주기"><option value="1" selected>1분마다</option><option value="2">2분마다</option><option value="5">5분마다</option><option value="10">10분마다</option></select>
         <button class="btn" id="autoNow" hidden title="지금 바로 본문을 갱신합니다">지금 갱신</button>
         <label class="switch"><input type="checkbox" id="docReplayChk" disabled> 따라 쓰기</label>
+        <button class="btn" id="refineBtn" title="회의 내용을 AI가 회의록 문체로 정리합니다 (분량·화자 언급 선택)">회의록 스타일로 다듬기</button>
+        <button class="btn" id="refineUndo" hidden title="다듬기 전 내용으로 되돌립니다">되돌리기</button>
       </span></div>
       <div id="autoBar" class="auto-bar" hidden><span class="sdot"></span><span id="autoText"></span></div>
       <div id="docEditor" class="doc-content" contenteditable="true" role="textbox" aria-multiline="true" aria-label="회의록 본문" spellcheck="false"></div>
@@ -818,6 +820,24 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <button class="btn" id="syncCancel">나중에</button>
     <button class="btn primary" id="syncApply">적용</button>
   </div>
+</dialog>
+
+<dialog id="refineDlg" aria-labelledby="refineTitle">
+  <h2 id="refineTitle">회의록 스타일로 다듬기</h2>
+  <p>회의 내용을 회의록 문체(개조식)로 정리합니다. 내용에 없는 사실은 더하지 않고, 표는 그대로 둡니다. 결과가 마음에 들지 않으면 <b>되돌리기</b>를 누르세요.</p>
+  <div class="sect">분량</div>
+  <div class="eng-row">
+    <label class="opt"><input type="radio" name="refLen" value="short"><div><b>짧게</b><span>핵심만. 항목마다 한 줄, 원문의 절반 이하</span></div></label>
+    <label class="opt"><input type="radio" name="refLen" value="mid"><div><b>중간</b><span>원문과 비슷한 분량으로 군더더기만 정리</span></div></label>
+    <label class="opt"><input type="radio" name="refLen" value="long"><div><b>길게</b><span>논의 배경·경과·근거를 풀어 상세하게</span></div></label>
+  </div>
+  <div class="sect">화자 언급</div>
+  <div class="eng-row">
+    <label class="opt"><input type="radio" name="refSpk" value="keep"><div><b>포함</b><span>누가 말했는지·담당자를 "(홍길동)"처럼 남김</span></div></label>
+    <label class="opt"><input type="radio" name="refSpk" value="drop"><div><b>제외</b><span>"화자 1" 같은 발언자 표현을 빼고 내용만 서술</span></div></label>
+  </div>
+  <p class="hint" id="refineEngine"></p>
+  <div class="dlg-actions"><button class="btn" id="refineCancel">취소</button><button class="btn primary" id="refineGo">다듬기</button></div>
 </dialog>
 
 <dialog id="confirmDlg">
@@ -2956,6 +2976,132 @@ $('#aiToDoc').addEventListener('click', () => {
   appendToDoc(mdToDocNodes(S.minutes, $('#aiTimes').checked)); toast('AI 초안을 회의록에 넣었어요.');
 });
 
+/* ---------- 회의록 스타일로 다듬기: 회의 내용을 AI가 회의록 문체로 정리 (분량·화자 언급 선택, 되돌리기) ---------- */
+const REFINE_KEY = 'meetnote.refine';
+const refine = { len: 'mid', spk: 'keep', running: false, ctl: null, prev: null };
+try { const o = JSON.parse(localStorage.getItem(REFINE_KEY) || '{}'); if (['short', 'mid', 'long'].includes(o.len)) refine.len = o.len; if (['keep', 'drop'].includes(o.spk)) refine.spk = o.spk; } catch {}
+// 본문 → 마크다운. 표는 {{표N}} 자리표시로 빼 두었다가 결과에 원래 표를 되돌려 넣는다
+function docToMd() {
+  const tables = [], L = [];
+  const txt = n => { const c = n.cloneNode(true); c.querySelectorAll('.tchip').forEach(x => x.replaceWith(` [${x.textContent.trim()}]`)); c.querySelectorAll('.box').forEach(x => x.remove()); c.querySelectorAll('br').forEach(x => x.replaceWith('\n')); return c.textContent.replace(/​/g, '').replace(/[ \t]+/g, ' ').trim(); };
+  const walk = (list, depth) => {
+    let i = 0;
+    for (const li of list.children) {
+      if (li.tagName === 'UL' || li.tagName === 'OL') { walk(li, depth + 1); continue; }
+      if (li.tagName !== 'LI') continue;
+      const own = li.cloneNode(true); [...own.children].filter(x => x.tagName === 'UL' || x.tagName === 'OL').forEach(x => x.remove());
+      const bx = li.querySelector(':scope > .box');
+      const mark = bx ? (bx.classList.contains('on') ? '- [x] ' : '- [ ] ') : list.tagName === 'OL' ? `${++i}. ` : '- ';
+      const t = txt(own).replace(/\n+/g, ' '); if (t) L.push('  '.repeat(depth) + mark + t);
+      [...li.children].filter(x => x.tagName === 'UL' || x.tagName === 'OL').forEach(x => walk(x, depth + 1));
+    }
+  };
+  for (const el of docEditor.children) {
+    if (!hasContent(el)) { if (L.length && L[L.length - 1] !== '') L.push(''); continue; }
+    if (el.classList.contains('tbl-wrap')) { tables.push(el); L.push('', `{{표${tables.length}}}`, ''); continue; }
+    const h = { H1: '# ', H2: '## ', H3: '### ' }[el.tagName];
+    if (h) L.push('', h + txt(el).replace(/\n+/g, ' '));
+    else if (el.tagName === 'UL' || el.tagName === 'OL') walk(el, 0);
+    else L.push(txt(el));
+  }
+  return { md: L.join('\n').replace(/\n{3,}/g, '\n\n').trim(), tables };
+}
+function refinePrompt(md, hasTables) {
+  const len = { short: '짧게 — 핵심 결론 위주로 과감히 줄이세요. 항목마다 한 줄, 전체 분량은 원문의 절반 이하. 부연 설명·배경은 빼세요.',
+    mid: '중간 — 원문과 비슷한 분량. 중복·군더더기·구어체만 걷어 내고 항목은 빠뜨리지 마세요.',
+    long: '길게 — 각 논의의 배경, 오간 의견, 결론에 이른 근거를 본문에 있는 내용 안에서 풀어 상세히 쓰세요. 항목 아래에 하위 글머리표로 세부 내용을 나눠도 됩니다.' }[refine.len];
+  const spk = refine.spk === 'keep'
+    ? '포함 — 본문에 누가 말했는지나 담당자가 적혀 있으면 "(홍길동)" 형태로 유지하세요. 본문에 없는 이름은 만들지 마세요.'
+    : '제외 — "화자 1", "발언자 2", "OOO이 ~라고 말함" 같은 발언자 표현을 모두 빼고 내용만 서술하세요. "화자 1"처럼 번호로 된 발언자는 할 일의 담당자로도 쓰지 마세요. 단, 담당자가 실제 이름으로 적혀 있으면 그 표기는 남기세요.';
+  return `당신은 공공기관·기업의 회의록을 다듬는 편집자입니다. 아래 <본문>을 회의록 문체로 다듬어 마크다운으로 출력하세요.
+
+규칙:
+- 문체: 개조식. 문장은 "~함", "~하기로 함", "~예정임", "~필요"처럼 명사형으로 끝내고, "~했습니다/~해요" 같은 구어체·경어체는 쓰지 마세요. 군더더기와 중복을 없애고 문장은 간결하게.
+- 본문에 없는 사실(이름, 수치, 기한, 결정)은 절대 더하지 마세요. 본문의 수치·고유명사·기한은 그대로 두세요.
+- 분량: ${len}
+- 화자 언급: ${spk}
+- 구조: 본문의 제목(##) 구성과 순서를 유지하세요. 본문에 없는 문서 제목이나 새 최상위 제목을 만들지 마세요. 제목이 하나도 없으면 "## 주요 논의", "## 결정 사항", "## 할 일"로 나누세요. 할 일은 "- [ ] 내용 (담당, 기한)" 형식.
+- 줄 끝의 [mm:ss] 시간 표기는 해당 항목을 남길 때 그대로 줄 끝에 두세요. 새로 만들지는 마세요.${hasTables ? '\n- {{표1}} 같은 자리표시 줄은 표가 들어갈 자리입니다. 글자 하나 바꾸지 말고 한 줄 그대로 같은 위치에 두세요.' : ''}
+- 인사말·설명·코드블록 표시 없이 마크다운 본문만 출력하세요.
+
+회의 제목: ${S.title || '(제목 없음)'}
+
+<본문>
+${md}
+</본문>`;
+}
+async function aiComplete(prompt, signal) {
+  const prov = ai.provider;
+  if (isLocal(prov)) return callOpenAI(prompt, signal, () => {});
+  if (prov === 'anthropic') { if (!apiKey) throw Object.assign(new Error('Anthropic API 키가 없어요.'), { code: 'no_key' }); return callApi(prompt, signal); }
+  const sample = await sampleP;
+  if (!sample) throw Object.assign(new Error('이 페이지는 Claude 화면 밖에서 열려 있어 Claude를 바로 부를 수 없어요.'), { code: 'no_sample' });
+  return (await sample(prompt, { signal, modelTier: 'default', cache: false })).text;
+}
+function setDocHtml(html) {
+  if (docReplayOn) { $('#docReplayChk').checked = false; docReplayOn = false; applyModeFor(docTrack); }
+  withEditor(docEditor, () => {
+    if (typeof html === 'string') docEditor.innerHTML = sanitizeHTML(html); else { docEditor.innerHTML = ''; html.forEach(n => docEditor.appendChild(n)); }
+    normalizeRoot();
+    for (const el of docEditor.children) if (el.classList.contains('tbl-wrap')) hydrateTable(el);
+    docEditor.querySelectorAll('.tchip').forEach(c => c.setAttribute('contenteditable', 'false'));
+    updateEmptyHint();
+  });
+  trackBlocks(docTrack, { structural: true });
+  markDirty();
+}
+async function runRefine() {
+  const { md, tables } = docToMd();
+  if (!md.replace(/\{\{표\d+\}\}/g, '').trim()) { toast('다듬을 회의 내용이 없어요. 내용을 입력하거나 AI 회의록 초안을 "회의록에 넣기"로 옮긴 뒤 눌러 주세요.', 6000); return; }
+  if (ai.provider === 'auto' && !(await sampleP)) { openAIDlg(); toast('AI 엔진을 먼저 골라 주세요 (LM Studio·Ollama 또는 Anthropic API 키).', 7000); return; }
+  if (isLocal(ai.provider) && !curModel()) { openAIDlg(); toast('AI 설정에서 모델을 먼저 불러와 고르세요.', 6000); return; }
+  const btn = $('#refineBtn'), t0 = performance.now();
+  refine.running = true; refine.ctl = new AbortController(); btn.textContent = '다듬기 중지';
+  const label = `${{ short: '짧게', mid: '중간', long: '길게' }[refine.len]} · 화자 ${refine.spk === 'keep' ? '포함' : '제외'}`;
+  autoStatus('wait', `회의록 스타일로 다듬는 중… (${label} · ${providerLabel()})`);
+  aiLog('info', '다듬기 시작', { len: refine.len, spk: refine.spk, engine: ai.provider, model: curModel() || undefined, chars: md.length, tables: tables.length });
+  try {
+    let text = (await aiComplete(refinePrompt(md, tables.length > 0), refine.ctl.signal) || '').trim();
+    text = text.replace(/^```(?:markdown|md)?\s*\n/i, '').replace(/\n```\s*$/, '').trim();
+    if (!text) throw Object.assign(new Error('모델이 빈 응답을 보냈어요.'), { code: 'empty_completion' });
+    // 화자 제외: 작은 모델이 "(화자 1)"을 남기는 일이 있어 번호로 된 발언자 표기는 한 번 더 걷어 낸다
+    if (refine.spk === 'drop') text = text.replace(/[ \t]*\((?:화자|발언자)\s*\d+\)/g, '').replace(/(?:화자|발언자)\s*\d+\s*(?:은|는|이|가)\s+/g, '');
+    const prev = serializeDoc();
+    const nodes = mdToDocNodes(text, true), used = new Set(), outNodes = [];
+    for (const n of nodes) {
+      const m = /^\s*\{\{표(\d+)\}\}\s*$/.exec(n.textContent || '');
+      if (m && tables[+m[1] - 1] && !used.has(+m[1])) { used.add(+m[1]); outNodes.push(tables[+m[1] - 1]); } else if (!m) outNodes.push(n);
+    }
+    tables.forEach((t, i) => { if (!used.has(i + 1)) outNodes.push(t); });   // 모델이 자리표시를 빠뜨려도 표는 잃지 않는다
+    setDocHtml(outNodes);
+    refine.prev = prev; $('#refineUndo').hidden = false;
+    autoStatus('ok', `회의록 스타일로 다듬었어요 (${label}). 마음에 들지 않으면 "되돌리기"를 누르세요.`);
+    aiLog('info', '다듬기 완료', { ms: Math.round(performance.now() - t0), before: md.length, after: text.length });
+  } catch (e) {
+    if (e && (e.name === 'AbortError' || e.code === 'cancelled')) { autoStatus('ok', '다듬기를 멈췄어요. 본문은 그대로예요.'); aiLog('warn', '다듬기 중지'); }
+    else { aiLog('error', '다듬기 실패', errInfo(e)); const { msg, hint } = explainAIError(e); autoStatus('bad', `다듬기 실패: ${msg} ${hint || ''}`); toast('다듬지 못했어요. 본문은 그대로예요.', 5000); }
+  } finally { refine.running = false; refine.ctl = null; btn.textContent = '회의록 스타일로 다듬기'; }
+}
+$('#refineBtn').addEventListener('click', () => {
+  if (refine.running) { refine.ctl?.abort(); return; }
+  document.querySelectorAll('input[name="refLen"]').forEach(r => { r.checked = r.value === refine.len; });
+  document.querySelectorAll('input[name="refSpk"]').forEach(r => { r.checked = r.value === refine.spk; });
+  $('#refineEngine').textContent = `AI 엔진: ${providerLabel()}${curModel() ? ' · ' + curModel() : ''} (바꾸려면 AI 회의록 탭의 AI 설정)`;
+  try { $('#refineDlg').showModal(); } catch {}
+});
+$('#refineCancel').addEventListener('click', () => $('#refineDlg').close());
+$('#refineGo').addEventListener('click', () => {
+  refine.len = document.querySelector('input[name="refLen"]:checked')?.value || 'mid';
+  refine.spk = document.querySelector('input[name="refSpk"]:checked')?.value || 'keep';
+  try { localStorage.setItem(REFINE_KEY, JSON.stringify({ len: refine.len, spk: refine.spk })); } catch {}
+  $('#refineDlg').close(); runRefine();
+});
+$('#refineUndo').addEventListener('click', () => {
+  if (refine.prev == null || refine.running) return;
+  setDocHtml(refine.prev); refine.prev = null; $('#refineUndo').hidden = true;
+  autoStatus('ok', '다듬기 전 내용으로 되돌렸어요.');
+});
+
 /* ---------- live auto-draft of the body while recording ---------- */
 const auto = { on: false, timer: null, running: false, lastRun: 0, lastMat: '', ctl: null };
 const autoEngineOk = () => isLocal(ai.provider) ? !!curModel() : ai.provider === 'anthropic' ? !!apiKey : false;
@@ -3436,7 +3582,8 @@ function hwpxBuilder(title) {
   const runsXml = runs => runs.length ? runs.map(r => `<hp:run charPrIDRef="${charPr(r.f)}"><hp:t>${xesc(r.t)}</hp:t></hp:run>`).join('') : `<hp:run charPrIDRef="0"><hp:t/></hp:run>`;
   const para = (runs, pp = {}, extra = '') => `<hp:p id="${pid++}" paraPrIDRef="${paraPr(pp)}" styleIDRef="0" pageBreak="${pp.pageBreak ? 1 : 0}" columnBreak="0" merged="0">${extra}${runsXml(runs)}</hp:p>`;
   const body = [], bins = [];
-  let picSeq = 1;
+  let picSeq = 1, box = null, boxHead = null;
+  const out = x => (box || body).push(x);
   // 글자처럼 취급하는 그림(treatAsChar) — 표 칸 안 가운데 정렬용
   // 한글이 만든 파일과 같은 방식: orgSz·imgRect·imgClip·imgDim은 원본(픽셀×75), sz·curSz는 표시 크기, scaMatrix는 둘의 비율
   const picXml = (bid, w, h, pw, ph) => {
@@ -3445,7 +3592,20 @@ function hwpxBuilder(title) {
     return `<hp:pic id="${id}" zOrder="${id}" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="${id}" reverse="0"><hp:offset x="0" y="0"/><hp:orgSz width="${ow}" height="${oh}"/><hp:curSz width="${w}" height="${h}"/><hp:flip horizontal="0" vertical="0"/><hp:rotationInfo angle="0" centerX="${w >> 1}" centerY="${h >> 1}" rotateimage="1"/><hp:renderingInfo><hc:transMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/><hc:scaMatrix e1="${sx}" e2="0" e3="0" e4="0" e5="${sy}" e6="0"/><hc:rotMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/></hp:renderingInfo><hp:imgRect><hc:pt0 x="0" y="0"/><hc:pt1 x="${ow}" y="0"/><hc:pt2 x="${ow}" y="${oh}"/><hc:pt3 x="0" y="${oh}"/></hp:imgRect><hp:imgClip left="0" right="${ow}" top="0" bottom="${oh}"/><hp:inMargin left="0" right="0" top="0" bottom="0"/><hp:imgDim dimwidth="${ow}" dimheight="${oh}"/><hc:img binaryItemIDRef="${bid}" bright="0" contrast="0" effect="REAL_PIC" alpha="0"/><hp:effects/><hp:sz width="${w}" widthRelTo="ABSOLUTE" height="${h}" heightRelTo="ABSOLUTE" protect="0"/><hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/><hp:outMargin left="0" right="0" top="0" bottom="0"/></hp:pic>`;
   };
   return {
-    para: (runs, pp) => body.push(para(runs, pp)),
+    para: (runs, pp) => out(para(runs, pp)),
+    /* 회의 세부 내용: 제목 칸 + 본문 칸을 한 표(1열)로. 글자처럼 취급하지 않는 표(treatAsChar=0)라 내용이 길면 쪽을 넘어 이어진다 */
+    boxHead: true,
+    boxStart: head => { box = []; boxHead = head || null; },
+    boxEnd: minH => {
+      const inner = box.join('') || para([]); box = null;
+      const W = HW.textW, bf = borderFill({ border: true }), rows = [];
+      const tc = (r, h, content, va) => `<hp:tc name="" header="0" hasMargin="0" protect="0" editable="0" dirty="0" borderFillIDRef="${bf}"><hp:subList id="" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="${va}" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0">${content}</hp:subList><hp:cellAddr colAddr="0" rowAddr="${r}"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="${W}" height="${h}"/><hp:cellMargin left="510" right="510" top="141" bottom="141"/></hp:tc>`;
+      if (boxHead) rows.push([boxHead.height, tc(0, boxHead.height, para([{ t: boxHead.text, f: boxHead.f }], { align: 'CENTER', line: 130 }), 'CENTER')]);
+      const bh = Math.max(3000, minH || 0); rows.push([bh, tc(rows.length, bh, inner, 'TOP')]);
+      const Hh = rows.reduce((a, r) => a + r[0], 0);
+      const tbl = `<hp:tbl id="${tblId++}" zOrder="${tblId}" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="${rows.length}" colCnt="1" cellSpacing="0" borderFillIDRef="2" noAdjust="0"><hp:sz width="${W}" widthRelTo="ABSOLUTE" height="${Hh}" heightRelTo="ABSOLUTE" protect="0"/><hp:pos treatAsChar="0" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/><hp:outMargin left="0" right="0" top="141" bottom="141"/><hp:inMargin left="510" right="510" top="141" bottom="141"/>${rows.map(r => `<hp:tr>${r[1]}</hp:tr>`).join('')}</hp:tbl>`;
+      body.push(`<hp:p id="${pid++}" paraPrIDRef="${paraPr({ before: 200, after: 200 })}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0">${tbl}<hp:t/></hp:run></hp:p>`);
+    },
     photos: list => {
       const L = photoLayout(list.length), trs = [];
       for (let r = 0; r < L.rows; r++) {
@@ -3470,7 +3630,7 @@ function hwpxBuilder(title) {
     table: (rowsSpec, colW, rowH, cellMap) => {
       const R = rowsSpec.rows, C = rowsSpec.cols;
       let total = colW.reduce((a, b) => a + b, 0);
-      const k = total > HW.textW ? HW.textW / total : 1;
+      const lim = box ? HW.textW - 1500 : HW.textW, k = total > lim ? lim / total : 1;
       const cw = colW.map(w => Math.round(w * k));
       const trs = [];
       for (let r = 0; r < R; r++) {
@@ -3480,13 +3640,13 @@ function hwpxBuilder(title) {
           const hgt = rowH.slice(cell.r, cell.r + cell.rs).reduce((a, b) => a + b, 0);
           const bf = borderFill({ border: true, fill: cell.fill, slash: cell.d2 ? 'CENTER' : 'NONE', backSlash: cell.d1 ? 'CENTER' : 'NONE' });
           const ps = cell.paras.map(runs => para(runs, { line: 130, align: cell.align })).join('') || para([], { align: cell.align });
-          tcs.push(`<hp:tc name="" header="0" hasMargin="0" protect="0" editable="0" dirty="0" borderFillIDRef="${bf}"><hp:subList id="" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="TOP" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0">${ps}</hp:subList><hp:cellAddr colAddr="${cell.c}" rowAddr="${cell.r}"/><hp:cellSpan colSpan="${cell.cs}" rowSpan="${cell.rs}"/><hp:cellSz width="${w}" height="${hgt}"/><hp:cellMargin left="510" right="510" top="141" bottom="141"/></hp:tc>`);
+          tcs.push(`<hp:tc name="" header="0" hasMargin="0" protect="0" editable="0" dirty="0" borderFillIDRef="${bf}"><hp:subList id="" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="${cell.valign === 'CENTER' ? 'CENTER' : 'TOP'}" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0">${ps}</hp:subList><hp:cellAddr colAddr="${cell.c}" rowAddr="${cell.r}"/><hp:cellSpan colSpan="${cell.cs}" rowSpan="${cell.rs}"/><hp:cellSz width="${w}" height="${hgt}"/><hp:cellMargin left="510" right="510" top="141" bottom="141"/></hp:tc>`);
         }
         trs.push(`<hp:tr>${tcs.join('')}</hp:tr>`);
       }
       const W = cw.reduce((a, b) => a + b, 0), Hh = rowH.reduce((a, b) => a + b, 0);
       const tbl = `<hp:tbl id="${tblId++}" zOrder="${tblId}" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="1" rowCnt="${R}" colCnt="${C}" cellSpacing="0" borderFillIDRef="2" noAdjust="0"><hp:sz width="${W}" widthRelTo="ABSOLUTE" height="${Hh}" heightRelTo="ABSOLUTE" protect="0"/><hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/><hp:outMargin left="141" right="141" top="141" bottom="141"/><hp:inMargin left="510" right="510" top="141" bottom="141"/>${trs.join('')}</hp:tbl>`;
-      body.push(`<hp:p id="${pid++}" paraPrIDRef="${paraPr({ before: 200, after: 200 })}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0">${tbl}</hp:run></hp:p>`);
+      out(`<hp:p id="${pid++}" paraPrIDRef="${paraPr({ before: 200, after: 200 })}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0">${tbl}</hp:run></hp:p>`);
     },
     build() {
       const fontfaces = ['HANGUL', 'LATIN', 'HANJA', 'JAPANESE', 'OTHER', 'SYMBOL', 'USER'].map(l => `<hh:fontface lang="${l}" fontCnt="1"><hh:font id="0" face="맑은 고딕" type="TTF" isEmbedded="0"/></hh:fontface>`).join('');
@@ -3532,10 +3692,21 @@ function docxBuilder(title) {
   const runsXml = runs => runs.map(r => `<w:r>${rPr(r.f || {})}<w:t xml:space="preserve">${xesc(r.t)}</w:t></w:r>`).join('');
   const para = (runs, pp = {}) => `<w:p><w:pPr>${pp.pageBreak ? '<w:pageBreakBefore/>' : ''}${pp.align ? `<w:jc w:val="${pp.align === 'CENTER' ? 'center' : pp.align === 'RIGHT' ? 'right' : 'left'}"/>` : ''}<w:spacing w:before="${tw(pp.before || 0)}" w:after="${tw(pp.after || 0)}" w:line="${Math.round(240 * (pp.line || 160) / 100)}" w:lineRule="auto"/>${pp.indent ? `<w:ind w:left="${tw(pp.indent)}"/>` : ''}</w:pPr>${runsXml(runs)}</w:p>`;
   const body = [], media = [];
+  let box = null, boxHead = null;
+  const out = x => (box || body).push(x);
   const EMU = 127;  // 1 HWPUNIT(1/7200 in) = 127 EMU
   const line = 'w:val="single" w:sz="4" w:space="0" w:color="000000"';
   return {
-    para: (runs, pp) => body.push(para(runs, pp)),
+    para: (runs, pp) => out(para(runs, pp)),
+    boxHead: true,
+    boxStart: head => { box = []; boxHead = head || null; },
+    boxEnd: minH => {
+      let inner = box.join(''); box = null;
+      if (!/(<\/w:p>|<w:p\/>)$/.test(inner)) inner += '<w:p/>';   // 칸은 문단으로 끝나야 함
+      const W = tw(HW.textW), bd = `<w:tcBorders><w:top ${line}/><w:left ${line}/><w:bottom ${line}/><w:right ${line}/></w:tcBorders>`;
+      const head = boxHead ? `<w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="${tw(boxHead.height)}"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${W}" w:type="dxa"/>${bd}<w:vAlign w:val="center"/></w:tcPr>${para([{ t: boxHead.text, f: boxHead.f }], { align: 'CENTER', line: 130 })}</w:tc></w:tr>` : '';
+      body.push(`<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="28" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="28" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid><w:gridCol w:w="${W}"/></w:tblGrid>${head}<w:tr><w:trPr><w:trHeight w:val="${tw(Math.max(3000, minH || 0))}"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${W}" w:type="dxa"/>${bd}<w:vAlign w:val="top"/></w:tcPr>${inner}</w:tc></w:tr></w:tbl><w:p><w:pPr><w:spacing w:before="0" w:after="60"/></w:pPr></w:p>`);
+    },
     photos: list => {
       const L = photoLayout(list.length), cw = tw(L.cellW), trs = [];
       for (let r = 0; r < L.rows; r++) {
@@ -3557,7 +3728,8 @@ function docxBuilder(title) {
     },
     table: (spec, colW, rowH) => {
       const R = spec.rows, C = spec.cols;
-      const total = colW.reduce((a, b) => a + b, 0), k = total > HW.textW ? HW.textW / total : 1;
+      const lim = box ? HW.textW - 1500 : HW.textW;
+      const total = colW.reduce((a, b) => a + b, 0), k = total > lim ? lim / total : 1;
       const cw = colW.map(w => tw(w * k));
       const gridMap = Array.from({ length: R }, () => []);
       for (const row of spec.origin) for (const cell of row) for (let i = 0; i < cell.rs; i++) for (let j = 0; j < cell.cs; j++) if (gridMap[cell.r + i]) gridMap[cell.r + i][cell.c + j] = cell;
@@ -3570,14 +3742,14 @@ function docxBuilder(title) {
           const w = cw.slice(cell.c, cell.c + cell.cs).reduce((a, b) => a + b, 0);
           const origin = cell.r === r;
           const borders = `<w:tcBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/>${cell.d1 ? '<w:tl2br w:val="single" w:sz="4" w:space="0" w:color="000000"/>' : ''}${cell.d2 ? '<w:tr2bl w:val="single" w:sz="4" w:space="0" w:color="000000"/>' : ''}</w:tcBorders>`;
-          const tcPr = `<w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${cell.cs > 1 ? `<w:gridSpan w:val="${cell.cs}"/>` : ''}${cell.rs > 1 ? (origin ? '<w:vMerge w:val="restart"/>' : '<w:vMerge/>') : ''}${borders}${cell.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${hex(cell.fill)}"/>` : ''}<w:vAlign w:val="top"/></w:tcPr>`;
+          const tcPr = `<w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${cell.cs > 1 ? `<w:gridSpan w:val="${cell.cs}"/>` : ''}${cell.rs > 1 ? (origin ? '<w:vMerge w:val="restart"/>' : '<w:vMerge/>') : ''}${borders}${cell.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${hex(cell.fill)}"/>` : ''}<w:vAlign w:val="${cell.valign === 'CENTER' ? 'center' : 'top'}"/></w:tcPr>`;
           const ps = origin ? (cell.paras.map(runs => para(runs, { line: 130, align: cell.align })).join('') || '<w:p/>') : '<w:p/>';
           tcs.push(`<w:tc>${tcPr}${ps}</w:tc>`);
           c += cell.cs;
         }
         trs.push(`<w:tr><w:trPr><w:trHeight w:val="${tw(rowH[r] || 1500)}"/></w:trPr>${tcs.join('')}</w:tr>`);
       }
-      body.push(`<w:tbl><w:tblPr><w:tblW w:w="${cw.reduce((a, b) => a + b, 0)}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="28" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="28" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${cw.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>${trs.join('')}</w:tbl><w:p><w:pPr><w:spacing w:before="0" w:after="60"/></w:pPr></w:p>`);
+      out(`<w:tbl><w:tblPr><w:tblW w:w="${cw.reduce((a, b) => a + b, 0)}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="28" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="28" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${cw.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>${trs.join('')}</w:tbl><w:p><w:pPr><w:spacing w:before="0" w:after="60"/></w:pPr></w:p>`);
     },
     build() {
       const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
@@ -3635,7 +3807,7 @@ function htmlBuilder(title) {
       const trs = spec.origin.map((row, r) => `<tr${(rowH[r] || 1500) <= 6000 ? ' class="keep"' : ''}${!rowFixed || rowFixed[r] ? ` style="height:${px(rowH[r] || 1500)}px"` : ''}>${row.map(cell => {
         const diag = cell.d1 ? 'linear-gradient(to bottom right,transparent calc(50% - .5px),#000 calc(50% - .5px),#000 calc(50% + .5px),transparent calc(50% + .5px))' : cell.d2 ? 'linear-gradient(to top right,transparent calc(50% - .5px),#000 calc(50% - .5px),#000 calc(50% + .5px),transparent calc(50% + .5px))' : '';
         const bg = [diag, cell.fill ? `linear-gradient(${cell.fill},${cell.fill})` : ''].filter(Boolean).join(',');
-        return `<td rowspan="${cell.rs}" colspan="${cell.cs}" style="${bg ? 'background:' + bg + ';' : ''}${cell.valign ? 'vertical-align:' + cell.valign + ';' : ''}">${cell.paras.map(runs => para(runs, { line: 130, align: cell.align })).join('') || '&nbsp;'}</td>`;
+        return `<td rowspan="${cell.rs}" colspan="${cell.cs}" style="${bg ? 'background:' + bg + ';' : ''}${cell.valign ? 'vertical-align:' + (cell.valign === 'CENTER' ? 'middle' : cell.valign) + ';' : ''}">${cell.paras.map(runs => para(runs, { line: 130, align: cell.align })).join('') || '&nbsp;'}</td>`;
       }).join('')}</tr>`).join('');
       body.push(`<table style="width:${cw.reduce((a, b) => a + b, 0)}px"><colgroup>${cw.map(w => `<col style="width:${w}px">`).join('')}</colgroup>${trs}</table>`);
     },
@@ -3737,16 +3909,18 @@ function attendeesByOrg() {
   S.attendees.filter(a => a.name || a.org || a.title).forEach(a => { const k = a.org || ''; if (!groups.has(k)) groups.set(k, []); groups.get(k).push([a.name, a.title].filter(Boolean).join(' ')); });
   return [...groups].map(([org, ppl]) => (org ? `[${org}] ` : '') + ppl.join(', '));
 }
-function renderBody(B, { box = false } = {}) {
+function renderBody(B, { box = false, head = null } = {}) {
   /* 입력한 그대로: 앞뒤 빈 줄만 빼고 사이의 빈 줄(엔터)은 빈 문단으로 유지 */
   const els = [...docEditor.children];
   let a = 0, b = els.length;
   while (a < b && !hasContent(els[a])) a++;
   while (b > a && !hasContent(els[b - 1])) b--;
-  if (box) B.boxStart?.();
+  // 제목 칸: 한글·Word는 본문 칸과 한 표로(boxHead), PDF는 제목 표 + 테두리 상자
+  if (head && !(box && B.boxHead)) B.table({ rows: 1, cols: 1, origin: [[cellSpec(0, 0, head.text, head.f, { align: 'CENTER', valign: 'CENTER' })]] }, [HW.textW], [head.height]);
+  if (box) B.boxStart?.(head);
   if (a < b) for (const el of els.slice(a, b)) { if (hasContent(el)) hwpxBlock(B, el); else B.para([]); }
   else hwpxPlainLine(B, '(내용 없음)', F.muted);
-  if (box) B.boxEnd?.();
+  if (box) B.boxEnd?.(Math.round(docMinPx() * HW.px));
 }
 function renderAppendices(B, opts) {
   if (opts.notes) {
@@ -3774,24 +3948,25 @@ const TEMPLATES = {
     name: '회의록 (일시·장소·제목·참석자 / 세부내용 / 실행계획 / 특이사항)',
     fields: ['when', 'place', 'author'], sections: { actions: true, notes: true }, bodyBox: true,
     render(B, opts) {
-      const W = HW.textW, wl = 5600, wv1 = W - wl * 2 - 11000, wv2 = 11000;
-      const labc = (r, c, t, extra = {}) => cellSpec(r, c, spaced(t), F.lab, { fill: HD, align: 'CENTER', ...extra });
+      // 레이블 칸 7000(약 24.7mm): '작  성  자'처럼 띄어 쓴 세 글자 레이블이 한글에서 줄바꿈되지 않는 폭
+      const W = HW.textW, wl = 7000, wv1 = W - wl * 2 - 11000, wv2 = 11000, RH = 1800;
+      const labc = (r, c, t, extra = {}) => cellSpec(r, c, spaced(t), F.lab, { fill: HD, align: 'CENTER', valign: 'CENTER', ...extra });
+      const valc = (r, c, t, extra = {}) => cellSpec(r, c, t, F.val, { valign: 'CENTER', ...extra });
       B.para([{ t: '회    의    록', f: { size: 2200, bold: true } }], { align: 'CENTER', after: 500 });
       const attLines = attendeesByOrg();
       B.table({ rows: 4, cols: 4, origin: [
-        [labc(0, 0, '일시'), cellSpec(0, 1, metaWhenText(), F.val), labc(0, 2, '작성자'), cellSpec(0, 3, S.meta.author || '', F.val)],
-        [labc(1, 0, '장소'), { ...cellSpec(1, 1, S.meta.place || '', F.val), cs: 3 }],
-        [labc(2, 0, '제목'), { ...cellSpec(2, 1, S.title || '', F.val), cs: 3 }],
-        [labc(3, 0, '참석자'), { ...multiCell(3, 1, attLines), cs: 3 }]
-      ] }, [wl, wv1, wl, wv2], [1500, 1500, 1500, Math.max(1500, 1100 * Math.max(1, attLines.length) + 500)]);
-      B.table({ rows: 1, cols: 1, origin: [[cellSpec(0, 0, '회 의   세 부   내 용', { size: 1200, bold: true }, { align: 'CENTER' })]] }, [W], [1700]);
-      renderBody(B, { box: true });
+        [labc(0, 0, '일시'), valc(0, 1, metaWhenText()), labc(0, 2, '작성자'), valc(0, 3, S.meta.author || '')],
+        [labc(1, 0, '장소'), valc(1, 1, S.meta.place || '', { cs: 3 })],
+        [labc(2, 0, '제목'), valc(2, 1, S.title || '', { cs: 3 })],
+        [labc(3, 0, '참석자'), { ...multiCell(3, 1, attLines, F.val, { valign: 'CENTER' }), cs: 3 }]
+      ] }, [wl, wv1, wl, wv2], [RH, RH, RH, Math.max(RH, 1300 * Math.max(1, attLines.length) + 500)]);
+      renderBody(B, { box: true, head: { text: '회 의   세 부   내 용', f: { size: 1200, bold: true }, height: 1900 } });
       const acts = (S.meta.actions || []).filter(a => a.due || a.who || a.what || a.out);
       const n = Math.max(1, acts.length);
       const rows = [[{ ...labc(0, 0, '실행계획'), rs: n + 1 }, labc(0, 1, '기한'), labc(0, 2, '작업수행자'), labc(0, 3, '내용'), labc(0, 4, '산출물')]];
       for (let i = 0; i < n; i++) { const a = acts[i] || {}; rows.push([cellSpec(i + 1, 1, a.due || '', F.val), cellSpec(i + 1, 2, a.who || '', F.val), cellSpec(i + 1, 3, a.what || '', F.val), cellSpec(i + 1, 4, a.out || '', F.val)]); }
       B.para([], { before: 100 });
-      B.table({ rows: n + 1, cols: 5, origin: rows }, [wl, 6200, 7200, W - wl - 6200 - 7200 - 7600, 7600], rows.map(() => 1500));
+      B.table({ rows: n + 1, cols: 5, origin: rows }, [wl, 6200, 7200, W - wl - 6200 - 7200 - 7600, 7600], rows.map(() => RH));
       const notes = String(S.meta.notes || '').split(/\n/).map(x => x.trim()).filter(Boolean);
       B.table({ rows: 1, cols: 1, origin: [[{ r: 0, c: 0, rs: 1, cs: 1, paras: [[{ t: 'ㅇ 특이사항', f: F.lab }], ...(notes.length ? notes.map(l => [{ t: '- ' + l, f: F.val }]) : [[{ t: '-', f: F.val }]])] }]] }, [W], [Math.max(2400, 1200 * (notes.length + 1) + 600)]);
     }
@@ -4598,6 +4773,7 @@ function renderAll() {
   setEditMode(false);
   renderEditor(); renderTranscript(); renderMd(S.minutes); renderTimeline(); syncButtons(); tick(); scheduleGutter();
   renderPhotoList();
+  refine.prev = null; $('#refineUndo').hidden = true;
 }
 
 /* ---------- 회의 사진(붙임) ---------- */
@@ -4862,9 +5038,17 @@ initGoogle();
   function blockAt(x, y) {
     const el = document.elementFromPoint(x, y); if (!el) return null;
     for (const ed of eds) {
-      if (ed.hidden || !ed.contains(el)) continue;
-      let n = el; while (n && n.parentNode !== ed) n = n.parentNode;
-      return n && n.parentNode === ed ? { ed, block: n } : null;
+      if (ed.hidden) continue;
+      if (el !== ed && ed.contains(el)) {
+        let n = el; while (n && n.parentNode !== ed) n = n.parentNode;
+        return n && n.parentNode === ed ? { ed, block: n } : null;
+      }
+      // 편집 영역의 안쪽 여백(테두리와 글 사이)이나 손잡이가 놓이는 바깥 여백에서는 같은 높이의 줄을 고른다
+      if (el !== ed && !el.contains(ed)) continue;
+      const er = ed.getBoundingClientRect();
+      const inX = ed === memoEditor ? (x >= er.left && x <= er.right + 36) : (x >= er.left - 36 && x <= er.right);
+      if (!inX || y < er.top || y > er.bottom) continue;
+      for (const b of ed.children) { const r = b.getBoundingClientRect(); if (y >= r.top - 1 && y <= r.bottom + 1) return { ed, block: b }; }
     }
     return null;
   }
@@ -4882,7 +5066,7 @@ initGoogle();
     if (handle.contains(e.target)) return;
     const hit = blockAt(e.clientX, e.clientY);
     if (hit && !trackOf(hit.ed).on) showHandle(hit.ed, hit.block);
-    else if (!hit || !hit.ed.contains(e.target)) { const hr = handle.getBoundingClientRect(); if (!(e.clientX >= hr.left - 6 && e.clientX <= hr.right + 6 && e.clientY >= hr.top - 6 && e.clientY <= hr.bottom + 6)) hideHandle(); }
+    else if (!hit) { const hr = handle.getBoundingClientRect(); if (!(e.clientX >= hr.left - 6 && e.clientX <= hr.right + 6 && e.clientY >= hr.top - 6 && e.clientY <= hr.bottom + 6)) hideHandle(); }
   });
   // touch: long-press a block to show its handle
   let lp = null;
