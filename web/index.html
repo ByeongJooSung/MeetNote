@@ -3911,10 +3911,10 @@ $('#mapOk').addEventListener('click', () => {
 let progT0 = 0, progTimer = null, progAbort = null;
 let progState = { pct: 0, stage: '', lastChange: 0, lastPing: 0, active: false, title: '' };
 const mmss = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
-function progOpen(title) {
-  progState = { pct: 0, stage: '', lastChange: performance.now(), lastPing: performance.now(), active: true, title: title || '녹음 분석 중' };
+function progOpen(title, { local = false } = {}) {
+  progState = { pct: 0, stage: '', lastChange: performance.now(), lastPing: performance.now(), active: true, title: title || '녹음 분석 중', local };
   $('#progTitle').textContent = progState.title; $('#bgText').textContent = progState.title;
-  progSet(null, '서비스에 연결하는 중…'); progT0 = performance.now();
+  progSet(null, local ? '분석을 준비하는 중…' : '서비스에 연결하는 중…'); progT0 = performance.now();
   clearInterval(progTimer);
   progTimer = setInterval(progTick, 500);
   $('#bgPill').hidden = true;
@@ -3928,7 +3928,8 @@ function progTick() {
   prog.classList.toggle('busy', idle > 4000);
   let note = '';
   if (idle > 8000) note = `같은 단계에서 ${mmss(idle)} 진행 중이에요. `;
-  if (since > 4000) note += `서비스 응답이 ${mmss(since)} 동안 없어요. 서버 창을 확인해 주세요.`;
+  if (progState.local) { if (idle > 8000) note += '이 기기에서 직접 계산하는 중이라 기기 성능에 따라 구간마다 시간이 걸릴 수 있어요. 창을 닫지 마세요.'; }
+  else if (since > 4000) note += `서비스 응답이 ${mmss(since)} 동안 없어요. 서버 창을 확인해 주세요.`;
   else if (idle > 8000) note += /모델|준비/.test(progState.stage) ? '처음 한 번 모델을 내려받는 중일 수 있어요(서버 창에 진행률이 보여요).' : '전사·분석은 녹음 길이만큼 걸릴 수 있어요.';
   $('#progNote').textContent = note;
   $('#bgBar').style.width = (progState.pct || 0) + '%';
@@ -4049,6 +4050,19 @@ async function load(device) {
   loadedFor = device;
 }
 function overlap(a0, a1, b0, b1) { return Math.max(0, Math.min(a1, b1) - Math.max(a0, b0)); }
+/* len초마다 자르되, 경계 앞 5초 안에서 가장 조용한 20ms 지점을 골라 말이 중간에 잘리지 않게 */
+function splitPoints(audio, sr, len) {
+  const pts = [0], frame = Math.round(sr * 0.02);
+  let start = 0;
+  while (audio.length - start > len * sr) {
+    const target = start + len * sr, from = target - 5 * sr;
+    let best = target, bestE = Infinity;
+    for (let i = from; i + frame <= target; i += frame) { let e = 0; for (let j = i; j < i + frame; j++) e += audio[j] * audio[j]; if (e < bestE) { bestE = e; best = i + (frame >> 1); } }
+    pts.push(best); start = best;
+  }
+  pts.push(audio.length);
+  return pts;
+}
 async function segmentSpeakers(audio, offset, base) {
   const inputs = await segProc(audio);
   const { logits } = await segModel(inputs);
@@ -4069,13 +4083,22 @@ self.onmessage = async e => {
   try {
     await load(device);
     const dur = audio.length / sr;
-    post({ type: 'stage', msg: '전사 중', pct: 30 });
-    let words = null;
-    const nChunks = Math.max(1, Math.ceil(dur / 30)); let done = 0;
-    const opts = { language, task: 'transcribe', chunk_length_s: 30, stride_length_s: 5, chunk_callback: () => { done++; post({ type: 'stage', msg: '전사 중 ' + Math.min(100, Math.round(done / nChunks * 100)) + '%', pct: 30 + Math.min(45, 45 * done / nChunks) }); } };
-    let res;
-    try { res = await asr(audio, { ...opts, return_timestamps: 'word' }); words = (res.chunks || []).map(c => ({ t0: c.timestamp[0], t1: c.timestamp[1] ?? c.timestamp[0] + 0.5, text: c.text })); }
-    catch (err) { post({ type: 'log', msg: '단어 단위 시간 실패, 문장 단위로 전환: ' + (err && err.message) }); done = 0; res = await asr(audio, { ...opts, return_timestamps: true }); words = (res.chunks || []).map(c => ({ t0: c.timestamp[0], t1: c.timestamp[1] ?? c.timestamp[0] + 2, text: c.text })); }
+    /* 전사: 녹음을 30초 이하 구간으로 직접 나눠 구간마다 진행률을 보낸다(v3 파이프라인은 chunk_callback이 없어 긴 전사 동안 진행 표시가 멈췄음) */
+    const pts = splitPoints(audio, sr, 28), n = pts.length - 1;
+    const mm = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+    let words = [], wordMode = true;
+    for (let i = 0; i < n; i++) {
+      const part = audio.subarray(pts[i], pts[i + 1]), off = pts[i] / sr;
+      post({ type: 'stage', msg: '전사 중 ' + (i + 1) + '/' + n + ' 구간 (' + mm(off) + ' / ' + mm(dur) + ')', pct: 30 + 45 * i / n });
+      if (part.length < sr * 0.3) continue;
+      let res = null;
+      if (wordMode) {
+        try { res = await asr(part, { language, task: 'transcribe', return_timestamps: 'word' }); }
+        catch (err) { post({ type: 'log', msg: '단어 단위 시간 실패, 문장 단위로 전환: ' + (err && err.message) }); wordMode = false; }
+      }
+      if (!res) res = await asr(part, { language, task: 'transcribe', return_timestamps: true });
+      for (const c of res.chunks || []) { const a = c.timestamp[0] ?? 0, b = c.timestamp[1] ?? a + (wordMode ? 0.5 : 2); words.push({ t0: a + off, t1: b + off, text: c.text }); }
+    }
     words = words.filter(w => w.text && w.text.trim());
     post({ type: 'stage', msg: '발언자를 나누는 중', pct: 76 });
     const WIN = 600 * sr; let turns = [], base = 0;
@@ -4138,14 +4161,16 @@ async function diarizeBrowser({ title }) {
   if (inClaude) throw new Error('Claude 화면 안에서는 모델을 내려받을 수 없어요. 배포한 웹이나 앱에서 실행하세요.');
   if (!window.Worker) throw new Error('이 브라우저는 내장 분석을 지원하지 않아요.');
   if (location.protocol === 'file:') throw new Error('파일로 직접 연 페이지에서는 내장 분석이 동작하지 않아요. 배포 주소나 로컬 서버(python serve.py)로 열어 주세요.');
-  const device = navigator.gpu ? 'webgpu' : 'wasm';
+  // navigator.gpu가 있어도 실제 GPU 어댑터를 못 얻는 기기가 있어 확인 후 CPU(wasm)로 대체
+  let device = 'wasm';
+  try { if (navigator.gpu && await navigator.gpu.requestAdapter()) device = 'webgpu'; } catch {}
   aiLog('info', '내장 발언자 구분 시작', { device, bytes: S.audioBlob.size, lang: $('#lang').value });
   // 저장 공간이 부족해도 브라우저가 모델 캐시를 임의로 지우지 않도록 영구 저장 요청
   try { navigator.storage?.persist?.().then(ok => aiLog('info', '영구 저장소', { granted: ok })); } catch {}
   const t0 = performance.now();
   let cancelled = false;
   progAbort = () => { cancelled = true; if (diarWorker) { diarWorker.terminate(); diarWorker = null; } };
-  progOpen(title);
+  progOpen(title, { local: true });
   try {
     progSet(2, '오디오를 읽는 중');
     const { audio: pcm, sr, duration } = await decodeTo16k(S.audioBlob);
