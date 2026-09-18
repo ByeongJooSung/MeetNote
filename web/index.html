@@ -3149,7 +3149,7 @@ function mdToHtml(md) {
   return out.join('');
 }
 
-function buildPrompt(mode = 'final') {
+function buildPrompt(mode = 'final', over = null) {
   trackBlocks(memoTrack);
   const memoItems = [...memoEditor.children].map(el => {
     const txt = blockText(el); if (!txt.trim() || txt === '표') return null;
@@ -3161,18 +3161,20 @@ function buildPrompt(mode = 'final') {
   const segs = [...S.segments].sort((a, b) => a.t0 - b.t0);
   let tr = segs.map(s => `[${fmt(s.t0)}] ${s.spk ? speakerName(s.spk) + ': ' : ''}${s.text}`).join('\n');
   // 메모와 전사를 시간순으로 맞춰 한 흐름으로 (메모 시점 앞뒤 발언을 근거로 쓰도록)
-  let timeline = '';
+  let timeline = '', timelineFull = '';
   if (memoItems.some(m => m.t != null) && segs.length) {
     const ev = [
       ...memoItems.filter(m => m.t != null).map(m => ({ t: m.t, k: 'M', s: `[${fmt(m.t)}] 메모: ${m.txt.replace(/\n/g, ' / ')}` })),
       ...segs.map(s => ({ t: s.t0, k: 'T', s: `[${fmt(s.t0)}] 발언${s.spk ? '(' + speakerName(s.spk) + ')' : ''}: ${s.text}` }))
     ].sort((a, b) => a.t - b.t || (a.k === 'M' ? -1 : 1));
-    timeline = ev.map(e => e.s).join('\n');
+    timeline = ev.map(e => e.s).join('\n'); timelineFull = timeline;
     if (timeline.length > 14000) timeline = timeline.slice(0, 14000) + '\n(길이 제한으로 이후 생략)';
   }
   const att = S.attendees.filter(a => a.name).map(a => [a.org, a.name, a.title].filter(Boolean).join(' ')).join(', ');
   if (!notes && !tr) return null;
+  if (over === 'materials') return { notes, flow: timelineFull || tr, hasTimeline: !!timelineFull };   // 자르기 전의 전체 자료
   let cutN = false, cutT = false;
+  if (over) { notes = over.notes; timeline = over.hasTimeline || over.summarized ? over.flow : ''; tr = over.hasTimeline || over.summarized ? '' : over.flow; }
   if (notes.length > 7000) { notes = notes.slice(0, 7000); cutN = true; }
   if (tr.length > 12000) { tr = tr.slice(0, 12000); cutT = true; }
   const dur = S.duration || (isFinite(audio.duration) ? audio.duration : 0);
@@ -3208,9 +3210,9 @@ ${live ? `## 회의 안건
 ${notes || '(메모 없음)'}
 </메모>
 
-${timeline ? `<타임라인 메모와 발언을 시간순으로 합친 자료>\n${timeline}\n</타임라인>\n\n` : ''}<전사${cutT ? ' 길이 제한으로 앞부분만 포함' : ''}>
+${timeline ? (over && over.summarized ? `<구간별 요약 회의가 길어 구간마다 먼저 요약한 자료입니다. 이 요약과 메모만 근거로 쓰세요>\n${timeline}\n</구간별 요약>` : `<타임라인 메모와 발언을 시간순으로 합친 자료>\n${timeline}\n</타임라인>`) + '\n\n' : ''}${timeline && over ? '' : `<전사${cutT ? ' 길이 제한으로 앞부분만 포함' : ''}>
 ${tr || '(전사 없음)'}
-</전사>`;
+</전사>`}`;
 }
 
 async function callApi(prompt, signal) {
@@ -3593,7 +3595,7 @@ async function runAutoDraft() {
   aiLog('info', '자동 작성 실행', { promptChars: prompt.length, segments: S.segments.length });
   try {
     let text;
-    if (isLocal(ai.provider)) text = await callOpenAI(prompt, auto.ctl.signal, () => {});
+    if (isLocal(ai.provider)) text = await localDraft('live', auto.ctl.signal, () => {});
     else if (ai.provider === 'anthropic' && apiKey) text = await callApi(prompt, auto.ctl.signal);
     else throw Object.assign(new Error('자동 작성에 쓸 엔진이 없어요.'), { code: 'no_engine' });
     text = (text || '').trim();
@@ -3669,7 +3671,7 @@ async function runAI() {
     let text, truncated = false;
     if (local) {
       aiOut.innerHTML = `<p class="thinking">${PROVIDER_DEF[prov].label}에서 초안을 쓰는 중이에요… (${esc(curModel() || '모델 미지정')})</p>`;
-      text = await callOpenAI(prompt, aiCtl.signal, onText);
+      text = await localDraft('final', aiCtl.signal, onText, msg => { aiOut.innerHTML = `<p class="thinking busy-dots">${esc(msg)}</p>`; });
       if (!text.trim()) throw Object.assign(new Error('모델이 빈 응답을 보냈어요.'), { code: 'empty_completion' });
     } else if (prov === 'anthropic') {
       if (!apiKey) throw Object.assign(new Error('Anthropic API 키가 없어요.'), { code: 'no_key' });
@@ -3727,6 +3729,7 @@ function explainAIError(e) {
     no_key: ['Anthropic API 키가 없어요.', '설정(⚙)의 AI 엔진에서 키를 넣고 "키 적용"을 누르세요.']
   };
   if (map[code]) return { msg: map[code][0], hint: map[code][1] };
+  if (local && ctxErr(e)) return { msg: '회의 분량이 모델이 한 번에 읽을 수 있는 길이(컨텍스트)를 넘었어요.', hint: 'LM Studio에서 모델을 다시 로드할 때 Context Length를 16384 이상으로 늘리면 가장 확실해요(Ollama는 num_ctx). 그대로 두어도 앱이 자료를 나눠서 다시 시도합니다.' };
   if (local && /DeviceLost|vk::|Vulkan|CUDA|out of memory|OOM|VRAM|Metal|ggml|llama\.cpp|Engine protocol/i.test(m)) return { msg: `${PROVIDER_DEF[ai.provider].label} 추론 엔진(GPU)에서 오류가 났어요: ${m.slice(0, 140)}`, hint: '서버 프로그램을 재시작하고, 런타임을 CUDA(NVIDIA) 또는 CPU로 바꾸거나 GPU Offload·Context Length를 낮춰 보세요. 다른 모델로도 확인해 보세요.' };
   if (local) return { msg: localErr(e), hint: localHint() };
   if (e && e.status) return { msg: `서버가 ${e.status} 오류를 돌려줬어요. ${m.slice(0, 160)}`, hint: e.status === 401 ? 'API 키가 맞는지 확인하세요.' : e.status === 429 ? '사용량 한도예요. 잠시 후 다시 시도하세요.' : '' };
@@ -3817,7 +3820,7 @@ function renderAILog() {
   v.scrollTop = v.scrollHeight;
 }
 $('#aiLogCopy').addEventListener('click', async () => {
-  const head = `MeetNote AI 로그 (${new Date().toLocaleString('ko-KR')})\nUA: ${navigator.userAgent}\nURL: ${location.href}\nframed=${framed} secure=${window.isSecureContext} claude=${!!window.claude} engine=${ai.provider} base=${isLocal(ai.provider) ? localBase() : '-'} model=${curModel() || '-'}\n\n`;
+  const head = `MeetNote AI 로그 (${new Date().toLocaleString('ko-KR')})\nUA: ${navigator.userAgent}\nURL: ${location.href}\nframed=${framed} secure=${window.isSecureContext} claude=${!!window.claude} diar=${diar.mode}${diar.mode === 'py' ? '@' + diar.base : ''} engine=${ai.provider} base=${isLocal(ai.provider) ? localBase() : '-'} model=${curModel() || '-'}\n\n`;
   const txt = head + shownLogs().map(fmtLog).join('\n');
   try { await navigator.clipboard.writeText(txt); toast('로그를 복사했어요.'); }
   catch { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('로그를 복사했어요.'); } catch { toast('복사할 수 없어요. 로그를 직접 드래그해서 복사하세요.'); } ta.remove(); }
@@ -3979,6 +3982,66 @@ $('#apiKeySet').addEventListener('click', () => {
   ai.provider = 'anthropic'; saveAI(); aiLog('info', 'API 키 적용', { keyPrefix: apiKey.slice(0, 7) + '…', len: apiKey.length });
   $('#apiKeyState').textContent = '키가 적용돼 있어요(이 화면에서만 유지).'; renderAIStatus(); toast('키를 적용했어요. AI 회의록 탭에서 초안 작성을 누르세요.');
 });
+/* 로컬 모델은 한 번에 읽을 수 있는 길이(컨텍스트)가 작다(예: 8192토큰). 넘치면 서버가 400(exceed_context_size)으로 거절하고, 같은 요청을 다시 보내도 계속 실패한다.
+   → 오류에서 한도(n_ctx)와 실제 토큰 수를 배워 두고(모델별로 기억), 자료가 한도를 넘으면 ① 녹음 중 자동 작성은 최근 부분만 ② 최종 초안은 구간별로 요약한 뒤 합쳐서 작성한다 */
+const CTX_KEY = 'meetnote.aiCtx';
+const ctxId = () => ai.provider + '|' + localBase() + '|' + curModel();
+const ctxInfo = () => { try { return JSON.parse(localStorage.getItem(CTX_KEY) || '{}')[ctxId()] || {}; } catch { return {}; } };
+function setCtxInfo(o) { try { const all = JSON.parse(localStorage.getItem(CTX_KEY) || '{}'); all[ctxId()] = { ...(all[ctxId()] || {}), ...o }; localStorage.setItem(CTX_KEY, JSON.stringify(all)); } catch {} }
+function ctxErr(e) {
+  const t = String(e && e.message || '') + ' ' + String(e && e.body || '');
+  if (!/exceed_context_size|context (size|length|window)|maximum context|too many tokens|n_ctx/i.test(t)) return null;
+  const num = re => { const m = re.exec(t); return m ? +m[1] : 0; };
+  return { ctx: num(/n_ctx\\*"?\s*[:=]\s*(\d+)/) || num(/context (?:size|length|window)[^\d]{0,30}\(?(\d{3,7})/i), prompt: num(/n_prompt_tokens\\*"?\s*[:=]\s*(\d+)/) || num(/request \((\d+) tokens\)/) };
+}
+function splitByLines(text, maxChars) {
+  const out = []; let cur = '';
+  for (const line of text.split('\n')) {
+    const l = line.length > maxChars ? line.slice(0, maxChars) : line;
+    if (cur && cur.length + l.length + 1 > maxChars) { out.push(cur); cur = ''; }
+    cur += (cur ? '\n' : '') + l;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+async function localDraft(mode, signal, onText, onStage = () => {}) {
+  let lastChars = 0;
+  for (let attempt = 0; ; attempt++) {
+    const info = ctxInfo(), cpt = info.cpt || 1.2;                      // cpt: 토큰 1개가 몇 글자인지(모델·언어마다 달라 오류에서 보정)
+    const send = (pr, on, max) => { lastChars = pr.length; const room = info.ctx ? Math.max(384, Math.min(max || 4096, info.ctx - Math.ceil(pr.length / cpt) - 64)) : max; return callOpenAI(pr, signal, on, undefined, room); };
+    try {
+      const mat = buildPrompt(mode, 'materials'); if (!mat) return '';
+      const budget = info.ctx ? Math.max(1500, Math.floor((info.ctx - 1500 - 1100) * cpt)) : Infinity;   // 출력 몫(1500)과 지시문(약 1100토큰)을 뺀 자료 글자 수
+      const notes = mat.notes.length > budget * 0.35 ? mat.notes.slice(0, Math.floor(budget * 0.35)) + '\n(길이 제한으로 이후 생략)' : mat.notes;
+      const room = budget - notes.length;
+      if (mat.flow.length <= room) return await send(buildPrompt(mode, { notes, flow: mat.flow, hasTimeline: mat.hasTimeline }), onText);
+      if (mode === 'live') {   // 녹음 중: 가장 최근 내용이 중요하다
+        const tail = mat.flow.slice(-Math.max(800, room)); aiLog('info', '자동 작성: 모델 한도에 맞춰 최근 부분만 사용', { ctx: info.ctx, used: tail.length, total: mat.flow.length });
+        return await send(buildPrompt(mode, { notes, flow: '(앞부분 생략)\n' + tail.slice(tail.indexOf('\n') + 1), hasTimeline: mat.hasTimeline }), onText);
+      }
+      const parts = splitByLines(mat.flow, Math.max(1200, Math.floor(budget * 0.85)));
+      aiLog('info', '긴 회의: 구간별로 요약한 뒤 합쳐서 작성', { ctx: info.ctx, parts: parts.length, chars: mat.flow.length });
+      const sums = [];
+      for (let i = 0; i < parts.length; i++) {
+        onStage(`회의가 길어 ${parts.length}구간으로 나눠 정리하는 중 (${i + 1}/${parts.length})`);
+        const pr = `아래는 회의의 일부(구간 ${i + 1}/${parts.length})입니다. 회의록 작성에 필요한 사실만 한국어 글머리표로 요약하세요.\n- 결정, 할 일(담당·기한), 수치, 이름, 쟁점은 빠뜨리지 마세요. 자료에 없는 내용은 쓰지 마세요.\n- 각 줄 끝에 근거 시점을 자료에 있는 [mm:ss] 그대로 붙이세요.\n- 발언자가 표시돼 있으면 누가 말했는지 남기세요.\n- 설명이나 인사말 없이 요약만 출력하세요.\n\n<자료>\n${parts[i]}\n</자료>`;
+        const t = (await send(pr, () => {}, 900) || '').trim();
+        sums.push(`### 구간 ${i + 1}/${parts.length}\n${t}`);
+      }
+      let flow = sums.join('\n\n'); if (flow.length > room) flow = flow.slice(0, room) + '\n(길이 제한으로 이후 생략)';
+      onStage('구간 요약을 합쳐 회의록을 쓰는 중');
+      return await send(buildPrompt(mode, { notes, flow, summarized: true }), onText);
+    } catch (e) {
+      const c = ctxErr(e);
+      if (!c || attempt >= 2) throw e;
+      const ctx = c.ctx || Math.floor((info.ctx || 8192) * 0.75);
+      const learned = c.prompt && lastChars ? Math.max(0.5, Math.min(cpt, lastChars / c.prompt * 0.9)) : cpt * 0.8;
+      setCtxInfo({ ctx, cpt: +learned.toFixed(3) });
+      aiLog('warn', '모델의 컨텍스트 한도를 넘어 자료를 줄여 다시 시도', { ctx, promptTokens: c.prompt || undefined, charsPerToken: +learned.toFixed(2) });
+      onStage(`모델이 한 번에 읽을 수 있는 길이(${ctx}토큰)를 넘어, 나눠서 다시 시도해요`);
+    }
+  }
+}
 const TOKEN_KEY = 'meetnote.aiToken';
 function llmToken() {
   try { const o = JSON.parse(sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY) || 'null'); return o && o[ai.provider + '|' + localBase()] || ''; } catch { return ''; }
@@ -3991,13 +4054,13 @@ function setLlmToken(tok, keep) {
 }
 const llmTokenKept = () => { try { return !!(JSON.parse(localStorage.getItem(TOKEN_KEY) || '{}')[ai.provider + '|' + localBase()]); } catch { return false; } };
 const llmHeaders = h => { const t = llmToken(); return t ? { ...h, authorization: 'Bearer ' + t } : h; };
-async function callOpenAI(prompt, signal, onText, sysPrompt) {
+async function callOpenAI(prompt, signal, onText, sysPrompt, maxTokens) {
   const base = localBase(), model = curModel();
   if (inClaudeSandbox()) throw Object.assign(new Error('Claude 화면 안에서는 로컬 서버를 부를 수 없어요.'), { code: 'sandbox' });
   if (!base) throw new Error('서버 주소를 입력하세요.');
   if (!model) throw new Error('모델을 고르세요. 설정(⚙)의 AI 엔진에서 "연결 확인 · 모델 불러오기"를 누르면 목록이 나와요.');
   const url = base + '/v1/chat/completions';
-  const body = { model, stream: true, temperature: 0.3, max_tokens: 4096,
+  const body = { model, stream: true, temperature: 0.3, max_tokens: maxTokens || 4096,
     messages: [{ role: 'system', content: sysPrompt || '당신은 회의록을 정리하는 비서입니다. 지시된 구조의 한국어 마크다운만 출력합니다.' }, { role: 'user', content: prompt }] };
   aiLog('info', `POST ${url}`, { model, stream: true, promptChars: prompt.length, token: llmToken() ? '사용' : undefined });
   const t0 = performance.now();
@@ -4661,7 +4724,7 @@ $('#diarGo').addEventListener('click', async () => {
     const ok = diar.mode === 'browser' ? await diarizeBrowser({ title: '발언자 구분 중' }) : await diarizePython();
     if (ok && (speakerIds().length > 1 || S.attendees.some(a => a.name))) openMapDlg();
   } catch (e) {
-    aiLog('error', '발언자 구분 실패', errInfo(e));
+    aiLog(e && e.name === 'AbortError' ? 'info' : 'error', e && e.name === 'AbortError' ? '발언자 구분 취소됨' : '발언자 구분 실패', errInfo(e));
     if (e && e.name === 'AbortError') { toast('발언자 구분을 취소했어요.'); return; }
     const c = $('#diarConn'); c.hidden = false; c.dataset.tone = 'bad';
     $('#diarConnText').textContent = diarErrText(e);
@@ -4805,13 +4868,21 @@ async function runDiarization({ base, n, title }) {
       if (up.status !== 200) throw Object.assign(new Error('HTTP ' + up.status + ' ' + up.body.slice(0, 160)), { status: up.status, body: up.body });
       jobId = JSON.parse(up.body).job_id;
       aiLog('info', '작업 시작', { jobId });
-      let lastMsg = '';
+      let lastMsg = '', pollFails = 0;
       for (;;) {
         if (cancelled) throw Object.assign(new Error('취소됨'), { name: 'AbortError' });
         await sleep(700);
         let r;
-        try { r = await fetch(`${diar.base}/jobs/${jobId}`, { signal: ctl.signal, cache: 'no-store' }); }
-        catch (err) { if (cancelled) throw err; aiLog('warn', '상태 조회 실패, 재시도', { message: String(err.message) }); $('#progNote').textContent = '서비스 연결이 끊겼어요. 다시 연결하는 중…'; await sleep(1500); continue; }
+        const pc = new AbortController(), tm = setTimeout(() => pc.abort(), 12000), onAbort = () => pc.abort();   // 12초 안에 답이 없으면 끊고 다시
+        ctl.signal.addEventListener('abort', onAbort);
+        try { r = await fetch(`${diar.base}/jobs/${jobId}`, { signal: pc.signal, cache: 'no-store' }); pollFails = 0; }
+        catch (err) {
+          if (cancelled) throw Object.assign(new Error('취소됨'), { name: 'AbortError' });
+          pollFails++; if (pollFails === 1 || pollFails % 10 === 0) aiLog('warn', '상태 조회 실패, 재시도', { message: String(err.message), fails: pollFails });
+          $('#progNote').textContent = `서비스 연결이 끊겼어요. 다시 연결하는 중… (${pollFails}번째) 분석은 PC에서 계속 진행돼요.`;
+          if (pollFails >= 100) throw new Error('분석 서비스와 연결이 계속 끊겨요. PC와 같은 네트워크(VPN)에 연결돼 있는지 확인하세요.');
+          await sleep(1500); continue;
+        } finally { clearTimeout(tm); ctl.signal.removeEventListener('abort', onAbort); }
         if (!r.ok) throw new Error('작업 상태를 읽지 못했어요 (HTTP ' + r.status + ')');
         progPing();
         const j = await r.json();
