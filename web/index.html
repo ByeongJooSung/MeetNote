@@ -285,8 +285,8 @@ aside.side{display:flex;flex-direction:column;min-height:0;background:var(--surf
 .tabs .split-btn{flex:none;border:0;border-left:1px solid var(--line);background:transparent;color:var(--ink2);padding:0 12px;cursor:pointer;font-size:12.5px;white-space:nowrap}
 .tabs .split-btn[aria-pressed="true"]{color:var(--tape);font-weight:600;background:var(--tape-soft)}
 @media (max-width:880px){.tabs .split-btn{display:none}}
-aside.side.split #paneMemo{flex:var(--split,55) 1 0}
-aside.side.split #paneTr{flex:calc(100 - var(--split,55)) 1 0}
+aside.side.split #paneTr{flex:var(--split,45) 1 0}   /* 위: 전사, 아래: 메모 */
+aside.side.split #paneMemo{flex:calc(100 - var(--split,45)) 1 0}
 .split-bar{flex:none;height:10px;cursor:row-resize;display:flex;align-items:center;justify-content:center;background:var(--sunk);border-top:1px solid var(--line);border-bottom:1px solid var(--line);touch-action:none;outline:none}
 .split-bar::before{content:"";width:44px;height:3px;border-radius:2px;background:var(--seg)}
 .split-bar:hover::before,.split-bar:focus-visible::before,.split-bar.on::before{background:var(--tape)}
@@ -659,25 +659,11 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div id="splitter" role="separator" aria-orientation="vertical" aria-label="패널 너비 조절" title="드래그해서 너비 조절 · 더블클릭으로 6:4 복원"></div>
   <aside class="side">
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" id="tabMemo" aria-selected="true" aria-controls="paneMemo">메모</button>
       <button class="tab" role="tab" id="tabTr" aria-selected="false" aria-controls="paneTr">전사</button>
+      <button class="tab" role="tab" id="tabMemo" aria-selected="true" aria-controls="paneMemo">메모</button>
       <button class="tab" role="tab" id="tabAi" aria-selected="false" aria-controls="paneAi">AI 회의록</button>
-      <button type="button" class="split-btn" id="splitBtn" aria-pressed="false" title="메모와 전사를 위아래로 함께 봅니다 (전사를 보면서 메모)">함께 보기</button>
+      <button type="button" class="split-btn" id="splitBtn" aria-pressed="false" title="전사(위)와 메모(아래)를 함께 봅니다 (전사를 보면서 메모)">함께 보기</button>
     </div>
-    <section class="pane" id="paneMemo" role="tabpanel" aria-labelledby="tabMemo">
-      <div class="pane-tools">
-        <label class="switch"><input type="checkbox" id="replayChk" disabled> 따라 쓰기</label>
-        <button class="btn" id="memoToDoc" title="메모 전체를 회의록 본문 끝에 넣습니다">회의록에 넣기</button>
-      </div>
-      <div class="doc" id="doc">
-        <div id="replayBanner" class="banner" hidden>따라 쓰기 재생 중 · 편집하려면 따라 쓰기를 끄세요.</div>
-        <div id="gutter" aria-hidden="false"></div>
-        <div id="editor" class="doc-content" contenteditable="true" role="textbox" aria-multiline="true" aria-label="회의 메모" spellcheck="false"></div>
-        <div id="replay" class="doc-content" hidden></div>
-        <p id="replayEmpty" class="replay-empty" hidden>재생을 누르면 메모가 쓰였던 순서와 속도 그대로 나타납니다.</p>
-      </div>
-    </section>
-    <div class="split-bar" id="splitBar" hidden role="separator" aria-orientation="horizontal" aria-label="메모와 전사 구역 크기 조절" tabindex="0" title="끌어서 메모·전사 구역 크기 조절 (두 번 누르면 기본)"></div>
     <section class="pane" id="paneTr" role="tabpanel" aria-labelledby="tabTr" hidden>
       <div class="pane-tools">
         <label class="chk"><input type="checkbox" id="trOn" checked> 실시간 전사</label>
@@ -692,6 +678,20 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
       </div>
       <div id="segList"></div>
       <p id="interim" class="interim"></p>
+    </section>
+    <div class="split-bar" id="splitBar" hidden role="separator" aria-orientation="horizontal" aria-label="전사와 메모 구역 크기 조절" tabindex="0" title="끌어서 전사·메모 구역 크기 조절 (두 번 누르면 기본)"></div>
+    <section class="pane" id="paneMemo" role="tabpanel" aria-labelledby="tabMemo">
+      <div class="pane-tools">
+        <label class="switch"><input type="checkbox" id="replayChk" disabled> 따라 쓰기</label>
+        <button class="btn" id="memoToDoc" title="메모 전체를 회의록 본문 끝에 넣습니다">회의록에 넣기</button>
+      </div>
+      <div class="doc" id="doc">
+        <div id="replayBanner" class="banner" hidden>따라 쓰기 재생 중 · 편집하려면 따라 쓰기를 끄세요.</div>
+        <div id="gutter" aria-hidden="false"></div>
+        <div id="editor" class="doc-content" contenteditable="true" role="textbox" aria-multiline="true" aria-label="회의 메모" spellcheck="false"></div>
+        <div id="replay" class="doc-content" hidden></div>
+        <p id="replayEmpty" class="replay-empty" hidden>재생을 누르면 메모가 쓰였던 순서와 속도 그대로 나타납니다.</p>
+      </div>
     </section>
     <section class="pane" id="paneAi" role="tabpanel" aria-labelledby="tabAi" hidden>
       <div class="ai-tools">
@@ -3076,9 +3076,9 @@ function selectTab(which) {
   if (which === 'memo' || both) scheduleGutter();
 }
 (() => {   // 함께 보기 구역 조절: 메모 비율(%)을 끌어서 바꾸고 브라우저에 기억
-  const KEY = 'meetnote.splitPct', side = document.querySelector('aside.side'), bar = $('#splitBar');
+  const KEY = 'meetnote.splitPct2', side = document.querySelector('aside.side'), bar = $('#splitBar');
   const apply = p => { p = Math.min(85, Math.max(15, p)); side.style.setProperty('--split', p.toFixed(1)); return p; };
-  let pct = 55; try { const v = +localStorage.getItem(KEY); if (v >= 15 && v <= 85) pct = v; } catch {} apply(pct);
+  let pct = 45; try { const v = +localStorage.getItem(KEY); if (v >= 15 && v <= 85) pct = v; } catch {} apply(pct);
   const save = () => { try { localStorage.setItem(KEY, pct.toFixed(1)); } catch {} scheduleGutter(); };
   let drag = false;
   bar.addEventListener('pointerdown', e => { drag = true; bar.classList.add('on'); try { bar.setPointerCapture(e.pointerId); } catch {} e.preventDefault(); });
@@ -3086,13 +3086,13 @@ function selectTab(which) {
     if (!drag) return;
     // 구역 높이 = 안쪽 여백 + (남는 높이 × 비율) 이므로, 막대가 포인터를 정확히 따라오게 여백과 막대 높이를 빼고 계산
     const pad = el => { const c = getComputedStyle(el); return parseFloat(c.paddingTop) + parseFloat(c.paddingBottom); };
-    const memo = $('#paneMemo'), tr = $('#paneTr'), top = memo.zrect().top, bottom = tr.zrect().bottom, pm = pad(memo), pt = pad(tr), bh = bar.zrect().height;
+    const upper = $('#paneTr'), lower = $('#paneMemo'), top = upper.zrect().top, bottom = lower.zrect().bottom, pm = pad(upper), pt = pad(lower), bh = bar.zrect().height;   // 위 구역(전사)의 비율을 조절
     const free = bottom - top - pm - pt - bh;
     if (free > 50) pct = apply((e.zy - bh / 2 - top - pm) / free * 100);
   });
   const end = () => { if (!drag) return; drag = false; bar.classList.remove('on'); save(); };
   bar.addEventListener('pointerup', end); bar.addEventListener('pointercancel', end);
-  bar.addEventListener('dblclick', () => { pct = apply(55); save(); });
+  bar.addEventListener('dblclick', () => { pct = apply(45); save(); });
   bar.addEventListener('keydown', e => { if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return; e.preventDefault(); pct = apply(pct + (e.key === 'ArrowDown' ? 5 : -5)); save(); });
 })();
 $('#splitBtn').addEventListener('click', () => { splitOn = !splitOn; try { localStorage.setItem(SPLIT_KEY, splitOn ? '1' : '0'); } catch {} selectTab(curTab === 'ai' && splitOn ? 'memo' : curTab); });
