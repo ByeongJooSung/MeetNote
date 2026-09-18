@@ -3159,6 +3159,9 @@ async function deliverFile(blob, name) {
 }
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !framed) {
   window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+  // 새 버전 서비스 워커로 바뀌면 안내 (저장하지 않은 내용이 있을 수 있어 자동 새로고침은 하지 않음)
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) toast('새 버전이 준비됐어요. 저장한 뒤 새로고침하면 반영됩니다.', 10000); });
 }
 
 /* ---------- AI log ---------- */
@@ -3530,7 +3533,7 @@ function htmlBuilder(title) {
       return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${xesc(title)}</title><style>
 @page{size:A4;margin:20mm 30mm 15mm 30mm}
 html,body{margin:0;padding:0;color:#000;background:#fff;font-family:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Noto Sans KR",sans-serif;font-size:10pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-body{padding:16px}@media print{body{padding:0}}
+body{width:${px(HW.textW)}px;margin:0 auto;padding:16px}@media print{body{padding:0}}
 p{word-break:break-word}
 table{border-collapse:collapse;table-layout:fixed;margin:6px 0;page-break-inside:auto}
 td{border:.5px solid #000;padding:2px 7px;vertical-align:top;word-break:break-word}

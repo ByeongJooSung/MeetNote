@@ -20,8 +20,9 @@ self.addEventListener('fetch', e => {
   const cacheable = (same && (url.pathname === '/' || url.pathname.endsWith('/') || STATIC.test(url.pathname)))
     || /cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net|fonts\.(googleapis|gstatic)\.com/.test(url.host);
   if (!cacheable) return;
-  e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(res => {
-    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
-    return res;
-  }).catch(() => same ? caches.match('./index.html') : undefined)));
+  const put = res => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); } return res; };
+  // 앱 파일(같은 주소): 네트워크 우선 → 배포하면 바로 새 버전. 오프라인일 때만 캐시
+  if (same) { e.respondWith(fetch(req, { cache: 'no-cache' }).then(put).catch(() => caches.match(req).then(hit => hit || caches.match('./index.html')))); return; }
+  // CDN 라이브러리·글꼴: 캐시 우선
+  e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(put)));
 });
