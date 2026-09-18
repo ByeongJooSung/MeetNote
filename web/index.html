@@ -4203,25 +4203,38 @@ async function segmentSpeakers(audio, offset, base) {
   return out;
 }
 self.onmessage = async e => {
-  const { audio, sr, language, device } = e.data;
+  const { audio, sr, language, device, startChunk = 0, prevWords = [] } = e.data;
   try {
     await load(device);
+    post({ type: 'loaded' });
     const dur = audio.length / sr;
     /* 전사: 녹음을 30초 이하 구간으로 직접 나눠 구간마다 진행률을 보낸다(v3 파이프라인은 chunk_callback이 없어 긴 전사 동안 진행 표시가 멈췄음) */
     const pts = splitPoints(audio, sr, 28), n = pts.length - 1;
     const mm = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
-    let words = [], wordMode = true;
-    for (let i = 0; i < n; i++) {
+    let words = prevWords.slice(), wordMode = true;
+    /* 토큰이 하나 나올 때마다 신호를 보낸다: 구간 안에서도 진행이 보이고, 메인 쪽이 GPU 무응답(신호 끊김)을 알아챌 수 있다 */
+    const Base = T.BaseStreamer || Object;
+    class Beat extends Base {
+      constructor(i, label) { super(); this.i = i; this.label = label; this.n = 0; this.last = 0; }
+      put() { this.n++; const now = Date.now(); if (now - this.last > 400) { this.last = now; post({ type: 'tok', chunk: this.i, n: this.n, msg: this.label + ' · 인식 중(' + this.n + ')', pct: 30 + 45 * (this.i + Math.min(0.95, this.n / 160)) / n }); } }
+      end() {}
+    }
+    for (let i = startChunk; i < n; i++) {
       const part = audio.subarray(pts[i], pts[i + 1]), off = pts[i] / sr;
-      post({ type: 'stage', msg: '전사 중 ' + (i + 1) + '/' + n + ' 구간 (' + mm(off) + ' / ' + mm(dur) + ')', pct: 30 + 45 * i / n });
-      if (part.length < sr * 0.3) continue;
-      let res = null;
-      if (wordMode) {
-        try { res = await asr(part, { language, task: 'transcribe', return_timestamps: 'word' }); }
-        catch (err) { post({ type: 'log', msg: '단어 단위 시간 실패, 문장 단위로 전환: ' + (err && err.message) }); wordMode = false; }
+      const label = '전사 중 ' + (i + 1) + '/' + n + ' 구간 (' + mm(off) + ' / ' + mm(dur) + ')';
+      post({ type: 'chunkStart', chunk: i, msg: label + (i === startChunk ? ' · 첫 구간은 준비 때문에 조금 더 걸려요' : ''), pct: 30 + 45 * i / n });
+      const c0 = Date.now(); let got = [];
+      if (part.length >= sr * 0.3) {
+        let res = null;
+        if (wordMode) {
+          try { res = await asr(part, { language, task: 'transcribe', return_timestamps: 'word', streamer: new Beat(i, label) }); }
+          catch (err) { post({ type: 'log', msg: '단어 단위 시간 실패, 문장 단위로 전환: ' + (err && err.message) }); wordMode = false; }
+        }
+        if (!res) res = await asr(part, { language, task: 'transcribe', return_timestamps: true, streamer: new Beat(i, label) });
+        for (const c of res.chunks || []) { const a = c.timestamp[0] ?? 0, b = c.timestamp[1] ?? a + (wordMode ? 0.5 : 2); got.push({ t0: a + off, t1: b + off, text: c.text }); }
       }
-      if (!res) res = await asr(part, { language, task: 'transcribe', return_timestamps: true });
-      for (const c of res.chunks || []) { const a = c.timestamp[0] ?? 0, b = c.timestamp[1] ?? a + (wordMode ? 0.5 : 2); words.push({ t0: a + off, t1: b + off, text: c.text }); }
+      words.push(...got);
+      post({ type: 'chunkDone', chunk: i, total: n, words: got, ms: Date.now() - c0 });
     }
     words = words.filter(w => w.text && w.text.trim());
     post({ type: 'stage', msg: '발언자를 나누는 중', pct: 76 });
@@ -4255,6 +4268,8 @@ self.onmessage = async e => {
     post({ type: 'done', result: { segments: segs, duration: dur, diarizer: 'browser:' + device } });
   } catch (err) { post({ type: 'error', message: String(err && err.message || err), stack: err && err.stack }); }
 };`;
+/* GPU 무응답 판정(ms): 모델 준비 중 신호 없음 / 구간 시작 후 첫 토큰 없음 / 토큰 사이 끊김. 한 번 멈춘 기기는 7일 동안 바로 CPU 사용 */
+const DIAR_STALL = { load: 180000, first: 45000, token: 30000 }, DIAR_CPU_KEY = 'meetnote.diarForceCpu';
 let diarWorker = null;
 function getDiarWorker() {
   if (diarWorker) return diarWorker;
@@ -4286,9 +4301,13 @@ async function diarizeBrowser({ title }) {
   if (!window.Worker) throw new Error('이 브라우저는 내장 분석을 지원하지 않아요.');
   if (location.protocol === 'file:') throw new Error('파일로 직접 연 페이지에서는 내장 분석이 동작하지 않아요. 배포 주소나 로컬 서버(python serve.py)로 열어 주세요.');
   // navigator.gpu가 있어도 실제 GPU 어댑터를 못 얻는 기기가 있어 확인 후 CPU(wasm)로 대체
-  let device = 'wasm';
-  try { if (navigator.gpu && await navigator.gpu.requestAdapter()) device = 'webgpu'; } catch {}
-  aiLog('info', '내장 발언자 구분 시작', { device, bytes: S.audioBlob.size, lang: $('#lang').value });
+  let device = 'wasm', gpuInfo;
+  try {
+    const ad = navigator.gpu && await navigator.gpu.requestAdapter();
+    if (ad) { device = 'webgpu'; const i = ad.info || {}; gpuInfo = [i.vendor, i.architecture, i.description].filter(Boolean).join(' ') || undefined; }
+  } catch {}
+  try { if (device === 'webgpu' && Date.now() - (+localStorage.getItem(DIAR_CPU_KEY) || 0) < 7 * 864e5) { device = 'wasm'; aiLog('info', '지난번 GPU 무응답 기록이 있어 CPU로 분석'); } } catch {}
+  aiLog('info', '내장 발언자 구분 시작', { device, gpu: gpuInfo, bytes: S.audioBlob.size, lang: $('#lang').value });
   // 저장 공간이 부족해도 브라우저가 모델 캐시를 임의로 지우지 않도록 영구 저장 요청
   try { navigator.storage?.persist?.().then(ok => aiLog('info', '영구 저장소', { granted: ok })); } catch {}
   const t0 = performance.now();
@@ -4299,24 +4318,49 @@ async function diarizeBrowser({ title }) {
   progAbort = () => { cancelled = true; if (diarWorker) { diarWorker.terminate(); diarWorker = null; } fireCancel(); };
   progOpen(title, { local: true });
   try {
-    progSet(2, '오디오를 읽는 중');
-    const { audio: pcm, sr, duration } = await Promise.race([decodeTo16k(S.audioBlob), cancelP]);
-    if (cancelled) throw Object.assign(new Error('취소됨'), { name: 'AbortError' });
-    aiLog('info', '오디오 디코딩', { seconds: Math.round(duration), samples: pcm.length });
-    progSet(4, `모델을 준비하는 중 (${device === 'webgpu' ? 'WebGPU' : 'CPU'})`);
-    const result = await Promise.race([cancelP, new Promise((res, rej) => {
-      const w = getDiarWorker();
-      w.onmessage = e => {
-        const m = e.data;
-        if (m.type === 'dl') { const pct = m.total ? m.loaded / m.total : 0; progSet(4 + pct * 24, `${m.cached ? '저장된 모델 불러오는 중' : '모델 내려받는 중 (처음 한 번만)'} ${Math.round(pct * 100)}% (${Math.round(m.loaded / 1048576)}/${Math.round(m.total / 1048576)}MB)`); }
-        else if (m.type === 'stage') progSet(m.pct != null ? m.pct : null, m.msg);
-        else if (m.type === 'log') aiLog('warn', m.msg);
-        else if (m.type === 'done') res(m.result);
-        else if (m.type === 'error') { aiLog('error', '워커 오류', { message: m.message, stack: (m.stack || '').split('\n').slice(0, 3).join(' | ') }); rej(new Error(m.message)); }
-      };
-      w.onerror = ev => { aiLog('error', '워커 로드 실패', { message: ev.message, file: ev.filename, line: ev.lineno }); rej(new Error(ev.message || '내장 분석 모듈을 불러오지 못했어요.')); };
-      w.postMessage({ audio: pcm, sr, language: whisperLang($('#lang').value), device }, [pcm.buffer]);
-    })]);
+    /* GPU(WebGPU)가 응답을 멈추는 기기가 있다(전사 첫 구간에서 진행 없이 정지).
+       워커가 보내는 신호(모델 진행·토큰·구간 완료)가 일정 시간 끊기면 워커를 끝내고 CPU(wasm)로 같은 구간부터 이어서 분석한다. */
+    const words = []; let startChunk = 0, result = null;
+    for (let attempt = 0; !result; attempt++) {
+      progSet(attempt ? null : 2, attempt ? 'CPU로 전환해 이어서 분석하는 중 (오디오 다시 읽기)' : '오디오를 읽는 중');
+      const { audio: pcm, sr, duration } = await Promise.race([decodeTo16k(S.audioBlob), cancelP]);
+      if (cancelled) throw Object.assign(new Error('취소됨'), { name: 'AbortError' });
+      if (!attempt) aiLog('info', '오디오 디코딩', { seconds: Math.round(duration), samples: pcm.length });
+      progSet(attempt ? null : 4, `모델을 준비하는 중 (${device === 'webgpu' ? 'WebGPU' : 'CPU'})`);
+      let watch = null;
+      try {
+        result = await Promise.race([cancelP, new Promise((res, rej) => {
+          const w = getDiarWorker();
+          let lastBeat = performance.now(), phase = 'load', chunk = startChunk;
+          const limit = () => phase === 'load' ? DIAR_STALL.load : phase === 'first' ? DIAR_STALL.first : DIAR_STALL.token;
+          if (device === 'webgpu') watch = setInterval(() => {
+            const idle = performance.now() - lastBeat;
+            if (idle > limit()) rej(Object.assign(new Error('GPU 응답 없음'), { code: 'gpu_stall', chunk, phase, idleMs: Math.round(idle) }));
+          }, 1000);
+          w.onmessage = e => {
+            const m = e.data; lastBeat = performance.now();
+            if (m.type === 'dl') { const pct = m.total ? m.loaded / m.total : 0; progSet(4 + pct * 24, `${m.cached ? '저장된 모델 불러오는 중' : '모델 내려받는 중 (처음 한 번만)'} ${Math.round(pct * 100)}% (${Math.round(m.loaded / 1048576)}/${Math.round(m.total / 1048576)}MB)`); }
+            else if (m.type === 'loaded') aiLog('info', '모델 준비 완료', { device, ms: Math.round(performance.now() - t0) });
+            else if (m.type === 'chunkStart') { chunk = m.chunk; phase = 'first'; progSet(m.pct, m.msg); }
+            else if (m.type === 'tok') { phase = 'token'; progSet(m.pct, m.msg); }
+            else if (m.type === 'chunkDone') { phase = 'first'; words.push(...m.words); startChunk = m.chunk + 1; aiLog('info', `전사 구간 ${m.chunk + 1}/${m.total}`, { ms: m.ms, words: m.words.length, device }); }
+            else if (m.type === 'stage') { phase = 'load'; progSet(m.pct != null ? m.pct : null, m.msg); }
+            else if (m.type === 'log') aiLog('warn', m.msg);
+            else if (m.type === 'done') res(m.result);
+            else if (m.type === 'error') { aiLog('error', '워커 오류', { message: m.message, stack: (m.stack || '').split('\n').slice(0, 3).join(' | ') }); rej(new Error(m.message)); }
+          };
+          w.onerror = ev => { aiLog('error', '워커 로드 실패', { message: ev.message, file: ev.filename, line: ev.lineno }); rej(new Error(ev.message || '내장 분석 모듈을 불러오지 못했어요.')); };
+          w.postMessage({ audio: pcm, sr, language: whisperLang($('#lang').value), device, startChunk, prevWords: words }, [pcm.buffer]);
+        })]);
+      } catch (e) {
+        if (!(e && e.code === 'gpu_stall') || device !== 'webgpu' || cancelled) throw e;
+        aiLog('warn', 'GPU(WebGPU) 응답 없음 → CPU로 전환해 이어서 분석', { phase: e.phase, chunk: e.chunk + 1, idleMs: e.idleMs, gpu: gpuInfo, doneChunks: startChunk });
+        if (diarWorker) { diarWorker.terminate(); diarWorker = null; }
+        device = 'wasm';
+        try { localStorage.setItem(DIAR_CPU_KEY, String(Date.now())); } catch {}
+        toast('그래픽 장치(GPU)가 응답하지 않아 CPU로 바꿔 이어서 분석해요. 조금 더 걸릴 수 있어요.', 8000);
+      } finally { clearInterval(watch); }
+    }
     if (cancelled) throw Object.assign(new Error('취소됨'), { name: 'AbortError' });
     return await applyDiarResult(result, t0);
   } catch (e) {
@@ -4348,7 +4392,7 @@ $('#anaGo').addEventListener('click', async () => {
     const ok = diar.mode === 'browser' ? await diarizeBrowser({ title: '발언자별 타임라인 분석 중' }) : await runDiarization({ base: $('#anaBase').value.trim(), n: parseInt($('#anaN').value, 10), title: '발언자별 타임라인 분석 중' });
     if (ok && (speakerIds().length > 1 || S.attendees.some(a => a.name))) openMapDlg();
   } catch (e) {
-    aiLog('error', '타임라인 분석 실패', errInfo(e));
+    aiLog(e && e.name === 'AbortError' ? 'info' : 'error', e && e.name === 'AbortError' ? '타임라인 분석 취소됨' : '타임라인 분석 실패', errInfo(e));
     if (e && e.name === 'AbortError') { toast('분석을 취소했어요. 전사 탭의 "발언자 구분"으로 나중에 다시 할 수 있어요.', 6000); return; }
     const c = $('#anaConn'); c.hidden = false; c.dataset.tone = 'bad';
     $('#anaConnText').textContent = diarErrText(e);
