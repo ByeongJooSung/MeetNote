@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="theme-color" content="#0F7B78">
+<script>try{var t=localStorage.getItem('meetnote.theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);var z=+localStorage.getItem('meetnote.ui');if(z>=0.8&&z<=1.3)document.documentElement.style.setProperty('--ui',z);}catch(e){}</script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="MeetNote">
@@ -12,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script data-app src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script data-app src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script data-app src="config.js"></script>
 <style>
 :root{
@@ -40,7 +42,7 @@
 }
 *{box-sizing:border-box}
 html,body{height:100%;overscroll-behavior-y:none}   /* 모바일 크롬: 아래로 당겨 새로고침(작성 중 내용이 날아감) 방지 */
-body{margin:0;height:100vh;height:100dvh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
+body{margin:0;zoom:var(--ui,1);height:calc(100vh / var(--ui,1));height:calc(100dvh / var(--ui,1));display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
   font-family:"IBM Plex Sans KR",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
   font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
 button,select,input,textarea{font:inherit;color:inherit}
@@ -81,7 +83,7 @@ header.top{display:flex;align-items:center;gap:10px 14px;padding:10px 20px;backg
 .mic-help li{margin:4px 0}
 .mic-help p b,.mic-help li b{color:var(--ink);font-weight:600}
 p.hint,.hint{font-size:13px;color:var(--ink2)}
-#micDlg{width:min(520px,calc(100vw - 32px))}
+#micDlg{width:min(520px,calc((100vw - 32px) / var(--ui,1)))}
 
 /* layout */
 main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 8px var(--side-w,40%)}
@@ -156,14 +158,14 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .spk{border:0;border-radius:6px;padding:1px 7px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink);background:var(--sunk);margin-bottom:3px}
 .spk[data-k="0"]{background:#DCEFED;color:#0F7B78}.spk[data-k="1"]{background:#D6E8F5;color:#2B6CA3}.spk[data-k="2"]{background:#FADFC8;color:#C0650F}.spk[data-k="3"]{background:#E8DDF3;color:#8656AB}.spk[data-k="4"]{background:#D9EEDC;color:#3A7C55}.spk[data-k="5"]{background:#FBDADA;color:#D0443F}
 .pane-tools .btn{padding:4px 10px;font-size:13px}
-#diarDlg{width:min(600px,calc(100vw - 32px))}
+#diarDlg{width:min(600px,calc((100vw - 32px) / var(--ui,1)))}
 #diarDlg .field{margin:8px 0}
 #diarDlg input:not([type=radio]),#diarDlg select,#spkDlg input,#spkDlg select{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface)}
 .opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:8px 0;cursor:pointer;transition:border-color .12s,background .12s}
 .opt:hover{border-color:var(--tape)}
 .opt input[type=radio]{flex:none;width:16px;height:16px;margin:2px 0 0;padding:0;border:0;accent-color:var(--tape);cursor:pointer}
 .opt > div{flex:1;min-width:0}
-#mapDlg{width:min(640px,calc(100vw - 32px))}
+#mapDlg{width:min(640px,calc((100vw - 32px) / var(--ui,1)))}
 .map-table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
 .map-table th,.map-table td{border-bottom:1px solid var(--line);padding:6px 6px;text-align:left;vertical-align:middle;white-space:nowrap}
 .map-table td:nth-child(3){white-space:normal;min-width:180px}
@@ -202,6 +204,8 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .toolbar.inline .tb-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .toolbar.inline .tb-row::-webkit-scrollbar{display:none}
 .toolbar.inline .tb{flex:none}
+.toolbar.inline .tb-target{display:none}   /* 편집기 바로 위에 있으니 '회의록/메모' 표시는 필요 없음(좁은 줄에서 세로로 늘어나던 원인) */
+.toolbar.inline .tb-sep{flex:none}
 
 .doc{position:relative;max-width:760px;margin:0 auto;padding-left:72px}
 #gutter{position:absolute;left:0;top:0;width:62px;height:100%;pointer-events:none}
@@ -273,6 +277,20 @@ aside.side{display:flex;flex-direction:column;min-height:0;background:var(--surf
 .tab[aria-selected="true"]{color:var(--ink);font-weight:600;border-bottom-color:var(--tape)}
 .pane{flex:1;overflow:auto;padding:12px 16px 24px}
 .pane-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+/* 탭 위쪽 기능 줄(따라 쓰기·회의록에 넣기 등)은 내용을 내려도 위에 고정 */
+@media (min-width:881px){.pane > .pane-tools,.pane > .ai-tools{position:sticky;top:-12px;z-index:4;margin:-12px -16px 10px;padding:10px 16px 8px;background:var(--surface);border-bottom:1px solid var(--line)}}
+#paneAi > .pane-tools{position:static;margin:0 0 10px;padding:0;border:0;background:none}
+/* 메모+전사 함께 보기 */
+.tabs .split-btn{flex:none;border:0;border-left:1px solid var(--line);background:transparent;color:var(--ink2);padding:0 12px;cursor:pointer;font-size:12.5px;white-space:nowrap}
+.tabs .split-btn[aria-pressed="true"]{color:var(--tape);font-weight:600;background:var(--tape-soft)}
+@media (max-width:880px){.tabs .split-btn{display:none}}
+aside.side.split #paneTr{border-top:2px solid var(--line)}
+.set-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
+.set-row .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.set-row .seg button{border:0;background:var(--surface);color:var(--ink);padding:6px 12px;cursor:pointer;font-size:13.5px;border-right:1px solid var(--line)}
+.set-row .seg button:last-child{border-right:0}
+.set-row .seg button[aria-pressed="true"]{background:var(--tape-soft);color:var(--tape);font-weight:600}
+.set-row output{min-width:52px;text-align:center;font-variant-numeric:tabular-nums}
 .chk{display:inline-flex;align-items:center;gap:6px;font-size:14px;cursor:pointer}
 select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 8px}
 .empty{color:var(--ink2);font-size:14px}
@@ -305,9 +323,9 @@ select{border:1px solid var(--line);background:var(--surface);border-radius:8px;
 .ai-err b{color:var(--rec)}
 .ai-err p{margin:0 0 6px}
 .ai-err .row{display:flex;gap:6px;flex-wrap:wrap}
-#aiDlg{width:min(600px,calc(100vw - 32px))}
+#aiDlg{width:min(600px,calc((100vw - 32px) / var(--ui,1)))}
 #aiDlg .field{margin:10px 0 6px}
-#aiDlg select,#aiDlg input{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface)}
+#aiDlg select,#aiDlg input:not([type=checkbox]):not([type=radio]){width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface)}
 #aiDlg .row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
 #aiDlg .row input{flex:1;min-width:0}
 .conn{display:flex;align-items:center;gap:8px;font-size:13.5px;margin:6px 0}
@@ -325,7 +343,7 @@ select{border:1px solid var(--line);background:var(--surface);border-radius:8px;
 @keyframes indet{0%{margin-left:-35%}100%{margin-left:100%}}
 .prog-meta{display:flex;justify-content:space-between;font-size:13px;color:var(--ink2)}
 .prog-stage{font-size:14.5px;margin:4px 0 0;min-height:1.5em}
-#analyzeDlg,#progDlg,#diarDlg,#hwpxDlg{width:min(560px,calc(100vw - 32px))}
+#analyzeDlg,#progDlg,#diarDlg,#hwpxDlg{width:min(560px,calc((100vw - 32px) / var(--ui,1)))}
 .fmt-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .fmt-row .opt{margin:0;flex-direction:column;align-items:flex-start}
 #printFrame{position:fixed;width:0;height:0;border:0;opacity:0;pointer-events:none}
@@ -348,7 +366,7 @@ select{border:1px solid var(--line);background:var(--surface);border-radius:8px;
 #aiEditArea{width:100%;min-height:420px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface);font-size:14px;line-height:1.6;resize:vertical}
 
 /* transport */
-footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:18px;align-items:center;padding:10px 20px calc(12px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line)}
+footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;padding:6px 20px calc(6px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line)}
 .rec-group,.play-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .mic-alt{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--tape-soft)}
 .mic-alt h3{font-size:15px;margin:0 0 6px;color:var(--ink)}
@@ -356,7 +374,7 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 .mic-alt li{margin:3px 0}
 .sync-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0}
 .sync-row input{width:92px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface);text-align:right}
-#syncDlg{width:min(520px,calc(100vw - 32px))}
+#syncDlg{width:min(520px,calc((100vw - 32px) / var(--ui,1)))}
 .recbtn{display:inline-flex;align-items:center;gap:9px;border:0;background:var(--rec);color:#fff;padding:8px 16px 8px 12px;border-radius:999px;font-weight:600;cursor:pointer;white-space:nowrap}
 .recbtn:disabled{opacity:.4;cursor:not-allowed}
 .rdot{width:12px;height:12px;border-radius:50%;background:#fff;flex:none}
@@ -376,7 +394,7 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 @keyframes busyDots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
 .tb[data-hist]:disabled{opacity:.35;cursor:default}
 /* 내 회의록(클라우드) */
-#cloudDlg{width:min(760px,calc(100vw - 32px))}
+#cloudDlg{width:min(760px,calc((100vw - 32px) / var(--ui,1)))}
 .cloud-list{max-height:min(56vh,480px);overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:8px}
 .cloud-list table{width:100%;border-collapse:collapse;font-size:13.5px}
 .cloud-list th{position:sticky;top:0;background:var(--sunk);text-align:left;font-weight:600;font-size:12.5px;color:var(--ink2);padding:6px 8px;border-bottom:1px solid var(--line)}
@@ -391,13 +409,13 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 .set-kv{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13.5px;margin:8px 0 12px}
 .set-kv dt{color:var(--ink2)}.set-kv dd{margin:0}
 /* 설정 창 */
-#aiDlg{width:min(600px,calc(100vw - 32px))}
+#aiDlg{width:min(600px,calc((100vw - 32px) / var(--ui,1)))}
 .set-tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:6px 0 12px}
 .set-tabs button{border:0;background:none;padding:8px 12px;font-size:14px;color:var(--ink2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
 .set-tabs button[aria-selected="true"]{color:var(--tape);border-bottom-color:var(--tape);font-weight:600}
 #setLog #aiLogView{max-height:min(52vh,420px)}
 
-.reel{position:relative;height:54px;background:var(--sunk);border-radius:8px;cursor:pointer;overflow:hidden}
+.reel{position:relative;height:40px;background:var(--sunk);border-radius:8px;cursor:pointer;overflow:hidden}
 .reel.locked{cursor:default}
 .reel .base{position:absolute;left:0;right:0;top:31px;height:1px;background:var(--line)}
 .reel .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:color-mix(in srgb,var(--rec) 9%,transparent)}
@@ -416,7 +434,7 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 .switch:has(input:disabled){opacity:.45;cursor:not-allowed}
 
 /* toast & dialog */
-#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);max-width:min(560px,calc(100vw - 32px));background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:10px;font-size:14px;box-shadow:0 6px 24px rgba(0,0,0,.18);z-index:20}
+#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);max-width:min(560px,calc((100vw - 32px) / var(--ui,1)));background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:10px;font-size:14px;box-shadow:0 6px 24px rgba(0,0,0,.18);z-index:20}
 #splash{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:var(--bg);transition:opacity .45s ease}
 #splash.out{opacity:0;pointer-events:none}
 .splash-in{display:flex;flex-direction:column;align-items:center;gap:10px;animation:splashIn .6s ease-out}
@@ -431,20 +449,20 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 .gate-note{font-size:12.5px;color:var(--ink2);margin:10px 0 0}
 .gate-actions{margin-top:14px}
 .gate-foot{font-size:11.5px;color:var(--ink2);margin:18px 0 0}
-.gate-card{width:min(380px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px 26px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.12)}
+.gate-card{width:min(380px,calc((100vw - 32px) / var(--ui,1)));background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px 26px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.12)}
 .gate-card .brand{justify-content:center;font-size:22px;margin-bottom:6px}
 .gate-card p{color:var(--ink2);font-size:14px;margin:4px 0 18px}
 #gsiBtn{display:flex;justify-content:center;min-height:44px}
 .gate-err{color:var(--rec);font-size:13px;margin-top:12px}
 .login-btn{display:inline-flex;align-items:center;gap:7px}
-#authDlg{width:min(560px,calc(100vw - 32px))}
+#authDlg{width:min(560px,calc((100vw - 32px) / var(--ui,1)))}
 #authDlg input{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface)}
 #authDlg ol{padding-left:20px;font-size:13.5px;margin:6px 0 10px}
 #authDlg li{margin:3px 0}
 .user{display:flex;align-items:center;gap:8px;font-size:13.5px}
 .user img{width:28px;height:28px;border-radius:50%}
 .user .name{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-dialog{max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:20px 22px;max-width:min(560px,calc(100vw - 32px))}
+dialog{max-height:calc((100dvh - 32px) / var(--ui,1));overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:20px 22px;max-width:min(560px,calc((100vw - 32px) / var(--ui,1)))}
 dialog::backdrop{background:rgba(10,14,20,.45)}
 dialog h2{font-size:17px;margin:0 0 8px}
 dialog p{margin:6px 0;color:var(--ink2);font-size:14px}
@@ -452,12 +470,32 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
 .dlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
 
 @media (max-width:880px){
-  body{height:auto;min-height:100vh}
+  body{height:auto;min-height:calc(100vh / var(--ui,1))}
+  /* 좁은 화면: 헤더를 위에 고정하되 버튼은 한 줄(옆으로 밀어 보기)로 줄여 자리를 덜 차지하게 */
+  header.top{position:sticky;top:0;z-index:9;padding:6px 10px;gap:4px 8px}
+  header.top .actions{flex-wrap:nowrap;overflow-x:auto;width:100%;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}
+  header.top .actions::-webkit-scrollbar{display:none}
+  header.top .actions > *{flex:none}
+  /* 좁은 화면: 고정된 헤더·푸터가 화면을 덜 차지하게 */
+  header.top .brand{display:none}
+  header.top .titlebox{flex:1 1 100%}
+  .title{font-size:16px;padding:0 4px}
+  .meta{font-size:11.5px;padding:0 4px}
+  header.top .actions .btn{padding:5px 10px;font-size:13px}
+  .toolbar.inline .tb-row{padding:2px;border-radius:8px}
+  footer.transport .rec-group,footer.transport .play-group{flex-wrap:nowrap;gap:6px;min-width:0}
+  footer.transport .rec-group{overflow-x:auto;scrollbar-width:none}
+  footer.transport .rec-group::-webkit-scrollbar{display:none}
+  footer.transport .rec-group > *,footer.transport .play-group > *{flex:none}
+  footer.transport .btn,footer.transport select{padding:5px 9px;font-size:13px}
+  .recbtn{padding:7px 12px;font-size:14px}
+  .reel{height:30px}
+  .clock{min-width:58px}
   main{grid-template-columns:minmax(0,1fr)}   /* 1fr만 쓰면 한 줄짜리 도구 모음의 최소 폭 때문에 화면이 옆으로 넓어짐 */
   #splitter{display:none}
   .paper{overflow:visible;min-height:50vh}
   aside.side{border-left:0;border-top:1px solid var(--line);min-height:420px}
-  footer.transport{position:sticky;bottom:0;grid-template-columns:1fr;gap:8px;z-index:5;padding:8px 12px 10px}
+  footer.transport{position:sticky;bottom:0;grid-template-columns:minmax(0,1fr) auto;gap:6px;z-index:5;padding:6px 12px calc(6px + env(safe-area-inset-bottom))}
   .play-group{justify-content:flex-start}
   .reel-wrap{grid-column:1/-1;order:-1}
   .doc,#paneMemo .doc{padding-left:56px}
@@ -510,7 +548,6 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <button id="openBtn" class="btn">회의록 불러오기</button>
     <button id="saveBtn" class="btn primary">.mnote로 저장</button>
     <button id="cloudSaveBtn" class="btn" hidden title="녹음과 회의록을 내 Google Drive에 저장하고 '내 회의록' 목록에 기록합니다">☁ 클라우드 저장</button>
-    <button id="cloudListBtn" class="btn" hidden title="클라우드에 저장한 회의록 목록">내 회의록</button>
     <button id="hwpxBtn" class="btn" title="PDF · 한글(HWPX) · Word로 내보내기">내보내기</button>
     <button id="settingsBtn" class="btn" title="설정: AI 엔진 · 로그 · 계정" aria-label="설정">⚙ 설정</button>
     <button id="bgPill" class="bgpill" hidden title="분석 진행 상황 보기"><span class="sdot"></span><span id="bgText">분석 중</span><span class="mini"><i id="bgBar"></i></span></button>
@@ -617,6 +654,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
       <button class="tab" role="tab" id="tabMemo" aria-selected="true" aria-controls="paneMemo">메모</button>
       <button class="tab" role="tab" id="tabTr" aria-selected="false" aria-controls="paneTr">전사</button>
       <button class="tab" role="tab" id="tabAi" aria-selected="false" aria-controls="paneAi">AI 회의록</button>
+      <button type="button" class="split-btn" id="splitBtn" aria-pressed="false" title="메모와 전사를 위아래로 함께 봅니다 (전사를 보면서 메모)">함께 보기</button>
     </div>
     <section class="pane" id="paneMemo" role="tabpanel" aria-labelledby="tabMemo">
       <div class="pane-tools">
@@ -634,11 +672,6 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <section class="pane" id="paneTr" role="tabpanel" aria-labelledby="tabTr" hidden>
       <div class="pane-tools">
         <label class="chk"><input type="checkbox" id="trOn" checked> 실시간 전사</label>
-        <select id="trMode" aria-label="실시간 전사 방식" title="실시간 전사 방식 — 자동: 휴대폰은 기기 내 인식, PC는 브라우저 음성 인식">
-          <option value="auto">방식: 자동</option>
-          <option value="webspeech">브라우저 음성 인식 (즉시 표시, PC 권장)</option>
-          <option value="whisper">기기 내 인식 Whisper (20~30초 늦게, 휴대폰 권장)</option>
-        </select>
         <button class="btn" id="diarBtn" title="녹음을 분석해 발언자를 나눕니다">발언자 구분</button>
         <button class="btn" id="mapBtn" title="분석된 화자를 참석자와 연결합니다">참석자 매핑</button>
         <select id="lang" aria-label="전사 언어">
@@ -758,9 +791,17 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
 <dialog id="aiDlg" aria-labelledby="aiDlgTitle">
   <h2 id="aiDlgTitle">설정</h2>
   <div class="set-tabs" role="tablist">
+    <button type="button" role="tab" data-set="view" aria-selected="false">화면</button>
     <button type="button" role="tab" data-set="ai" aria-selected="true">AI 엔진</button>
     <button type="button" role="tab" data-set="log" aria-selected="false">로그</button>
     <button type="button" role="tab" data-set="acct" aria-selected="false">계정·클라우드</button>
+  </div>
+  <div id="setView" hidden>
+    <div class="sect">테마</div>
+    <div class="set-row"><span class="seg" id="themeSeg"><button type="button" data-theme-v="system">시스템 설정</button><button type="button" data-theme-v="light">라이트</button><button type="button" data-theme-v="dark">다크</button></span></div>
+    <div class="sect">글자·화면 크기</div>
+    <div class="set-row"><span class="seg"><button type="button" id="uiMinus" aria-label="작게">가 −</button><button type="button" id="uiReset">기본</button><button type="button" id="uiPlus" aria-label="크게">가 +</button></span><output id="uiVal">100%</output></div>
+    <p class="hint">글자와 버튼, 편집 화면 전체가 함께 커지거나 작아집니다(80~130%). 내보내는 문서(PDF·한글·Word) 크기에는 영향이 없어요. 이 브라우저에 기억됩니다.</p>
   </div>
   <div id="setAi">
   <label class="field">AI 엔진<select id="aiProvider">
@@ -773,7 +814,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div id="aiLocalRow">
     <label class="field">서버 주소<input id="aiBase" placeholder="http://localhost:1234" autocomplete="off" spellcheck="false" inputmode="url"></label>
     <label class="field">보안 토큰 (선택)<input id="aiToken" type="password" placeholder="서버에 API 키·토큰을 설정했다면 입력" autocomplete="off" spellcheck="false"></label>
-    <label class="chk" style="margin:-4px 0 8px"><input type="checkbox" id="aiTokenKeep"> 이 브라우저에 기억 (공용 PC에서는 끄세요)</label>
+    <label class="chk" style="margin:-4px 0 8px;white-space:nowrap" title="끄면 이 탭을 닫을 때 토큰이 지워집니다. 공용 PC에서는 끄세요."><input type="checkbox" id="aiTokenKeep"> 이 브라우저에 기억</label>
     <p class="hint" style="margin:0 0 10px">서버를 인터넷(터널·포트 개방)으로 열었다면 토큰을 걸어 두세요. 요청마다 <code>Authorization: Bearer 토큰</code>으로 보냅니다. LM Studio: Developer → Server Settings의 인증(API 키), vLLM·llama.cpp: <code>--api-key</code>, Ollama: 앞단 프록시(Caddy·nginx)에서 검사.</p>
     <div class="row"><button id="aiModels" class="btn primary">연결 확인 · 모델 불러오기</button></div>
     <div class="conn" id="aiConn" hidden><span class="sdot"></span><span id="aiConnText"></span></div>
@@ -788,15 +829,21 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   </div>
   <div id="setLog" hidden>
     <p>AI 호출·녹음 분석·내보내기에서 생긴 일을 시간순으로 기록합니다. 문제가 생기면 <b>복사</b>해서 전달해 주세요. 이 브라우저에만 저장됩니다.</p>
-    <div class="row" style="justify-content:flex-end;gap:6px;display:flex;margin-bottom:6px"><button class="btn" id="aiLogCopy">복사</button><button class="btn" id="aiLogClear">지우기</button></div>
+    <div class="row" style="justify-content:flex-end;align-items:center;gap:6px;display:flex;margin-bottom:6px"><label class="chk" style="margin-right:auto"><input type="checkbox" id="logAll"> 전체 기록 보기 (기본: 오류·경고만)</label><button class="btn" id="aiLogCopy">복사</button><button class="btn" id="aiLogClear">지우기</button></div>
     <pre id="aiLogView"></pre>
   </div>
   <div id="setAcct" hidden>
     <dl class="set-kv" id="cloudState"></dl>
-    <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><button class="btn" id="driveConnect">Google Drive 연결</button><button class="btn" id="driveDisconnect">Drive 권한 해제</button></div>
-    <p>회의록 파일(.mnote, 녹음 포함)은 <b>내 Google Drive의 MeetNote 폴더</b>에만 저장됩니다. 이 앱은 자신이 만든 파일만 볼 수 있는 권한(drive.file)을 씁니다. 목록(제목·일시·길이)은 운영자가 설정한 경우 목록 DB에도 기록됩니다.</p>
-    <p>Google 로그인에 쓸 클라이언트 ID와 로그인 필수 여부를 정합니다.</p>
-    <div class="row"><button class="btn" id="setAuthBtn">Google 로그인 설정 열기</button></div>
+    <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"><button class="btn" id="driveConnect">Google Drive 연동</button><button class="btn" id="driveDisconnect" hidden>Google Drive 연동 해제</button></div>
+    <p>회의록 파일(녹음 포함)은 <b>내 Google Drive의 MeetNote 폴더</b>에만 저장됩니다. 이 앱은 자신이 만든 파일만 볼 수 있고, 내 다른 Drive 파일에는 접근하지 않습니다.</p>
+    <div class="sect" style="color:var(--rec)">서비스 탈퇴</div>
+    <p>이 서비스에 남은 내 정보를 지우고 Google 계정과의 연결을 끊습니다: 목록 DB의 내 회의록 목록·서비스 계정 삭제, Drive 권한과 로그인 연결 해제, 이 브라우저에 저장된 로그인 정보 삭제. Google 계정 자체는 그대로입니다.</p>
+    <div class="row" style="margin-bottom:14px"><button class="btn" id="leaveBtn" style="color:var(--rec);border-color:var(--rec)">서비스 탈퇴…</button></div>
+    <div id="adminBox" hidden>
+      <div class="sect">관리자</div>
+      <p>로그인 설정(클라이언트 ID·로그인 필수)은 관리자 계정에만 보입니다.</p>
+      <div class="row"><button class="btn" id="setAuthBtn">Google 로그인 설정 열기</button></div>
+    </div>
   </div>
   <div class="dlg-actions"><button class="btn primary" id="aiDlgClose">닫기</button></div>
 </dialog>
@@ -851,8 +898,8 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
 
 <dialog id="mapDlg" aria-labelledby="mapTitle">
   <h2 id="mapTitle">발언자 ↔ 참석자 매핑</h2>
-  <p>분석된 화자마다 참석자를 고르거나 이름을 직접 입력하세요. 전사, AI 초안, HWP에 반영됩니다.</p>
-  <table class="map-table"><thead><tr><th>화자</th><th>발언 예</th><th>참석자</th></tr></thead><tbody id="mapBody"></tbody></table>
+  <p>분석된 화자마다 참석자를 고르거나 이름을 직접 입력하세요. 같은 사람이 여러 화자로 나뉘었다면 <b>통합</b>에서 합칠 화자를 고르세요(같은 이름을 지정해도 하나로 합쳐집니다). 전사, AI 초안, 내보내기에 반영됩니다.</p>
+  <table class="map-table"><thead><tr><th>화자</th><th>발언 예</th><th>참석자</th><th>통합</th></tr></thead><tbody id="mapBody"></tbody></table>
   <div class="dlg-actions"><button class="btn" id="mapAddAtt">참석자 추가</button><span style="flex:1"></span><button class="btn" id="mapCancel">취소</button><button class="btn primary" id="mapOk">적용</button></div>
 </dialog>
 
@@ -889,20 +936,13 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   </div>
 </dialog>
 
-<dialog id="openDlg" aria-labelledby="openTitle">
-  <h2 id="openTitle">회의록 불러오기</h2>
-  <div class="eng-row">
-    <button type="button" class="opt" id="openCloud" style="width:100%;text-align:left;background:none;font:inherit;color:inherit"><div><b>☁ 클라우드에서 (내 회의록)</b><span>Google Drive에 저장한 회의록 목록에서 골라 엽니다.</span></div></button>
-    <button type="button" class="opt" id="openLocal" style="width:100%;text-align:left;background:none;font:inherit;color:inherit"><div><b>내 컴퓨터에서 (.mnote 파일)</b><span>내려받아 둔 .mnote 파일을 엽니다. 파일을 화면에 끌어다 놓아도 됩니다.</span></div></button>
-  </div>
-  <div class="dlg-actions"><button class="btn" id="openCancel">취소</button></div>
-</dialog>
-
 <dialog id="cloudDlg" aria-labelledby="cloudTitle">
-  <h2 id="cloudTitle">내 회의록</h2>
-  <p class="hint" id="cloudInfo"></p>
+  <h2 id="cloudTitle">회의록 불러오기</h2>
+  <div class="row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 12px"><button class="btn primary" id="cloudLocal">내 컴퓨터에서 .mnote 파일 열기</button><span class="hint">파일을 화면에 끌어다 놓아도 열려요.</span></div>
+  <div class="sect" style="margin-bottom:2px">☁ 클라우드에 저장한 회의록</div>
+  <p class="hint" id="cloudInfo" style="margin-top:0"></p>
   <div class="cloud-list" id="cloudList"></div>
-  <div class="dlg-actions"><button class="btn" id="cloudSync" title="Drive의 MeetNote 폴더를 읽어 목록을 다시 맞춥니다 (다른 기기에서 지웠거나 목록이 어긋났을 때)">Drive와 목록 맞추기</button><button class="btn" id="cloudLocal" title="내려받아 둔 .mnote 파일 열기">내 컴퓨터에서 열기</button><button class="btn" id="cloudRefresh">새로고침</button><button class="btn primary" id="cloudClose">닫기</button></div>
+  <div class="dlg-actions"><button class="btn" id="cloudSync" title="Drive의 MeetNote 폴더를 읽어 목록을 다시 맞춥니다 (다른 기기에서 지웠거나 목록이 어긋났을 때)">Drive와 목록 맞추기</button><button class="btn" id="cloudRefresh">새로고침</button><button class="btn primary" id="cloudClose">닫기</button></div>
 </dialog>
 
 <dialog id="refineDlg" aria-labelledby="refineTitle">
@@ -943,6 +983,12 @@ const APP_SOURCE = (() => {
   } catch { return ''; }
 })();
 const $ = s => document.querySelector(s);
+/* 화면 배율(설정 → 화면): body에 CSS zoom을 걸면 getBoundingClientRect·마우스 좌표는 '확대된 px', style에 넣는 px은 '확대 전 px'이라 서로 어긋난다.
+   그래서 앱 코드는 zrect()/e.zx/e.zy(모두 확대 전 px)만 쓰고, 화면 좌표가 필요한 API(elementFromPoint, innerWidth)에서만 UIZ를 곱하거나 나눈다. */
+let UIZ = 1;
+const zRect = r => UIZ === 1 ? r : { left: r.left / UIZ, top: r.top / UIZ, right: r.right / UIZ, bottom: r.bottom / UIZ, width: r.width / UIZ, height: r.height / UIZ, x: r.x / UIZ, y: r.y / UIZ };
+Element.prototype.zrect = function () { return zRect(this.getBoundingClientRect()); };
+for (const [k, src] of [['zx', 'clientX'], ['zy', 'clientY']]) Object.defineProperty(MouseEvent.prototype, k, { get() { return this[src] / UIZ; }, configurable: true });
 const uid = () => Math.random().toString(36).slice(2, 10);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt = s => {
@@ -1041,7 +1087,8 @@ function placeToolbar() {
 // 키보드가 올라오면 브라우저가 화면(visual viewport)만 아래로 밀어 sticky 도구 모음이 화면 밖 위쪽에 남는다 → 밀린 만큼 top을 내려 준다
 function fixToolbarTop() {
   if (!toolbar.classList.contains('inline')) return;
-  const vv = window.visualViewport; toolbar.style.top = (vv ? Math.max(0, Math.round(vv.offsetTop)) : 0) + 'px';
+  const vv = window.visualViewport; const headH = narrowMq.matches ? document.querySelector('header.top').zrect().height : 0;   // 좁은 화면에서는 헤더도 위에 고정돼 있음
+  toolbar.style.top = Math.round(Math.max(headH, vv ? vv.offsetTop / UIZ : 0)) + 'px';
 }
 if (window.visualViewport) { visualViewport.addEventListener('resize', fixToolbarTop); visualViewport.addEventListener('scroll', fixToolbarTop); }
 narrowMq.addEventListener?.('change', () => placeToolbar());
@@ -1358,8 +1405,8 @@ bothEditors('keydown', e => {
     }
     if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.shiftKey && !e.altKey) {
       const down = e.key === 'ArrowDown';
-      let rect = null; try { const rs = s.getRangeAt(0).getClientRects(); rect = rs.length ? rs[down ? rs.length - 1 : 0] : null; } catch {}
-      const cr = cell.getBoundingClientRect(), lh = parseFloat(getComputedStyle(cell).lineHeight) || 22;
+      let rect = null; try { const rs = s.getRangeAt(0).getClientRects(); rect = rs.length ? zRect(rs[down ? rs.length - 1 : 0]) : null; } catch {}
+      const cr = cell.zrect(), lh = parseFloat(getComputedStyle(cell).lineHeight) || 22;
       const atEdge = !rect || !(rect.height || rect.width) || (down ? rect.bottom > cr.bottom - lh * 0.6 - 8 : rect.top < cr.top + lh * 0.6 + 8);
       if (!atEdge) return;
       e.preventDefault();
@@ -1458,14 +1505,14 @@ bothEditors('mousedown', e => {
 });
 bothEditors('pointermove', e => {
   if (!selMode || !dragging || !anchorCell || e.pointerType === 'mouse') return;
-  const c = cellOf(document.elementFromPoint(e.clientX, e.clientY));
+  const c = cellOf(document.elementFromPoint(e.zx * UIZ, e.zy * UIZ));
   if (c && c.closest('table') === anchorCell.closest('table')) selectRect(anchorCell, c);
 });
 bothEditors('pointerup', () => { dragging = false; });
 document.addEventListener('mousemove', e => {
   if (!dragging || !anchorCell) return;
   if (!(e.buttons & 1)) { dragging = false; return; }
-  const c = cellOf(document.elementFromPoint(e.clientX, e.clientY));
+  const c = cellOf(document.elementFromPoint(e.zx * UIZ, e.zy * UIZ));
   if (c && c !== anchorCell && c.closest('table') === anchorCell.closest('table')) { selectRect(anchorCell, c); getSelection().removeAllRanges(); }
 });
 document.addEventListener('mouseup', () => { dragging = false; });
@@ -1606,9 +1653,9 @@ function openPop(kind, btn) {
   if (activeReplay()) return;
   if (popFor === btn && !pop.hidden) { closePop(); return; }
   popFor = btn; pop.dataset.kind = kind; pop.innerHTML = popHTML(kind); pop.hidden = false;
-  const r = btn.getBoundingClientRect();
-  pop.style.top = Math.min(r.bottom + 6, innerHeight - pop.offsetHeight - 8) + 'px';
-  pop.style.left = Math.max(8, Math.min(r.left, innerWidth - pop.offsetWidth - 8)) + 'px';
+  const r = btn.zrect();
+  pop.style.top = Math.min(r.bottom + 6, innerHeight / UIZ - pop.offsetHeight - 8) + 'px';
+  pop.style.left = Math.max(8, Math.min(r.left, innerWidth / UIZ - pop.offsetWidth - 8)) + 'px';
 }
 function closePop() { pop.hidden = true; popFor = null; }
 pop.addEventListener('mousedown', e => e.preventDefault());
@@ -1708,7 +1755,7 @@ function colEdges(table) {
   for (let c = 0; c < cols - 1; c++) {
     let cell = null;
     for (let r = 0; r < rows && !cell; r++) { const x = g[r][c]; if (x && pos.get(x).c + pos.get(x).cs - 1 === c) cell = x; }
-    if (cell) edges.push({ c, x: cell.getBoundingClientRect().right });
+    if (cell) edges.push({ c, x: cell.zrect().right });
   }
   return edges;
 }
@@ -1718,7 +1765,7 @@ function rowEdges(table) {
   for (let r = 0; r < rows; r++) {
     let cell = null;
     for (let c = 0; c < cols && !cell; c++) { const x = g[r][c]; if (x && pos.get(x).r + pos.get(x).rs - 1 === r) cell = x; }
-    if (cell) edges.push({ r, y: cell.getBoundingClientRect().bottom });
+    if (cell) edges.push({ r, y: cell.zrect().bottom });
   }
   return edges;
 }
@@ -1727,7 +1774,7 @@ function renderResizers(table) {
   rzTable = table && table.isConnected ? table : null;
   if (!rzTable || activeReplay()) return;
   const wrap = rzTable.closest('.tbl-wrap'); if (!wrap) return;
-  const wr = wrap.getBoundingClientRect(), tr = rzTable.getBoundingClientRect();
+  const wr = wrap.zrect(), tr = rzTable.zrect();
   const top = tr.top - wr.top + wrap.scrollTop, h = tr.height;
   colEdges(rzTable).forEach(e => {
     const d = document.createElement('div');
@@ -1757,7 +1804,7 @@ function colWidths(table) {
     if (!isFinite(px)) {
       let cell = null;
       for (let r = 0; r < rows && !cell; r++) { const x = g[r][c]; if (x && pos.get(x).cs === 1) cell = x; }
-      px = cell ? cell.getBoundingClientRect().width : table.getBoundingClientRect().width / cols;
+      px = cell ? cell.zrect().width : table.zrect().width / cols;
     }
     w.push(Math.max(40, Math.round(px)));
   }
@@ -1773,11 +1820,11 @@ bothEditors('pointerdown', e => {
   const table = rzTable; if (!table) return;
   if (hnd.dataset.row != null) {
     const tr = table.rows[+hnd.dataset.row]; if (!tr) return;
-    rz = { hnd, table, row: tr, h0: tr.getBoundingClientRect().height, y0: e.clientY, id: e.pointerId };
+    rz = { hnd, table, row: tr, h0: tr.zrect().height, y0: e.zy, id: e.pointerId };
   } else {
     const { cg, w } = colWidths(table);
     applyWidths(table, cg, w);
-    rz = { hnd, table, cg, w0: w.slice(), x0: e.clientX, col: hnd.dataset.col != null ? +hnd.dataset.col : null, id: e.pointerId };
+    rz = { hnd, table, cg, w0: w.slice(), x0: e.zx, col: hnd.dataset.col != null ? +hnd.dataset.col : null, id: e.pointerId };
   }
   hnd.classList.add('on');
   try { hnd.setPointerCapture(e.pointerId); } catch {}
@@ -1787,18 +1834,18 @@ bothEditors('pointerdown', e => {
 function rzMove(e) {
   if (!rz || e.pointerId !== rz.id) return;
   if (rz.row) {
-    const hpx = Math.max(28, Math.round(rz.h0 + e.clientY - rz.y0));
+    const hpx = Math.max(28, Math.round(rz.h0 + e.zy - rz.y0));
     rz.row.style.height = hpx + 'px';
     const hint = $('#rzHint');
-    if (hint) { const wrap = rz.table.closest('.tbl-wrap'), wr = wrap.getBoundingClientRect(); hint.style.left = (e.clientX - wr.left + wrap.scrollLeft) + 'px'; hint.style.top = (rz.row.getBoundingClientRect().top - wr.top + wrap.scrollTop) + 'px'; hint.textContent = hpx + 'px'; }
+    if (hint) { const wrap = rz.table.closest('.tbl-wrap'), wr = wrap.zrect(); hint.style.left = (e.zx - wr.left + wrap.scrollLeft) + 'px'; hint.style.top = (rz.row.zrect().top - wr.top + wrap.scrollTop) + 'px'; hint.textContent = hpx + 'px'; }
     renderResizersLive(); return;
   }
-  const dx = e.clientX - rz.x0, w = rz.w0.slice();
+  const dx = e.zx - rz.x0, w = rz.w0.slice();
   if (rz.col != null) w[rz.col] = Math.max(40, rz.w0[rz.col] + dx);
   else { const total = rz.w0.reduce((a, b) => a + b, 0), k = Math.max(0.15, (total + dx) / total); for (let i = 0; i < w.length; i++) w[i] = Math.max(40, Math.round(rz.w0[i] * k)); }
   applyWidths(rz.table, rz.cg, w);
   const hint = $('#rzHint');
-  if (hint) { const wrap = rz.table.closest('.tbl-wrap'), wr = wrap.getBoundingClientRect(); hint.style.left = (e.clientX - wr.left + wrap.scrollLeft) + 'px'; hint.style.top = (rz.table.getBoundingClientRect().top - wr.top + wrap.scrollTop) + 'px'; hint.textContent = rz.col != null ? `${w[rz.col]}px` : `${w.reduce((a, b) => a + b, 0)}px`; }
+  if (hint) { const wrap = rz.table.closest('.tbl-wrap'), wr = wrap.zrect(); hint.style.left = (e.zx - wr.left + wrap.scrollLeft) + 'px'; hint.style.top = (rz.table.zrect().top - wr.top + wrap.scrollTop) + 'px'; hint.textContent = rz.col != null ? `${w[rz.col]}px` : `${w.reduce((a, b) => a + b, 0)}px`; }
   renderResizersLive();
 }
 function renderResizersLive() { if (rz) { const keep = rz.hnd; renderResizers(rz.table); keep.remove(); rz.hnd.parentNode && rz.hnd.parentNode.appendChild(keep); } }
@@ -2069,7 +2116,7 @@ function scheduleGutter() {
 }
 function renderGutter() {
   const root = replayOn ? replayRoot : memoEditor;
-  const base = docEl.getBoundingClientRect().top;
+  const base = docEl.zrect().top;
   let html = '';
   for (const el of root.children) {
     const id = el.dataset.id;
@@ -2078,7 +2125,7 @@ function renderGutter() {
     if (!r || r.t == null) continue;
     const target = replayOn ? el.firstElementChild : el;
     if (!target) continue;
-    const rect = target.getBoundingClientRect();
+    const rect = target.zrect();
     let top;
     if (target.classList.contains('tbl-wrap')) top = rect.top - base + 8;
     else {
@@ -2179,8 +2226,8 @@ function updatePlayhead() {
 }
 reel.addEventListener('click', e => {
   if (rec.state !== 'idle' || !S.audioBlob) return;
-  const r = reel.getBoundingClientRect();
-  seek((e.clientX - r.left) / r.width * totalDur(), false);
+  const r = reel.zrect();
+  seek((e.zx - r.left) / r.width * totalDur(), false);
 });
 reel.addEventListener('keydown', e => {
   if (rec.state !== 'idle' || !S.audioBlob) return;
@@ -2755,10 +2802,9 @@ let recog = null, recogWanted = false, segStart = null;
 function setInterim(t) { $('#interim').textContent = t; }
 /* 방식: 휴대폰(안드로이드)은 녹음과 브라우저 음성 인식이 마이크를 함께 쓰지 못해 글자가 나오지 않는 경우가 많다
    → 자동일 때 휴대폰은 기기 내 Whisper로, PC는 브라우저 음성 인식으로 */
-const TRMODE_KEY = 'meetnote.trMode';
-try { const m = localStorage.getItem(TRMODE_KEY); if (['auto', 'webspeech', 'whisper'].includes(m)) $('#trMode').value = m; } catch {}
-const liveMode = () => { const m = $('#trMode').value; return m === 'auto' ? ((env.mobile || !SR) ? 'whisper' : 'webspeech') : m; };
-$('#trMode').addEventListener('change', e => { try { localStorage.setItem(TRMODE_KEY, e.target.value); } catch {} if (rec.state === 'recording') { recogStop(); live.stop(false); setTimeout(recogStart, 300); } });
+let srBroken = false;   // 이 기기에서 브라우저 음성 인식이 녹음과 같이 못 돈 적이 있으면 기기 내 인식으로
+const liveMode = () => (env.mobile || !SR || srBroken) ? 'whisper' : 'webspeech';
+try { $('#trOn').parentElement.title = env.mobile || !SR ? '이 기기에서는 기기 안에서 인식해요(글자가 20~30초 늦게 표시)' : '브라우저 음성 인식으로 바로 표시해요'; } catch {}
 function recogStart() {
   if (!$('#trOn').checked || rec.state !== 'recording' || rec.mode !== 'mic') return;
   if (liveMode() === 'whisper') { live.start(); return; }
@@ -2790,7 +2836,7 @@ function recogStart() {
     };
     recog.onerror = e => {
       if (e.error !== 'no-speech' && e.error !== 'aborted') aiLog('warn', '브라우저 음성 인식 오류', { error: e.error });
-      if (e.error === 'audio-capture') { recogWanted = false; toast('이 기기에서는 녹음 중에 브라우저 음성 인식이 마이크를 쓰지 못해요. 전사 탭에서 방식을 "기기 내 인식"으로 바꿔 보세요.', 8000); }
+      if (e.error === 'audio-capture') { recogWanted = false; srBroken = true; aiLog('warn', '브라우저 음성 인식이 마이크를 못 써서 기기 내 인식으로 전환'); if (rec.state === 'recording') live.start(); }
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
         recogWanted = false;
         toast('이 환경에서는 실시간 전사를 쓸 수 없어요. 녹음과 메모는 그대로 기록됩니다.', 6000);
@@ -2919,7 +2965,7 @@ function renderTranscript() {
   }
   sortSegments();
   list.innerHTML = S.segments.map((s, i) =>
-    `<div class="seg" data-i="${i}"><button class="ts num" data-seek="${s.t0}">${fmt(s.t0)}</button><div>${s.spk ? `<button class="spk" data-k="${spkIdx(s.spk) % 6}" data-spk="${esc(s.spk)}" title="이름 바꾸기">${esc(speakerName(s.spk))}</button> ` : ''}<div class="stext">${esc(s.text)}</div><button class="link" data-add="${i}">메모에 넣기</button></div></div>`
+    `<div class="seg" data-i="${i}"><button class="ts num" data-seek="${+s.t0 || 0}">${fmt(s.t0)}</button><div>${s.spk ? `<button class="spk" data-k="${spkIdx(s.spk) % 6}" data-spk="${esc(s.spk)}" title="이름 바꾸기">${esc(speakerName(s.spk))}</button> ` : ''}<div class="stext">${esc(s.text)}</div><button class="link" data-add="${i}">메모에 넣기</button></div></div>`
   ).join('');
 }
 const spkIdx = k => { const ids = [...new Set(S.segments.map(s => s.spk).filter(Boolean))]; return Math.max(0, ids.indexOf(k)); };
@@ -2981,12 +3027,24 @@ document.addEventListener('click', e => {
 });
 
 /* ---------- tabs ---------- */
+/* 함께 보기(PC): 메모와 전사를 위아래로 같이 보여 준다. AI 회의록 탭은 그대로 단독 */
+const SPLIT_KEY = 'meetnote.split';
+let splitOn = false, curTab = 'memo';
+try { splitOn = localStorage.getItem(SPLIT_KEY) === '1'; } catch {}
+const splitActive = () => splitOn && !narrowMq.matches;
 function selectTab(which) {
+  curTab = which;
+  const both = splitActive() && which !== 'ai';
   for (const [k, t, p] of [['memo', '#tabMemo', '#paneMemo'], ['tr', '#tabTr', '#paneTr'], ['ai', '#tabAi', '#paneAi']]) {
-    $(t).setAttribute('aria-selected', String(k === which)); $(p).hidden = k !== which;
+    const show = both ? k !== 'ai' : k === which;
+    $(t).setAttribute('aria-selected', String(show)); $(p).hidden = !show;
   }
-  if (which === 'memo') scheduleGutter();
+  document.querySelector('aside.side').classList.toggle('split', both);
+  $('#splitBtn').setAttribute('aria-pressed', String(splitOn));
+  if (which === 'memo' || both) scheduleGutter();
 }
+$('#splitBtn').addEventListener('click', () => { splitOn = !splitOn; try { localStorage.setItem(SPLIT_KEY, splitOn ? '1' : '0'); } catch {} selectTab(curTab === 'ai' && splitOn ? 'memo' : curTab); });
+narrowMq.addEventListener?.('change', () => selectTab(curTab));
 $('#tabMemo').addEventListener('click', () => selectTab('memo'));
 $('#tabTr').addEventListener('click', () => selectTab('tr'));
 $('#tabAi').addEventListener('click', () => selectTab('ai'));
@@ -3698,17 +3756,20 @@ function fmtLog(e) {
   const d = e.data ? ' ' + (typeof e.data === 'string' ? e.data : JSON.stringify(e.data)) : '';
   return `${e.t.slice(11, 19)} ${e.level.toUpperCase().padEnd(5)} ${e.msg}${d}`;
 }
+// 로그 화면·복사는 기본으로 오류·경고만(기록 자체는 모두 남겨 두고, '전체 기록 보기'를 켜면 다 보임)
+const shownLogs = () => $('#logAll').checked ? aiLogs : aiLogs.filter(e => e.level === 'error' || e.level === 'warn');
 function renderAILog() {
   const v = $('#aiLogView'); if (!v || $('#aiDlg').open === false) return;
-  v.innerHTML = aiLogs.map(e => `<div class="${e.level === 'error' ? 'e' : e.level === 'warn' ? 'w' : ''}">${esc(fmtLog(e))}</div>`).join('') || '<span class="k">아직 기록이 없어요.</span>';
+  v.innerHTML = shownLogs().map(e => `<div class="${e.level === 'error' ? 'e' : e.level === 'warn' ? 'w' : ''}">${esc(fmtLog(e))}</div>`).join('') || `<span class="k">${aiLogs.length ? '오류나 경고가 없어요. 전체 기록은 위의 "전체 기록 보기"를 켜세요.' : '아직 기록이 없어요.'}</span>`;
   v.scrollTop = v.scrollHeight;
 }
 $('#aiLogCopy').addEventListener('click', async () => {
   const head = `MeetNote AI 로그 (${new Date().toLocaleString('ko-KR')})\nUA: ${navigator.userAgent}\nURL: ${location.href}\nframed=${framed} secure=${window.isSecureContext} claude=${!!window.claude} engine=${ai.provider} base=${isLocal(ai.provider) ? localBase() : '-'} model=${curModel() || '-'}\n\n`;
-  const txt = head + aiLogs.map(fmtLog).join('\n');
+  const txt = head + shownLogs().map(fmtLog).join('\n');
   try { await navigator.clipboard.writeText(txt); toast('로그를 복사했어요.'); }
   catch { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('로그를 복사했어요.'); } catch { toast('복사할 수 없어요. 로그를 직접 드래그해서 복사하세요.'); } ta.remove(); }
 });
+$('#logAll').addEventListener('change', renderAILog);
 $('#aiLogClear').addEventListener('click', () => { aiLogs = []; try { localStorage.removeItem(AI_LOG_KEY); } catch {} renderAILog(); });
 
 /* ---------- AI provider (Claude / local LLM / API key) ---------- */
@@ -3774,13 +3835,36 @@ function renderAIStatus() {
 }
 function showSetTab(tab) {
   document.querySelectorAll('.set-tabs [data-set]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.set === tab)));
-  $('#setAi').hidden = tab !== 'ai'; $('#setLog').hidden = tab !== 'log'; $('#setAcct').hidden = tab !== 'acct';
+  $('#setView').hidden = tab !== 'view'; $('#setAi').hidden = tab !== 'ai'; $('#setLog').hidden = tab !== 'log'; $('#setAcct').hidden = tab !== 'acct';
+  if (tab === 'view') renderViewSettings();
   if (tab === 'acct') renderCloudState();
   if (tab === 'log') { renderAILog(); const v = $('#aiLogView'); v.scrollTop = v.scrollHeight; }
 }
 function openAIDlg(tab) { renderAIDlg(); showSetTab(typeof tab === 'string' ? tab : 'ai'); try { if (!$('#aiDlg').open) $('#aiDlg').showModal(); } catch {} renderAILog(); }
 document.querySelector('.set-tabs').addEventListener('click', e => { const b = e.target.closest('[data-set]'); if (b) showSetTab(b.dataset.set); });
-$('#settingsBtn').addEventListener('click', () => openAIDlg('ai'));
+$('#settingsBtn').addEventListener('click', () => openAIDlg('view'));
+/* 화면 설정: 테마(시스템/라이트/다크), 배율(80~130%) */
+const THEME_KEY = 'meetnote.theme', UI_KEY = 'meetnote.ui';
+const curTheme = () => { try { const t = localStorage.getItem(THEME_KEY); return t === 'light' || t === 'dark' ? t : 'system'; } catch { return 'system'; } };
+function applyTheme(t) {
+  try { if (t === 'system') localStorage.removeItem(THEME_KEY); else localStorage.setItem(THEME_KEY, t); } catch {}
+  if (t === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
+  const dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme:dark)').matches);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1A212C' : '#0F7B78');
+}
+function applyUi(z) {
+  UIZ = Math.min(1.3, Math.max(0.8, Math.round(z * 10) / 10));
+  if (UIZ === 1) document.documentElement.style.removeProperty('--ui'); else document.documentElement.style.setProperty('--ui', UIZ);
+  try { if (UIZ === 1) localStorage.removeItem(UI_KEY); else localStorage.setItem(UI_KEY, String(UIZ)); } catch {}
+  closePop(); renderResizers(null); scheduleGutter(); fixToolbarTop(); renderViewSettings();
+}
+function renderViewSettings() {
+  const t = curTheme(); document.querySelectorAll('#themeSeg [data-theme-v]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.themeV === t)));
+  $('#uiVal').textContent = Math.round(UIZ * 100) + '%'; $('#uiMinus').disabled = UIZ <= 0.8; $('#uiPlus').disabled = UIZ >= 1.3;
+}
+try { const z = +localStorage.getItem(UI_KEY); if (z >= 0.8 && z <= 1.3) UIZ = z; } catch {}
+$('#themeSeg').addEventListener('click', e => { const b = e.target.closest('[data-theme-v]'); if (b) { applyTheme(b.dataset.themeV); renderViewSettings(); } });
+$('#uiMinus').addEventListener('click', () => applyUi(UIZ - 0.1)); $('#uiPlus').addEventListener('click', () => applyUi(UIZ + 0.1)); $('#uiReset').addEventListener('click', () => applyUi(1));
 $('#setAuthBtn').addEventListener('click', () => { $('#aiDlg').close(); openAuthDlg(''); });
 $('#aiStatusLink').addEventListener('click', () => openAIDlg('ai'));
 $('#aiDlgClose').addEventListener('click', () => $('#aiDlg').close());
@@ -4216,10 +4300,10 @@ function hwpxBlock(B, el, base = {}) {
     const cg = table.querySelector(':scope > colgroup');
     const colW = []; for (let c = 0; c < cols; c++) {
       let px = cg && cg.children[c] ? parseFloat(cg.children[c].style.width) : NaN;
-      if (!isFinite(px)) { let cell = null; for (let r = 0; r < rows && !cell; r++) { const x = g[r][c]; if (x && pos.get(x).cs === 1) cell = x; } px = cell ? cell.getBoundingClientRect().width : 120; }
+      if (!isFinite(px)) { let cell = null; for (let r = 0; r < rows && !cell; r++) { const x = g[r][c]; if (x && pos.get(x).cs === 1) cell = x; } px = cell ? cell.zrect().width : 120; }
       colW.push(Math.max(1200, Math.round((px || 120) * HW.px)));
     }
-    const rowH = [...table.rows].map(tr => Math.max(1400, Math.round((tr.getBoundingClientRect().height || 36) * HW.px)));
+    const rowH = [...table.rows].map(tr => Math.max(1400, Math.round((tr.zrect().height || 36) * HW.px)));
     const origin = Array.from({ length: rows }, () => []);
     for (const [cell, p] of pos) {
       const paras = splitRuns(inlineRuns(cell, base));
@@ -4539,7 +4623,8 @@ function openMapDlg() {
     const inList = atts.some(a => a.name === cur);
     return `<tr data-id="${esc(id)}"><td><span class="spk" data-k="${spkIdx(id) % 6}">${esc(speakerName(id))}</span><span class="cnt">${segs.length}회</span></td><td class="ex" title="${esc(ex)}">${esc(ex)}</td><td>
       <select data-map="${esc(id)}"><option value="">(이름 없음 · ${esc(/^\d+$/.test(id) ? `화자 ${+id + 1}` : id)})</option>${atts.map(a => `<option value="${esc(a.name)}"${a.name === cur ? ' selected' : ''}>${esc([a.org, a.name, a.title].filter(Boolean).join(' '))}</option>`).join('')}<option value="__custom"${cur && !inList ? ' selected' : ''}>직접 입력…</option></select>
-      <input data-custom="${esc(id)}" placeholder="이름 입력" value="${esc(cur && !inList ? cur : '')}" style="margin-top:4px"${cur && !inList ? '' : ' hidden'}></td></tr>`;
+      <input data-custom="${esc(id)}" placeholder="이름 입력" value="${esc(cur && !inList ? cur : '')}" style="margin-top:4px"${cur && !inList ? '' : ' hidden'}></td>
+      <td><select data-merge="${esc(id)}" aria-label="다른 화자로 통합"><option value="">그대로</option>${ids.filter(o => o !== id).map(o => `<option value="${esc(o)}">→ ${esc(speakerName(o))}에 합치기</option>`).join('')}</select></td></tr>`;
   }).join('');
   try { $('#mapDlg').showModal(); } catch {}
 }
@@ -4559,8 +4644,22 @@ $('#mapOk').addEventListener('click', () => {
     if (v === '__custom') v = ($('#mapBody').querySelector(`input[data-custom="${CSS.escape(id)}"]`).value || '').trim();
     if (v) S.speakers[id] = v; else delete S.speakers[id];
   });
-  $('#mapDlg').close(); markDirty(); renderTranscript();
-  toast('발언자 이름을 적용했어요.');
+  // 통합: ① '→ 화자 N에 합치기'로 고른 것 ② 같은 이름을 지정한 화자들. 이어진 지정(A→B, B→C)은 끝까지 따라가고 순환은 무시
+  const to = new Map();
+  $('#mapBody').querySelectorAll('select[data-merge]').forEach(sel => { if (sel.value) to.set(sel.dataset.merge, sel.value); });
+  const byName = new Map();
+  for (const id of speakerIds()) { const nm = (S.speakers[id] || '').trim(); if (!nm || to.has(id)) continue; if (byName.has(nm)) to.set(id, byName.get(nm)); else byName.set(nm, id); }
+  const resolve = id => { const seen = new Set([id]); let t = id; while (to.has(t)) { t = to.get(t); if (seen.has(t)) return id; seen.add(t); } return t; };
+  let merged = 0;
+  for (const id of [...to.keys()]) {
+    const t = resolve(id); if (t === id) continue;
+    S.segments.forEach(g => { if (g.spk === id) g.spk = t; });
+    if (!S.speakers[t] && S.speakers[id]) S.speakers[t] = S.speakers[id];
+    delete S.speakers[id]; merged++;
+  }
+  $('#mapDlg').close(); markDirty(); renderTranscript(); scheduleTimeline();
+  aiLog('info', '발언자 매핑 적용', { merged, speakers: speakerIds().length });
+  toast(merged ? `발언자 ${merged}명을 합쳤어요. 이제 ${speakerIds().length}명입니다.` : '발언자 이름을 적용했어요.');
 });
 
 /* ---------- progress dialog ---------- */
@@ -4681,7 +4780,7 @@ async function applyDiarResult(result, t0) {
 }
 
 /* ---------- in-browser diarization (transformers.js in a Web Worker) ---------- */
-const TJS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3/dist/transformers.min.js';
+const TJS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js';   // 버전 고정(떠 있는 @3은 배포 없이 코드가 바뀔 수 있음)
 const WHISPER_ID = 'onnx-community/whisper-base_timestamped', SEG_ID = 'onnx-community/pyannote-segmentation-3.0';
 const DIAR_WORKER_SRC = `
 let T, asr, segProc, segModel, loadedFor = null;
@@ -5049,7 +5148,12 @@ async function openFile(file) {
     }
     let lang = null;
     const tf = zip.file(man.files?.transcript || 'transcript.json');
-    if (tf) { const t = JSON.parse(await tf.async('string')); next.segments = Array.isArray(t.segments) ? t.segments : []; lang = t.lang; }
+    if (tf) {
+      const t = JSON.parse(await tf.async('string')); lang = typeof t.lang === 'string' ? t.lang : null;
+      // 파일은 남이 만든 것일 수 있다: 숫자·문자열만 받아들인다
+      next.segments = (Array.isArray(t.segments) ? t.segments : []).filter(g => g && typeof g === 'object' && isFinite(+g.t0)).slice(0, 20000)
+        .map(g => ({ t0: Math.max(0, +g.t0), t1: isFinite(+g.t1) ? Math.max(0, +g.t1) : Math.max(0, +g.t0), text: String(g.text ?? '').slice(0, 5000), ...(g.spk != null && g.spk !== '' ? { spk: String(g.spk).replace(/[^\w가-힣 .-]/g, '').slice(0, 40) } : {}) }));
+    }
     const dh = zip.file('document.html'); if (dh) next.docHtml = await dh.async('string');
     const dj = zip.file('document.json');
     if (dj) {
@@ -5065,7 +5169,7 @@ async function openFile(file) {
       });
     }
     const mj = zip.file('meeting.json');
-    if (mj) { try { const m = JSON.parse(await mj.async('string')); Object.assign(next.meta, m.meta || {}); next.attendees = Array.isArray(m.attendees) ? m.attendees.map(a => ({ org: String(a.org || ''), name: String(a.name || ''), title: String(a.title || '') })) : []; next.speakers = (m.speakers && typeof m.speakers === 'object') ? m.speakers : {}; } catch {} }
+    if (mj) { try { const m = JSON.parse(await mj.async('string')); Object.assign(next.meta, m.meta || {}); next.attendees = Array.isArray(m.attendees) ? m.attendees.map(a => ({ org: String(a.org || ''), name: String(a.name || ''), title: String(a.title || '') })) : []; next.speakers = {}; if (m.speakers && typeof m.speakers === 'object') for (const [k, v] of Object.entries(m.speakers).slice(0, 200)) next.speakers[String(k).slice(0, 40)] = String(v ?? '').slice(0, 80); } catch {} }
     const mdf = zip.file('minutes.md');
     if (mdf) next.minutes = await mdf.async('string');
     for (const ph of (Array.isArray(man.photos) ? man.photos : []).slice(0, PHOTO_MAX)) {
@@ -5107,12 +5211,8 @@ async function newMeeting() {
 $('#saveBtn').addEventListener('click', save);
 $('#newBtn').addEventListener('click', newMeeting);
 $('#openBtn').addEventListener('click', () => {
-  if (user && authEnabled()) { try { $('#openDlg').showModal(); return; } catch {} }   // 클라우드를 쓸 수 있으면 어디서 열지 고른다
-  $('#fileInput').click();
+  if (user && authEnabled()) cloudOpenList(); else $('#fileInput').click();   // 로그인 상태면 '내 컴퓨터 + 클라우드 목록' 창, 아니면 바로 파일 선택
 });
-$('#openLocal').addEventListener('click', () => { $('#openDlg').close(); $('#fileInput').click(); });
-$('#openCloud').addEventListener('click', () => { $('#openDlg').close(); cloudOpenList(); });
-$('#openCancel').addEventListener('click', () => $('#openDlg').close());
 $('#fileInput').addEventListener('change', e => { openFile(e.target.files[0]); e.target.value = ''; });
 window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => {
@@ -5200,11 +5300,11 @@ const docMinPx = () => parseFloat(getComputedStyle(docEditor).minHeight) || 360;
   let drag = null;
   grip.addEventListener('pointerdown', e => {
     const ed = docReplayOn ? $('#docReplay') : docEditor;
-    drag = { y: e.clientY, h: ed.getBoundingClientRect().height }; grip.classList.add('on');
+    drag = { y: e.zy, h: ed.zrect().height }; grip.classList.add('on');
     try { grip.setPointerCapture(e.pointerId); } catch {}
     e.preventDefault();
   });
-  grip.addEventListener('pointermove', e => { if (drag) apply(Math.max(DOCH_MIN, Math.round(drag.h + e.clientY - drag.y))); });
+  grip.addEventListener('pointermove', e => { if (drag) apply(Math.max(DOCH_MIN, Math.round(drag.h + e.zy - drag.y))); });
   const end = () => { if (!drag) return; drag = null; grip.classList.remove('on'); store(); };
   grip.addEventListener('pointerup', end); grip.addEventListener('pointercancel', end);
   grip.addEventListener('dblclick', () => { apply(0); try { localStorage.removeItem(DOCH_KEY); } catch {} });
@@ -5230,8 +5330,8 @@ const SIDE_KEY = 'meetnote.sideW';
   });
   sp.addEventListener('pointermove', e => {
     if (!drag || e.pointerId !== drag.id) return;
-    const r = mainEl.getBoundingClientRect();
-    pct = Math.min(70, Math.max(20, (r.right - e.clientX) / r.width * 100));
+    const r = mainEl.zrect();
+    pct = Math.min(70, Math.max(20, (r.right - e.zx) / r.width * 100));
     apply(pct);
   });
   const end = e => {
@@ -5260,6 +5360,7 @@ try { const c = JSON.parse(localStorage.getItem(CRED_KEY) || 'null'); if (c && u
 // 배포 설정(config.js)에 클라이언트 ID가 있으면 그 설정이 우선: 브라우저에 저장된 값으로 '로그인 필수'를 끌 수 없다
 const CFG_LOCKED = !!CFG.googleClientId;
 try { const g = JSON.parse(localStorage.getItem(GCLIENT_KEY) || 'null'); if (g && g.id && !CFG_LOCKED) { CFG.googleClientId = g.id; if (typeof g.require === 'boolean') CFG.requireLogin = g.require; } } catch {}
+const isAdmin = () => !!(user && user.email && (CFG.adminEmails || []).map(x => String(x).toLowerCase()).includes(user.email.toLowerCase()));   // 화면 표시용(실제 권한은 서버 규칙이 결정)
 const authPossible = () => /^https?:$/.test(location.protocol) && !inClaude;
 const authEnabled = () => !!CFG.googleClientId && authPossible();
 let gsiLoaded = false, gsiInit = false;
@@ -5269,7 +5370,7 @@ function renderUser() {
   box.hidden = !user;
   if (user) { $('#userPic').src = user.picture || ''; $('#userPic').hidden = !user.picture; $('#userName').textContent = user.name || user.email || ''; $('#userName').title = user.email || ''; }
   $('#loginBtn').hidden = !!user;
-  $('#cloudSaveBtn').hidden = $('#cloudListBtn').hidden = !(user && authEnabled());
+  $('#cloudSaveBtn').hidden = !(user && authEnabled());
   const strict = authEnabled() && CFG.requireLogin;           // 구성된 사이트에서 로그인 필수
   const showGate = !user && (strict || !guest);
   $('#gate').hidden = !showGate;
@@ -5335,6 +5436,7 @@ function initGoogle() {
   document.head.appendChild(s);
 }
 function openAuthDlg(why) {
+  if (CFG_LOCKED && !isAdmin()) return;
   $('#authWhy').textContent = why || '';
   $('#authOrigin').textContent = location.origin;
   $('#authClient').value = CFG.googleClientId || '';
@@ -5402,10 +5504,10 @@ async function fbAuth() {
     } catch (e) { aiLog('warn', '목록 DB 토큰 갱신 실패', errInfo(e)); fbSess = null; }
   }
   if (!credValid()) await freshCredential();
-  if (!credValid()) throw cerr('relogin', 'Google 로그인이 오래돼 목록 DB에 연결할 수 없어요. 로그아웃 후 다시 로그인해 주세요.');
+  if (!credValid()) throw cerr('relogin', 'Google 로그인이 오래돼 목록에 연결할 수 없어요. 로그아웃 후 다시 로그인해 주세요.');
   const d = await jfetch(`${EP.idp}/accounts:signInWithIdp?key=${encodeURIComponent(FB.apiKey)}`, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ postBody: 'id_token=' + encodeURIComponent(lastCredential.token) + '&providerId=google.com', requestUri: location.origin, returnSecureToken: true, returnIdpCredential: true }) });
-  aiLog('info', '목록 DB 로그인', { uid: d.localId });
+  aiLog('info', '목록 동기화 로그인');
   return keep({ sub: user.sub, uid: d.localId, idToken: d.idToken, refreshToken: d.refreshToken, exp: Date.now() + (+d.expiresIn || 3600) * 1000 });
 }
 const fsVal = v => typeof v === 'number' ? (Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v }) : v == null ? { nullValue: null } : { stringValue: String(v) };
@@ -5524,7 +5626,7 @@ async function cloudSave() {
     try { fileId = await up(fileId); } catch (e) { if (fileId && e.status === 404) fileId = await up(null); else throw e; }   // 지워진 파일이면 새로 만든다
     S.cloud = { fileId };
     let dbNote = '';
-    if (FB) { progSet(95, '목록에 기록하는 중'); try { await dbUpsert({ ...meta, fileId, name }); } catch (e) { aiLog('warn', '목록 DB 기록 실패(Drive에는 저장됨)', errInfo(e)); dbNote = ' 목록 DB에는 기록하지 못했어요. "내 회의록"의 "Drive와 목록 맞추기"로 맞출 수 있어요.'; } }
+    if (FB) { progSet(95, '목록에 기록하는 중'); try { await dbUpsert({ ...meta, fileId, name }); } catch (e) { aiLog('warn', '목록 DB 기록 실패(Drive에는 저장됨)', errInfo(e)); dbNote = ' 목록에는 기록하지 못했어요. "회의록 불러오기"의 "Drive와 목록 맞추기"로 맞출 수 있어요.'; } }
     markClean();
     aiLog('info', '클라우드 저장 완료', { bytes: blob.size, ms: Math.round(performance.now() - t0), db: FB ? !dbNote : 'off' });
     toast('내 Google Drive에 저장했어요.' + dbNote, dbNote ? 9000 : 4000);
@@ -5540,19 +5642,25 @@ async function cloudLoadList() {
 }
 function renderCloudList(src) {
   const el = $('#cloudList');
-  $('#cloudInfo').textContent = `파일: 내 Google Drive의 ${DRIVE_FOLDER} 폴더 · 목록: ${src === 'db' ? '목록 DB' : 'Google Drive'}${cloudRows.length ? ` · ${cloudRows.length}건` : ''}`;
+  $('#cloudInfo').textContent = `파일: 내 Google Drive의 ${DRIVE_FOLDER} 폴더 · 목록: ${src === 'db' ? '동기화됨' : 'Google Drive'}${cloudRows.length ? ` · ${cloudRows.length}건` : ''}`;
   if (!cloudRows.length) { el.innerHTML = '<div class="cloud-empty">아직 클라우드에 저장한 회의록이 없어요. 위쪽 <b>☁ 클라우드 저장</b>을 눌러 저장하세요.</div>'; return; }
   const d = v => { const t = v ? new Date(v) : null; return t && !isNaN(t) ? t.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '-'; };
   el.innerHTML = '<table><thead><tr><th>제목</th><th>회의 일시</th><th>길이</th><th>크기</th><th>저장</th><th></th></tr></thead><tbody>' + cloudRows.map((m, i) =>
     `<tr class="${m.id === safeId(S.id) ? 'cur' : ''}"><td class="t" title="${esc(m.title || '')}">${esc(m.title || '제목 없는 회의')}</td><td class="n">${esc(d(m.when))}</td><td class="n">${m.duration ? fmt(m.duration) : '-'}</td><td class="n">${m.bytes ? (m.bytes / 1048576).toFixed(1) + 'MB' : '-'}</td><td class="n">${esc(d(m.updatedAt))}</td><td class="a"><button class="btn" data-copen="${i}">열기</button><button class="btn" data-cdel="${i}" style="color:var(--rec)">삭제</button></td></tr>`).join('') + '</tbody></table>';
 }
-async function cloudOpenList() {
+async function cloudOpenList({ connect = false } = {}) {
+  try { if (!$('#cloudDlg').open) $('#cloudDlg').showModal(); } catch {}
+  const el = $('#cloudList');
   try {
-    await driveAuth();
-    try { if (!$('#cloudDlg').open) $('#cloudDlg').showModal(); } catch {}
-    $('#cloudList').innerHTML = '<div class="cloud-empty busy-dots">목록을 불러오는 중</div>';
-    const { rows, src } = await cloudLoadList(); cloudRows = rows; renderCloudList(src);
-  } catch (e) { aiLog('error', '내 회의록 목록 실패', errInfo(e)); $('#cloudList').innerHTML = `<div class="cloud-empty">목록을 불러오지 못했어요: ${esc(cloudExplain(e))}</div>`; if (!$('#cloudDlg').open) toast('목록을 열지 못했어요: ' + cloudExplain(e), 7000); }
+    if (connect) await driveAuth();
+    el.innerHTML = '<div class="cloud-empty busy-dots">목록을 불러오는 중</div>';
+    const hasDrive = !!(driveTok && user && driveTok.sub === user.sub && driveTok.exp > Date.now() + 60000);
+    let got = null;
+    if (FB) { try { got = { rows: await dbList(), src: 'db' }; } catch (e) { aiLog('warn', '목록 DB 읽기 실패 → Drive 목록 사용', errInfo(e)); } }
+    if (!got && hasDrive) got = { rows: await driveList(), src: 'drive' };
+    if (!got) { $('#cloudInfo').textContent = '클라우드 목록을 보려면 Google Drive에 연결하세요.'; el.innerHTML = '<div class="cloud-empty"><button class="btn primary" id="cloudConnect">Google Drive 연결하고 목록 보기</button></div>'; return; }
+    cloudRows = got.rows; renderCloudList(got.src);
+  } catch (e) { aiLog('error', '회의록 목록 실패', errInfo(e)); el.innerHTML = `<div class="cloud-empty">목록을 불러오지 못했어요: ${esc(cloudExplain(e))}<br><button class="btn" id="cloudConnect" style="margin-top:8px">다시 시도</button></div>`; }
 }
 async function cloudOpenItem(m) {
   if (rec.state !== 'idle') { toast('녹음 중에는 열 수 없어요.'); return; }
@@ -5598,26 +5706,60 @@ async function cloudSync() {
   } catch (e) { aiLog('error', '목록 맞추기 실패', errInfo(e)); toast('목록을 맞추지 못했어요: ' + cloudExplain(e), 7000); }
   finally { btn.disabled = false; }
 }
+/* 서비스 탈퇴: 목록 DB의 내 기록과 Firebase 계정 삭제 → (선택) Drive 파일을 휴지통으로 → Drive 권한·로그인 연결 해제 → 이 브라우저의 로그인 정보 삭제 */
+async function leaveService() {
+  if (!user) { toast('로그인한 상태에서만 탈퇴할 수 있어요.'); return; }
+  if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 진행해 주세요.'); return; }
+  let tok = null; try { tok = await driveAuth(); } catch (e) { aiLog('warn', '탈퇴: Drive 권한 없이 진행', errInfo(e)); }   // 팝업이 막히지 않게 가장 먼저
+  $('#aiDlg').close();
+  if (!(await askConfirm('서비스를 탈퇴할까요?', `${user.email || user.name} 계정의 회의록 목록과 서비스 계정을 지우고 Google 연결을 끊습니다. 되돌릴 수 없어요. (지금 화면에 열려 있는 회의록은 닫힙니다)`, '탈퇴'))) return;
+  const wipeDrive = tok ? await askConfirm('Drive 파일도 지울까요?', `내 Google Drive의 ${DRIVE_FOLDER} 폴더(회의록 파일)를 휴지통으로 옮길까요? "취소"를 누르면 파일은 Drive에 그대로 남습니다.`, '휴지통으로 옮기기') : false;
+  const done = { db: 0, account: false, drive: false }, email = user.email;
+  try {
+    if (FB) {
+      try {
+        const a = await fbAuth();
+        for (const m of await dbList()) { await dbDelete(m.id); done.db++; }
+        await jfetch(`${EP.idp}/accounts:delete?key=${encodeURIComponent(FB.apiKey)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: a.idToken }) });
+        done.account = true;
+      } catch (e) { aiLog('error', '탈퇴: 목록 DB 정리 실패', errInfo(e)); }
+    }
+    if (wipeDrive) { try { const folder = await driveFolder(); await dfetch(`/files/${encodeURIComponent(folder)}?fields=id`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ trashed: true }) }); done.drive = true; } catch (e) { aiLog('error', '탈퇴: Drive 폴더 정리 실패', errInfo(e)); } }
+    try { await gsiReady(); if (driveTok) google.accounts.oauth2.revoke(driveTok.token, () => {}); if (email) google.accounts.id.revoke(email, () => {}); google.accounts.id.disableAutoSelect(); } catch {}
+  } finally {
+    aiLog('warn', '서비스 탈퇴', done);
+    cloudSignOut(); user = null; guest = false;
+    try { [USER_KEY, DRIVE_FOLDER_KEY, 'meetnote.aiToken'].forEach(k => localStorage.removeItem(k)); sessionStorage.removeItem('meetnote.guest'); sessionStorage.removeItem('meetnote.aiToken'); } catch {}
+    S = fresh(); recMap = new Map(); docRec = new Map(); clearAudio(); renderAll(); markClean(); renderUser();
+    toast(`탈퇴했어요. 목록 ${done.db}건 삭제${FB ? (done.account ? ' · 서비스 계정 삭제' : ' · 서비스 계정 삭제는 실패(로그 확인)') : ''}${wipeDrive ? (done.drive ? ' · Drive 폴더를 휴지통으로' : ' · Drive 정리 실패') : ' · Drive 파일은 그대로'}.`, 10000);
+  }
+}
 function cloudSignOut() { fbSess = null; driveTok = null; lastCredential = null; try { localStorage.removeItem(FB_KEY); localStorage.removeItem(CRED_KEY); } catch {} renderCloudState(); }
 function renderCloudState() {
   const el = $('#cloudState'); if (!el) return;
-  const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
-  el.innerHTML = row('Google 로그인', user ? esc(user.email || user.name || '로그인됨') : (authEnabled() ? '로그인 안 됨' : '설정 안 됨'))
-    + row('로그인 필수', CFG.requireLogin && authEnabled() ? '예' + (CFG_LOCKED ? ' (배포 설정으로 고정)' : '') : '아니오')
-    + row('파일 저장소', driveTok && user && driveTok.sub === user.sub && driveTok.exp > Date.now() ? 'Google Drive 연결됨' : 'Google Drive (저장·열기 때 권한 요청)')
-    + row('목록 DB', FB ? `Firestore (${esc(FB.projectId)})` : '사용 안 함 — Drive 목록으로 동작');
-  $('#driveConnect').disabled = $('#driveDisconnect').disabled = !(user && authEnabled());
+  const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`, on = '<b style="color:var(--ok)">연동됨</b>', off = '연동 안 됨';
+  const driveOn = !!(driveTok && user && driveTok.sub === user.sub && driveTok.exp > Date.now());
+  const listOn = !!(FB && fbSess && user && fbSess.sub === user.sub);
+  // 내부 구성(프로젝트 이름·클라이언트 ID 등)은 보여 주지 않고 연동 여부만 표시한다
+  el.innerHTML = row('Google 계정', user ? esc(user.email || user.name || '로그인됨') + (isAdmin() ? ' <span class="hint">(관리자)</span>' : '') : '로그인 안 됨')
+    + row('Google Drive', driveOn ? on : off + ' <span class="hint">(저장·열기 때 연동을 물어봐요)</span>')
+    + row('목록 동기화', FB ? (listOn ? on : off) : '사용 안 함');
+  const can = !!(user && authEnabled());
+  $('#driveConnect').hidden = driveOn; $('#driveDisconnect').hidden = !driveOn;
+  $('#driveConnect').disabled = $('#leaveBtn').disabled = !can;
+  $('#adminBox').hidden = !(isAdmin() || !CFG_LOCKED);   // 배포 설정이 없는(직접 띄운) 환경에서는 누구나 설정 가능
 }
 $('#cloudSaveBtn').addEventListener('click', cloudSave);
-$('#cloudListBtn').addEventListener('click', cloudOpenList);
-$('#cloudRefresh').addEventListener('click', cloudOpenList);
+$('#cloudRefresh').addEventListener('click', () => cloudOpenList());
 $('#cloudSync').addEventListener('click', cloudSync);
 $('#cloudClose').addEventListener('click', () => $('#cloudDlg').close());
 $('#cloudLocal').addEventListener('click', () => { $('#cloudDlg').close(); $('#fileInput').click(); });
 $('#cloudList').addEventListener('click', e => {
+  if (e.target.closest('#cloudConnect')) { cloudOpenList({ connect: true }); return; }
   const o = e.target.closest('[data-copen]'), d = e.target.closest('[data-cdel]');
   if (o) cloudOpenItem(cloudRows[+o.dataset.copen]); else if (d) cloudDeleteItem(cloudRows[+d.dataset.cdel]);
 });
+$('#leaveBtn').addEventListener('click', leaveService);
 $('#driveConnect').addEventListener('click', async () => { try { await driveAuth({ force: true }); toast('Google Drive를 연결했어요.'); } catch (e) { toast(cloudExplain(e), 7000); } });
 $('#driveDisconnect').addEventListener('click', async () => {
   try { await gsiReady(); if (driveTok) google.accounts.oauth2.revoke(driveTok.token, () => {}); } catch {}
@@ -5685,7 +5827,7 @@ initGoogle();
   const eds = [memoEditor, docEditor];
   const trackOf = ed => ed === memoEditor ? memoTrack : docTrack;
   function blockAt(x, y) {
-    const el = document.elementFromPoint(x, y); if (!el) return null;
+    const el = document.elementFromPoint(x * UIZ, y * UIZ); if (!el) return null;
     for (const ed of eds) {
       if (ed.hidden) continue;
       if (el !== ed && ed.contains(el)) {
@@ -5694,17 +5836,17 @@ initGoogle();
       }
       // 편집 영역의 안쪽 여백(테두리와 글 사이)이나 손잡이가 놓이는 바깥 여백에서는 같은 높이의 줄을 고른다
       if (el !== ed && !el.contains(ed)) continue;
-      const er = ed.getBoundingClientRect();
+      const er = ed.zrect();
       const inX = ed === memoEditor ? (x >= er.left && x <= er.right + 36) : (x >= er.left - 36 && x <= er.right);
       if (!inX || y < er.top || y > er.bottom) continue;
-      for (const b of ed.children) { const r = b.getBoundingClientRect(); if (y >= r.top - 1 && y <= r.bottom + 1) return { ed, block: b }; }
+      for (const b of ed.children) { const r = b.zrect(); if (y >= r.top - 1 && y <= r.bottom + 1) return { ed, block: b }; }
     }
     return null;
   }
   function showHandle(ed, block) {
     hover = block; hoverEd = ed;
-    const r = block.getBoundingClientRect(), er = ed.getBoundingClientRect();
-    const left = ed === memoEditor ? Math.min(er.right + 4, innerWidth - 26) : er.left - 26;
+    const r = block.zrect(), er = ed.zrect();
+    const left = ed === memoEditor ? Math.min(er.right + 4, innerWidth / UIZ - 26) : er.left - 26;
     handle.style.left = left + 'px'; handle.style.top = (r.top + 2) + 'px';
     handle.classList.add('show');
   }
@@ -5713,15 +5855,15 @@ initGoogle();
     if (drag) { onDragMove(e); return; }
     if (e.pointerType === 'touch') return;
     if (handle.contains(e.target)) return;
-    const hit = blockAt(e.clientX, e.clientY);
+    const hit = blockAt(e.zx, e.zy);
     if (hit && !trackOf(hit.ed).on) showHandle(hit.ed, hit.block);
-    else if (!hit) { const hr = handle.getBoundingClientRect(); if (!(e.clientX >= hr.left - 6 && e.clientX <= hr.right + 6 && e.clientY >= hr.top - 6 && e.clientY <= hr.bottom + 6)) hideHandle(); }
+    else if (!hit) { const hr = handle.zrect(); if (!(e.zx >= hr.left - 6 && e.zx <= hr.right + 6 && e.zy >= hr.top - 6 && e.zy <= hr.bottom + 6)) hideHandle(); }
   });
   // touch: long-press a block to show its handle
   let lp = null;
   eds.forEach(ed => ed.addEventListener('pointerdown', e => {
     if (e.pointerType !== 'touch') return;
-    const hit = blockAt(e.clientX, e.clientY); if (!hit) return;
+    const hit = blockAt(e.zx, e.zy); if (!hit) return;
     lp = setTimeout(() => { showHandle(hit.ed, hit.block); toast('손잡이를 끌어서 옮기세요.'); }, 500);
   }));
   document.addEventListener('pointerup', () => { clearTimeout(lp); });
@@ -5737,12 +5879,12 @@ initGoogle();
     target = null;
   });
   function onDragMove(e) {
-    const ed = drag.ed, er = ed.getBoundingClientRect();
-    const y = e.clientY;
+    const ed = drag.ed, er = ed.zrect();
+    const y = e.zy;
     let best = null, bestD = Infinity;
     for (const b of ed.children) {
       if (b === drag.block) continue;
-      const r = b.getBoundingClientRect();
+      const r = b.zrect();
       const dTop = Math.abs(y - r.top), dBot = Math.abs(y - r.bottom);
       if (dTop < bestD) { bestD = dTop; best = { b, after: false, y: r.top }; }
       if (dBot < bestD) { bestD = dBot; best = { b, after: true, y: r.bottom }; }
@@ -5750,7 +5892,7 @@ initGoogle();
     if (!best) { line.style.display = 'none'; target = null; return; }
     target = best.b; after = best.after;
     line.style.display = 'block'; line.style.left = er.left + 'px'; line.style.width = er.width + 'px'; line.style.top = (best.y - 1) + 'px';
-    const paper = ed.closest('.paper, .pane'); if (paper) { const pr = paper.getBoundingClientRect(); if (y < pr.top + 40) paper.scrollTop -= 12; else if (y > pr.bottom - 40) paper.scrollTop += 12; }
+    const paper = ed.closest('.paper, .pane'); if (paper) { const pr = paper.zrect(); if (y < pr.top + 40) paper.scrollTop -= 12; else if (y > pr.bottom - 40) paper.scrollTop += 12; }
   }
   function endDrag(e) {
     if (!drag || (e && e.pointerId !== drag.id)) return;
@@ -5829,8 +5971,9 @@ initGoogle();
     host.title = text;
   }
 })();
-window.__meetnote = { get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft };
 renderAll();
+selectTab(curTab);
 if (!['auto', 'lmstudio', 'ollama', 'openai', 'anthropic'].includes(ai.provider)) ai.provider = 'auto';
 renderAIStatus();
 aiLog('info', '페이지 시작', { framed, secure: window.isSecureContext, claudeRuntime: !!window.claude, engine: ai.provider, ua: navigator.userAgent.slice(0, 90) });

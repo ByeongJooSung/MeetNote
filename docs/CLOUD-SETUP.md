@@ -24,9 +24,14 @@ MeetNote는 서버 없이 동작합니다. 클라우드 저장은 아래처럼 �
    rules_version = '2';
    service cloud.firestore {
      match /databases/{database}/documents {
-       // 본인 목록만 읽고 쓸 수 있음
+       // 본인 목록만 읽고 쓸 수 있음 + 정해진 항목·길이만 허용(남용 방지)
        match /users/{uid}/meetings/{id} {
-         allow read, write: if request.auth != null && request.auth.uid == uid;
+         allow read, delete: if request.auth != null && request.auth.uid == uid;
+         allow create, update: if request.auth != null && request.auth.uid == uid
+           && request.resource.data.keys().hasOnly(['title','when','duration','bytes','updatedAt','fileId','name'])
+           && request.resource.data.title is string && request.resource.data.title.size() <= 200
+           && request.resource.data.fileId is string && request.resource.data.fileId.size() <= 200
+           && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 300));
        }
      }
    }
@@ -65,6 +70,21 @@ Google Cloud Console → **사용자 인증 정보 → API 키(Browser key)** �
 - **Drive와 목록 맞추기**: Drive에서 직접 지웠거나 다른 기기에서 저장해 목록이 어긋났을 때, Drive 폴더를 기준으로 목록을 다시 맞춥니다.
 - `.mnote로 저장`(파일 내려받기)은 그대로 쓸 수 있습니다.
 - Drive 권한은 **⚙ 설정 → 계정·클라우드**에서 다시 연결하거나 해제할 수 있습니다. 구글 계정의 https://myaccount.google.com/permissions 에서도 언제든 끊을 수 있습니다.
+
+## 보안 점검표 (공개 저장소로 운영할 때)
+저장소에 들어 있는 값(클라이언트 ID, Firebase `apiKey`·`projectId`, 관리자 이메일)은 **비밀이 아니라 식별자**라서 공개돼도 됩니다. 웹 앱은 구조상 이 값들을 숨길 수 없고(브라우저가 내려받아야 동작), 보호는 아래 설정이 맡습니다.
+
+| 항목 | 어디서 | 왜 |
+|---|---|---|
+| **API 키 제한** | Cloud Console(Firebase 프로젝트) → 사용자 인증 정보 → Browser key → 웹사이트 제한 `https://byeongjoosung.github.io/*` + API 제한(Identity Toolkit, Token Service, Cloud Firestore) | 다른 사이트가 내 키로 할당량을 쓰지 못하게 |
+| **승인된 JavaScript 원본** | OAuth 클라이언트 | 다른 사이트가 내 클라이언트 ID로 로그인 창을 띄우지 못하게(이미 설정됨) |
+| **Firestore 규칙** | 위 1-5의 규칙 | 본인 문서만, 정해진 항목만. 규칙이 없으면 누구나 읽고 쓸 수 있음 |
+| **결제 수단 미등록(Spark 유지)** | Firebase 요금제 | 누가 남용해도 요금이 청구되지 않고 그날 한도에서 멈춤 |
+| **Firebase 로그인 제공업체** | Authentication → 로그인 방법 | Google만 켜 두기(이메일/비밀번호·익명 로그인은 끄기) |
+| **비밀 값 금지** | 저장소 전체 | OAuth *클라이언트 보안 비밀번호*, 서비스 계정 키(JSON), Anthropic API 키는 절대 커밋하지 않기(이 앱은 쓰지 않음) |
+
+앱 쪽에서 이미 하는 것: 남이 만든 `.mnote`를 열 때 HTML·전사 데이터 검증(스크립트 차단), 외부 스크립트 무결성 검사(SRI)·버전 고정, Drive 토큰은 메모리에만 보관, 로컬 LLM 토큰은 기본으로 탭을 닫으면 삭제, 로그에 토큰·계정 식별자 미기록, 관리자 설정 화면은 관리자 계정에만 표시.
+한계: 정적 사이트라 "관리자 표시"와 "로그인 화면"은 화면 제어일 뿐입니다. 데이터 접근 권한은 Google 계정 인증과 위 규칙이 결정합니다.
 
 ## 5. 무료 한도 참고 (2026년 기준, 바뀔 수 있음)
 - Firestore(Spark): 저장 1GiB, 하루 읽기 5만·쓰기 2만·삭제 2만. 목록 문서만 저장하므로 회의 수십만 건까지 여유가 있습니다. 한도를 넘으면 그날 요청이 거절될 뿐 **요금이 청구되지 않습니다**(결제 수단을 등록하지 않는 한).

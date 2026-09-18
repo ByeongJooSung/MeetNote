@@ -14,10 +14,10 @@ MeetNote의 화면 위쪽 **⚙ 설정 → AI 엔진**에서 LM Studio, Ollama, 
 ```bash
 ollama pull qwen2.5:7b
 # CORS 허용 후 실행 (터미널을 새로 열어 아래처럼 실행)
-OLLAMA_ORIGINS="*" ollama serve
+OLLAMA_ORIGINS="https://byeongjoosung.github.io" ollama serve   # 내 배포 주소만 허용 (시험용으로만 "*")
 ```
-- Windows: 시스템 환경 변수에 `OLLAMA_ORIGINS` = `*` 추가 후 Ollama 재시작.
-- macOS 앱: `launchctl setenv OLLAMA_ORIGINS "*"` 후 재시작.
+- Windows: 시스템 환경 변수에 `OLLAMA_ORIGINS` = `https://byeongjoosung.github.io` 추가 후 Ollama 재시작.
+- macOS 앱: `launchctl setenv OLLAMA_ORIGINS "https://byeongjoosung.github.io"` 후 재시작.
 - MeetNote 엔진을 **Ollama**로 고르고(주소 `http://localhost:11434`) **모델 불러오기**.
 
 ## 휴대폰에서 PC의 모델 쓰기
