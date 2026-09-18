@@ -669,6 +669,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
         <label class="chk"><input type="checkbox" id="trOn" checked> 실시간 전사</label>
         <button class="btn" id="diarBtn" title="녹음을 분석해 발언자를 나눕니다">발언자 구분</button>
         <button class="btn" id="mapBtn" title="분석된 화자를 참석자와 연결합니다">참석자 매핑</button>
+        <button class="btn primary" id="trToDoc" title="전사 내용을 바탕으로 AI가 회의록을 작성해 왼쪽 '회의 내용'에 넣습니다 (메모가 있으면 함께 반영)">전사로 회의록 작성</button>
         <select id="lang" aria-label="전사 언어">
           <option value="ko-KR">한국어</option>
           <option value="en-US">English</option>
@@ -3183,18 +3184,20 @@ function buildPrompt(mode = 'final', over = null) {
 
 규칙:
 - 메모의 제목(#), 목록, 표(| 구분)는 작성자가 구조를 잡은 것이니 그 구조를 존중하세요. 표 내용은 필요하면 마크다운 목록으로 풀어 쓰세요.
-- 작성자의 메모를 가장 믿을 만한 근거로 삼고, 전사는 보충 자료로만 쓰세요. 전사에는 음성 인식 오류가 있을 수 있습니다.
-- <타임라인>은 메모와 발언을 시간순으로 합친 것입니다. 각 메모가 어떤 발언 중에 적혔는지 대조해서, 메모의 요점을 앞뒤 발언으로 구체화하고 누가 말했는지 반영하세요. 메모와 발언이 어긋나면 메모를 우선하되 "(확인 필요)"를 붙이세요.
+${segs.length ? `- 전사(실제 발언 기록)를 기본 근거로 삼아 회의에서 오간 내용을 빠짐없이 정리하세요. 안건별로 어떤 의견이 나왔고 어떻게 결론 났는지가 드러나야 합니다. 인사·잡담·말버릇은 빼세요.
+- 전사에는 음성 인식 오류가 있습니다. 앞뒤 문맥으로 뜻이 분명하면 바른 말로 고쳐 쓰고, 고유명사·수치처럼 확신할 수 없는 것은 들린 대로 적고 "(확인 필요)"를 붙이세요.
+- 메모는 작성자가 중요하다고 직접 적은 표시입니다. 메모에 있는 항목은 반드시 회의록에 포함하고, 메모와 전사가 어긋나면 메모를 따르되 "(확인 필요)"를 붙이세요. 메모가 없으면 전사만으로 작성하세요.
+- <타임라인>은 메모와 발언을 시간순으로 합친 것입니다. 각 메모가 어떤 발언 중에 적혔는지 대조해서 그 부분을 더 구체적으로 쓰고, 누가 말했는지 반영하세요.` : `- 전사가 없으므로 작성자의 메모만 근거로 작성하세요.`}
 - 자료에 없는 사실(참석자 이름, 수치, 담당자, 기한 등)은 지어내지 말고 필요한 곳에 "(확인 필요)"라고 적으세요.
 - 항목마다 근거가 된 시점을 [mm:ss] 형식으로 그 줄의 맨 끝에만 붙이세요. 문장 중간이나 제목에는 시간을 쓰지 마세요. 자료에 적힌 시점만 사용하세요.
 - 전사에 발언자 이름이 있으면 "결정 사항"과 "할 일"에 발언자를 반영하세요.
 - 아래 구조를 따르세요:
 ${live ? `## 회의 안건
-## 주요 논의  (주제별 글머리표)
+## 주요 논의  (주제별 글머리표. 전사가 있으면 누가 어떤 의견을 냈고 어떻게 정리됐는지를 쓰고, 각 줄 끝에 [mm:ss])
 ## 결정 사항
 ## 할 일  (- [ ] 할 일 내용 (담당, 기한) [mm:ss])` : `# 회의 제목
 ## 개요  (일시, 녹음 길이, 두세 문장 요약)
-## 주요 논의  (주제별 글머리표)
+## 주요 논의  (주제별 글머리표. 전사가 있으면 누가 어떤 의견을 냈고 어떻게 정리됐는지를 쓰고, 각 줄 끝에 [mm:ss])
 ## 결정 사항
 ## 할 일  (- [ ] 할 일 내용 (담당, 기한) [mm:ss])
 ## 추가로 확인할 점`}
@@ -3645,7 +3648,11 @@ $('#aiToNotes').addEventListener('click', async () => {
   catch { toast('이 환경에서는 클립보드를 쓸 수 없어요. 편집을 눌러 직접 선택해 복사하세요.'); }
 });
 
-async function runAI() {
+async function runAI(opts) {
+  const toDoc = !!(opts && opts.toDoc === true);          // 전사 탭의 '전사로 회의록 작성': 결과를 회의 내용에 바로 넣는다
+  if (aiCtl) { toast('이미 작성 중이에요.'); return; }
+  if (toDoc && docLocked()) return;
+  if (toDoc && !S.segments.length) { toast('전사가 아직 없어요. 녹음하면서 실시간 전사를 켜거나, 녹음 후 "발언자 구분"을 실행해 전사를 만든 뒤 눌러 주세요.', 7000); return; }
   const prompt = buildPrompt();
   if (!prompt) { toast('메모나 전사가 있어야 초안을 만들 수 있어요.'); return; }
   if (ai.provider === 'auto' && !(await sampleP)) {
@@ -3658,8 +3665,9 @@ async function runAI() {
   const go = $('#aiGo');
   go.disabled = true; $('#aiStop').hidden = false; showAIErr(null);
   const prev = S.minutes;
-  aiOut.innerHTML = '<p class="thinking busy-dots">메모와 전사를 읽고 초안을 쓰는 중이에요</p>';
+  aiOut.innerHTML = '<p class="thinking busy-dots">전사와 메모를 읽고 회의록을 쓰는 중이에요</p>';
   setAiBusy(true);
+  if (toDoc) { setDocBusy(true); autoStatus('wait', `전사 ${S.segments.length}구간으로 회의록을 작성하는 중… (${providerLabel()})`); }
   aiCtl = new AbortController();
   const t0 = performance.now(); let firstAt = 0;
   const onText = t => { if (!firstAt) { firstAt = performance.now(); aiLog('info', `첫 응답 ${Math.round(firstAt - t0)}ms`); } renderMd(t); };
@@ -3684,6 +3692,13 @@ async function runAI() {
       throw Object.assign(new Error('이 페이지는 Claude 화면 밖에서 열려 있어 Claude를 바로 부를 수 없어요.'), { code: 'no_sample' });
     }
     S.minutes = text.trim(); renderMd(S.minutes); markDirty();
+    if (toDoc && S.minutes) {
+      setDocBusy(false);
+      const nodes = mdToDocNodes(S.minutes, $('#aiTimes').checked), hadBody = [...docEditor.children].some(hasContent);
+      if (hadBody) appendToDoc(nodes); else setDocHtml(nodes);     // 이미 쓴 내용이 있으면 지우지 않고 그 아래에 붙인다(되돌리기 Ctrl+Z 가능)
+      autoStatus('ok', hadBody ? '전사로 쓴 회의록을 기존 내용 아래에 넣었어요. "회의록 스타일로 다듬기"로 분량·문체를 맞출 수 있어요.' : '전사로 회의록을 작성했어요. "회의록 스타일로 다듬기"로 분량·문체를 맞출 수 있어요.');
+      toast('전사로 회의록을 작성해 회의 내용에 넣었어요.');
+    }
     go.textContent = '다시 작성';
     aiLog('info', '초안 완료', { chars: S.minutes.length, ms: Math.round(performance.now() - t0), truncated });
     if (truncated) toast('초안이 길어 끝부분이 잘렸어요. 편집으로 마무리해 주세요.', 6000);
@@ -3700,8 +3715,11 @@ async function runAI() {
       const { msg, hint } = explainAIError(e);
       showAIErr(msg, hint);
       toast('초안을 만들지 못했어요. 아래 안내와 설정(⚙) → 로그를 확인하세요.', 6000);
+      if (toDoc) { autoStatus('bad', `회의록 작성 실패: ${msg} ${hint || ''}`); selectTab('ai'); }
     }
   } finally {
+    if (docBusy && toDoc) setDocBusy(false);
+    if (toDoc && $('#autoBar').dataset.tone === 'wait') autoStatus('ok', '회의록 작성을 멈췄어요. 회의 내용은 그대로예요.');
     go.disabled = false; $('#aiStop').hidden = true; aiCtl = null; setAiBusy(false); renderMd(S.minutes); renderAIStatus();
   }
 }
@@ -3745,6 +3763,7 @@ function showAIErr(msg, hint) {
 $('#aiErrLog').addEventListener('click', () => openAIDlg('log'));
 $('#aiErrRetry').addEventListener('click', runAI);
 $('#aiGo').addEventListener('click', runAI);
+$('#trToDoc').addEventListener('click', () => runAI({ toDoc: true }));
 $('#aiStop').addEventListener('click', () => aiCtl?.abort());
 
 /* ---------- file delivery (browser / PWA / Capacitor APK) ---------- */
