@@ -104,7 +104,17 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 #docEditor .tbl-wrap,#docReplay .tbl-wrap{margin:6px 0}
 #docEditor table,#docReplay table{font-size:10pt;line-height:1.3}
 #docEditor td,#docEditor th,#docReplay td,#docReplay th{padding:2px 7px;height:auto;min-width:40px}
-#docEditor.boxed,#docReplay.boxed{border:.5px solid var(--ink);padding:4px 8px;min-height:120px}
+#docEditor.boxed,#docReplay.boxed{border:.5px solid var(--ink);padding:4px 8px;min-height:var(--doc-min,360px)}  /* 기본 높이 360px(기존 120px의 3배), 아래 손잡이로 조절 */
+.doc-resize{height:14px;margin:0 0 6px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;touch-action:none;outline:none}
+.doc-resize::before{content:"";width:56px;height:4px;border-radius:2px;background:var(--line)}
+.doc-resize:hover::before,.doc-resize:focus-visible::before,.doc-resize.on::before{background:var(--tape)}
+.photo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.photo-item{position:relative;aspect-ratio:4/3;border:1px solid var(--line);border-radius:6px;background:var(--sunk);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.photo-item img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.photo-item .x{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:16px;line-height:26px;cursor:pointer;padding:0}
+.photo-item .n{position:absolute;left:6px;bottom:4px;font-size:11.5px;color:#fff;background:rgba(0,0,0,.45);padding:0 6px;border-radius:8px}
+.photo-empty{padding:10px;color:var(--ink2);font-size:13.5px;border:1px dashed var(--line);border-radius:6px;text-align:center}
+.photo-sec .hint{margin:6px 0 0;font-size:12.5px;color:var(--ink2)}
 .dochead{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:8px 10px;align-items:center;font-size:14px;margin-bottom:14px}
 .dochead label{color:var(--ink2);font-size:13px;white-space:nowrap}
 .dochead input{width:100%;border:1px solid var(--line);border-radius:7px;padding:6px 9px;background:var(--surface);font-size:14px}
@@ -123,7 +133,7 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .doc-title{font-size:20px;font-weight:700;margin:0 0 14px;text-align:center;letter-spacing:-.01em}
 #docEditor{min-height:32vh;padding-bottom:48px}
 #docReplay{min-height:32vh;padding-bottom:48px}
-.tpl-row{display:flex;justify-content:flex-end;font-size:12.5px;color:var(--ink2);margin:-4px 0 6px}
+.tpl-row{display:flex;justify-content:flex-start;font-size:12.5px;color:var(--ink2);margin:-4px 0 6px}
 .tpl-row select{margin-left:4px;padding:3px 6px;font-size:12.5px}
 #mNotes{width:100%;border:1px solid var(--line);border-radius:7px;padding:8px 10px;background:var(--surface);font:inherit;font-size:14px;resize:vertical;margin-bottom:12px}
 .sect{font-size:13px;color:var(--ink2);font-weight:600;margin:14px 0 6px;letter-spacing:.02em}
@@ -135,7 +145,7 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .auto-bar[data-tone="ok"] .sdot{background:var(--ok)}.auto-bar[data-tone="wait"] .sdot{background:var(--wait);animation:pulse 1.4s ease-in-out infinite}.auto-bar[data-tone="bad"] .sdot{background:var(--rec)}
 .doc-content [data-auto]{border-left:3px solid var(--tape-soft);padding-left:8px}
 .doc-content [data-auto].tbl-wrap{border-left:0;padding-left:1px}
-#docEditor{min-height:40vh;padding-bottom:20vh}
+#docEditor{min-height:var(--doc-min,40vh);padding-bottom:20vh}
 #docEditor.is-empty > p:first-child{position:relative}
 #docEditor.is-empty > p:first-child::before{content:"회의록 본문을 작성하세요. 오른쪽 메모·AI 회의록을 '회의록에 넣기'로 옮길 수 있습니다.";position:absolute;left:0;top:0;right:0;color:var(--ink2);pointer-events:none}
 .tchip{display:inline-block;vertical-align:1px;margin-left:6px;padding:0 7px;border-radius:999px;background:var(--tape-soft);color:var(--tape);font-size:11.5px;font-weight:600;line-height:1.6;cursor:pointer;user-select:none;-webkit-user-select:none}
@@ -528,7 +538,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
       </div>
       <div class="sect sect-row"><span>회의 내용</span><span class="sect-tools">
         <label class="switch" id="autoWrap" title="녹음 중 전사와 메모를 바탕으로 본문을 주기적으로 자동 작성합니다"><input type="checkbox" id="autoChk" disabled> 자동 작성</label>
-        <select id="autoEvery" aria-label="자동 작성 주기" title="자동 작성 주기"><option value="2">2분마다</option><option value="5" selected>5분마다</option><option value="10">10분마다</option></select>
+        <select id="autoEvery" aria-label="자동 작성 주기" title="자동 작성 주기"><option value="1" selected>1분마다</option><option value="2">2분마다</option><option value="5">5분마다</option><option value="10">10분마다</option></select>
         <button class="btn" id="autoNow" hidden title="지금 바로 본문을 갱신합니다">지금 갱신</button>
         <label class="switch"><input type="checkbox" id="docReplayChk" disabled> 따라 쓰기</label>
       </span></div>
@@ -536,6 +546,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
       <div id="docEditor" class="doc-content" contenteditable="true" role="textbox" aria-multiline="true" aria-label="회의록 본문" spellcheck="false"></div>
       <div id="docReplay" class="doc-content" hidden></div>
       <p id="docReplayEmpty" class="replay-empty" hidden>재생을 누르면 본문이 쓰였던 순서와 속도 그대로 나타납니다.</p>
+      <div class="doc-resize" id="docResize" role="separator" aria-orientation="horizontal" aria-label="회의 내용 영역 높이 조절" tabindex="0" title="끌어서 회의 내용 영역 높이 조절 (두 번 누르면 기본 높이)"></div>
       <div class="att" id="tplActions" hidden>
         <div class="att-head"><b>실행계획</b><button class="btn" id="actAdd">행 추가</button></div>
         <table><thead><tr><th style="width:16%">기한</th><th style="width:18%">작업수행자</th><th>내용</th><th style="width:20%">산출물</th><th></th></tr></thead><tbody id="actBody"></tbody></table>
@@ -543,6 +554,12 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
       <div id="tplNotes" hidden>
         <div class="sect">특이사항</div>
         <textarea id="mNotes" rows="3" placeholder="특이사항이 있으면 적으세요."></textarea>
+      </div>
+      <div class="att photo-sec" id="photoSec">
+        <div class="att-head"><b>회의 사진 <span id="photoCount" style="font-weight:400;color:var(--ink2)">(0/4)</span></b><button class="btn" id="photoAdd">사진 추가</button></div>
+        <input type="file" id="photoInput" accept="image/*" multiple hidden>
+        <div class="photo-grid" id="photoGrid"></div>
+        <p class="hint">최대 4장. 내보내기(PDF·한글·Word) 때 마지막 장에 '붙임. 회의 사진' 표로 들어갑니다.</p>
       </div>
     </div>
   </div>
@@ -679,6 +696,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <label class="chk"><input type="checkbox" id="hxNotes"> 부록: 메모</label>
     <label class="chk"><input type="checkbox" id="hxMinutes"> 부록: AI 회의록 초안</label>
     <label class="chk"><input type="checkbox" id="hxTranscript"> 부록: 전사 전문(발언자 포함)</label>
+    <label class="chk"><input type="checkbox" id="hxPhotos" checked> 붙임: 회의 사진</label>
   </div>
   <div class="dlg-actions">
     <button class="btn" id="hwpxCancel">취소</button>
@@ -844,7 +862,8 @@ const downloadsP = capP('downloads');
 const fresh = () => ({
   id: uid(), title: '', createdAt: new Date().toISOString(),
   blocks: [],
-  segments: [], minutes: '', docHtml: '', docBlocks: [], meta: { when: '', place: '', author: '', host: '', template: 'kcsa', actions: [], notes: '' }, attendees: [], speakers: {}, audioBlob: null, audioMime: '', audioExt: '', audioImported: false, clockOnly: false, duration: 0
+  segments: [], minutes: '', docHtml: '', docBlocks: [], meta: { when: '', place: '', author: '', host: '', template: 'kcsa', actions: [], notes: '' }, attendees: [], speakers: {}, audioBlob: null, audioMime: '', audioExt: '', audioImported: false, clockOnly: false, duration: 0,
+  photos: []   // 회의 사진(붙임) [{ id, name, dataUrl(JPEG), w, h }] 최대 PHOTO_MAX장
 });
 let S = fresh();
 let dirty = false;
@@ -2970,7 +2989,7 @@ function setAuto(on, silent) {
 }
 function autoTickCheck() {
   if (!auto.on || auto.running || rec.state !== 'recording') return;
-  const every = (+$('#autoEvery').value || 5) * 60000;
+  const every = (+$('#autoEvery').value || 1) * 60000;
   if (performance.now() - auto.lastRun < every) return;
   const key = autoMaterialKey();
   if (key === auto.lastMat) { autoStatus('ok', '새 내용이 없어 이번 주기는 건너뛰었어요.'); auto.lastRun = performance.now(); return; }
@@ -3415,10 +3434,39 @@ function hwpxBuilder(title) {
   borderFill({ border: false }); borderFill({ border: true });
   charPr(); paraPr();
   const runsXml = runs => runs.length ? runs.map(r => `<hp:run charPrIDRef="${charPr(r.f)}"><hp:t>${xesc(r.t)}</hp:t></hp:run>`).join('') : `<hp:run charPrIDRef="0"><hp:t/></hp:run>`;
-  const para = (runs, pp = {}, extra = '') => `<hp:p id="${pid++}" paraPrIDRef="${paraPr(pp)}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0">${extra}${runsXml(runs)}</hp:p>`;
-  const body = [];
+  const para = (runs, pp = {}, extra = '') => `<hp:p id="${pid++}" paraPrIDRef="${paraPr(pp)}" styleIDRef="0" pageBreak="${pp.pageBreak ? 1 : 0}" columnBreak="0" merged="0">${extra}${runsXml(runs)}</hp:p>`;
+  const body = [], bins = [];
+  let picSeq = 1;
+  // 글자처럼 취급하는 그림(treatAsChar) — 표 칸 안 가운데 정렬용
+  // 한글이 만든 파일과 같은 방식: orgSz·imgRect·imgClip·imgDim은 원본(픽셀×75), sz·curSz는 표시 크기, scaMatrix는 둘의 비율
+  const picXml = (bid, w, h, pw, ph) => {
+    const id = 1000 + picSeq++, ow = Math.max(1, Math.round((pw || w / 75) * 75)), oh = Math.max(1, Math.round((ph || h / 75) * 75));
+    const sx = (w / ow).toFixed(6), sy = (h / oh).toFixed(6);
+    return `<hp:pic id="${id}" zOrder="${id}" numberingType="PICTURE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" groupLevel="0" instid="${id}" reverse="0"><hp:offset x="0" y="0"/><hp:orgSz width="${ow}" height="${oh}"/><hp:curSz width="${w}" height="${h}"/><hp:flip horizontal="0" vertical="0"/><hp:rotationInfo angle="0" centerX="${w >> 1}" centerY="${h >> 1}" rotateimage="1"/><hp:renderingInfo><hc:transMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/><hc:scaMatrix e1="${sx}" e2="0" e3="0" e4="0" e5="${sy}" e6="0"/><hc:rotMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/></hp:renderingInfo><hp:imgRect><hc:pt0 x="0" y="0"/><hc:pt1 x="${ow}" y="0"/><hc:pt2 x="${ow}" y="${oh}"/><hc:pt3 x="0" y="${oh}"/></hp:imgRect><hp:imgClip left="0" right="${ow}" top="0" bottom="${oh}"/><hp:inMargin left="0" right="0" top="0" bottom="0"/><hp:imgDim dimwidth="${ow}" dimheight="${oh}"/><hc:img binaryItemIDRef="${bid}" bright="0" contrast="0" effect="REAL_PIC" alpha="0"/><hp:effects/><hp:sz width="${w}" widthRelTo="ABSOLUTE" height="${h}" heightRelTo="ABSOLUTE" protect="0"/><hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/><hp:outMargin left="0" right="0" top="0" bottom="0"/></hp:pic>`;
+  };
   return {
     para: (runs, pp) => body.push(para(runs, pp)),
+    photos: list => {
+      const L = photoLayout(list.length), trs = [];
+      for (let r = 0; r < L.rows; r++) {
+        const tcs = [];
+        for (let c = 0; c < L.cols; c++) {
+          const ph = list[r * L.cols + c];
+          let inner = para([], { align: 'CENTER' });
+          if (ph) {
+            const bid = 'image' + (bins.length + 1);
+            bins.push({ id: bid, path: `BinData/${bid}.jpg`, base64: ph.dataUrl.split(',')[1] });
+            const [w, h] = fitBox(ph.w, ph.h, L.cellW - 1020 - 400, L.cellH - 282 - 400);
+            inner = `<hp:p id="${pid++}" paraPrIDRef="${paraPr({ align: 'CENTER', line: 100 })}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0">${picXml(bid, w, h, ph.w, ph.h)}</hp:run></hp:p>`;
+          }
+          tcs.push(`<hp:tc name="" header="0" hasMargin="0" protect="0" editable="0" dirty="0" borderFillIDRef="${borderFill({ border: true })}"><hp:subList id="" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="CENTER" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0">${inner}</hp:subList><hp:cellAddr colAddr="${c}" rowAddr="${r}"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="${L.cellW}" height="${L.cellH}"/><hp:cellMargin left="510" right="510" top="141" bottom="141"/></hp:tc>`);
+        }
+        trs.push(`<hp:tr>${tcs.join('')}</hp:tr>`);
+      }
+      const W = L.cellW * L.cols, Hh = L.cellH * L.rows;
+      const tbl = `<hp:tbl id="${tblId++}" zOrder="${tblId}" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="${L.rows}" colCnt="${L.cols}" cellSpacing="0" borderFillIDRef="2" noAdjust="0"><hp:sz width="${W}" widthRelTo="ABSOLUTE" height="${Hh}" heightRelTo="ABSOLUTE" protect="0"/><hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/><hp:outMargin left="141" right="141" top="141" bottom="141"/><hp:inMargin left="510" right="510" top="141" bottom="141"/>${trs.join('')}</hp:tbl>`;
+      body.push(`<hp:p id="${pid++}" paraPrIDRef="${paraPr({})}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0">${tbl}</hp:run></hp:p>`);
+    },
     table: (rowsSpec, colW, rowH, cellMap) => {
       const R = rowsSpec.rows, C = rowsSpec.cols;
       let total = colW.reduce((a, b) => a + b, 0);
@@ -3460,17 +3508,18 @@ function hwpxBuilder(title) {
       const section = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <hs:sec xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section" xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph" xmlns:hc="http://www.hancom.co.kr/hwpml/2011/core" xmlns:hh="http://www.hancom.co.kr/hwpml/2011/head">${first}${body.join('')}</hs:sec>`;
       const hpf = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<opf:package xmlns:opf="http://www.idpf.org/2007/opf/" version="" unique-identifier="" id=""><opf:metadata><opf:title>${xesc(title)}</opf:title><opf:language>ko</opf:language><opf:meta name="creator" content="MeetNote"/><opf:meta name="CreatedDate" content="${new Date().toISOString()}"/></opf:metadata><opf:manifest><opf:item id="header" href="Contents/header.xml" media-type="application/xml"/><opf:item id="section0" href="Contents/section0.xml" media-type="application/xml"/><opf:item id="settings" href="settings.xml" media-type="application/xml"/></opf:manifest><opf:spine><opf:itemref idref="header" linear="yes"/><opf:itemref idref="section0" linear="yes"/></opf:spine></opf:package>`;
+<opf:package xmlns:opf="http://www.idpf.org/2007/opf/" version="" unique-identifier="" id=""><opf:metadata><opf:title>${xesc(title)}</opf:title><opf:language>ko</opf:language><opf:meta name="creator" content="MeetNote"/><opf:meta name="CreatedDate" content="${new Date().toISOString()}"/></opf:metadata><opf:manifest><opf:item id="header" href="Contents/header.xml" media-type="application/xml"/><opf:item id="section0" href="Contents/section0.xml" media-type="application/xml"/><opf:item id="settings" href="settings.xml" media-type="application/xml"/>${bins.map(b => `<opf:item id="${b.id}" href="${b.path}" media-type="image/jpeg" isEmbeded="1"/>`).join('')}</opf:manifest><opf:spine><opf:itemref idref="header" linear="yes"/><opf:itemref idref="section0" linear="yes"/></opf:spine></opf:package>`;
       return {
         'mimetype': 'application/hwp+zip',
         'version.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<hv:HCFVersion xmlns:hv="http://www.hancom.co.kr/hwpml/2011/version" tagetApplication="WORDPROCESSOR" major="5" minor="1" micro="1" buildNumber="0" os="1" xmlVersion="1.4" application="MeetNote" appVersion="1.0"/>`,
         'META-INF/container.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<ocf:container xmlns:ocf="urn:oasis:names:tc:opendocument:xmlns:container" xmlns:hpf="http://www.hancom.co.kr/schema/2011/hpf"><ocf:rootfiles><ocf:rootfile full-path="Contents/content.hpf" media-type="application/hwpml-package+xml"/></ocf:rootfiles></ocf:container>`,
-        'META-INF/manifest.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<odf:manifest xmlns:odf="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"><odf:file-entry odf:full-path="/" odf:media-type="application/hwp+zip"/><odf:file-entry odf:full-path="Contents/header.xml" odf:media-type="application/xml"/><odf:file-entry odf:full-path="Contents/section0.xml" odf:media-type="application/xml"/><odf:file-entry odf:full-path="settings.xml" odf:media-type="application/xml"/></odf:manifest>`,
+        'META-INF/manifest.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<odf:manifest xmlns:odf="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"><odf:file-entry odf:full-path="/" odf:media-type="application/hwp+zip"/><odf:file-entry odf:full-path="Contents/header.xml" odf:media-type="application/xml"/><odf:file-entry odf:full-path="Contents/section0.xml" odf:media-type="application/xml"/><odf:file-entry odf:full-path="settings.xml" odf:media-type="application/xml"/>${bins.map(b => `<odf:file-entry odf:full-path="${b.path}" odf:media-type="image/jpeg"/>`).join('')}</odf:manifest>`,
         'Contents/content.hpf': hpf,
         'Contents/header.xml': header,
         'Contents/section0.xml': section,
         'settings.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<ha:HWPApplicationSetting xmlns:ha="http://www.hancom.co.kr/hwpml/2011/app" xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"><ha:CaretPosition listIDRef="0" paraIDRef="0" pos="0"/></ha:HWPApplicationSetting>`,
-        'Preview/PrvText.txt': ''
+        'Preview/PrvText.txt': '',
+        ...Object.fromEntries(bins.map(b => [b.path, { base64: b.base64 }]))
       };
     }
   };
@@ -3481,10 +3530,31 @@ function docxBuilder(title) {
   const hex = c => (c || '#000000').replace('#', '');
   const rPr = f => `<w:rPr><w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:eastAsia="맑은 고딕" w:cs="Malgun Gothic"/>${f.bold ? '<w:b/><w:bCs/>' : ''}${f.italic ? '<w:i/><w:iCs/>' : ''}${f.strike ? '<w:strike/>' : ''}${f.color ? `<w:color w:val="${hex(f.color)}"/>` : ''}<w:sz w:val="${Math.round((f.size || 1000) / 50)}"/><w:szCs w:val="${Math.round((f.size || 1000) / 50)}"/>${f.underline ? '<w:u w:val="single"/>' : ''}${f.shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${hex(f.shade)}"/>` : ''}</w:rPr>`;
   const runsXml = runs => runs.map(r => `<w:r>${rPr(r.f || {})}<w:t xml:space="preserve">${xesc(r.t)}</w:t></w:r>`).join('');
-  const para = (runs, pp = {}) => `<w:p><w:pPr>${pp.align ? `<w:jc w:val="${pp.align === 'CENTER' ? 'center' : pp.align === 'RIGHT' ? 'right' : 'left'}"/>` : ''}<w:spacing w:before="${tw(pp.before || 0)}" w:after="${tw(pp.after || 0)}" w:line="${Math.round(240 * (pp.line || 160) / 100)}" w:lineRule="auto"/>${pp.indent ? `<w:ind w:left="${tw(pp.indent)}"/>` : ''}</w:pPr>${runsXml(runs)}</w:p>`;
-  const body = [];
+  const para = (runs, pp = {}) => `<w:p><w:pPr>${pp.pageBreak ? '<w:pageBreakBefore/>' : ''}${pp.align ? `<w:jc w:val="${pp.align === 'CENTER' ? 'center' : pp.align === 'RIGHT' ? 'right' : 'left'}"/>` : ''}<w:spacing w:before="${tw(pp.before || 0)}" w:after="${tw(pp.after || 0)}" w:line="${Math.round(240 * (pp.line || 160) / 100)}" w:lineRule="auto"/>${pp.indent ? `<w:ind w:left="${tw(pp.indent)}"/>` : ''}</w:pPr>${runsXml(runs)}</w:p>`;
+  const body = [], media = [];
+  const EMU = 127;  // 1 HWPUNIT(1/7200 in) = 127 EMU
+  const line = 'w:val="single" w:sz="4" w:space="0" w:color="000000"';
   return {
     para: (runs, pp) => body.push(para(runs, pp)),
+    photos: list => {
+      const L = photoLayout(list.length), cw = tw(L.cellW), trs = [];
+      for (let r = 0; r < L.rows; r++) {
+        const tcs = [];
+        for (let c = 0; c < L.cols; c++) {
+          const ph = list[r * L.cols + c];
+          let inner = '<w:p/>';
+          if (ph) {
+            const n = media.length + 1, rid = 'rIdImg' + n;
+            media.push({ n, rid, base64: ph.dataUrl.split(',')[1] });
+            const [w, h] = fitBox(ph.w, ph.h, L.cellW - 1400, L.cellH - 900), cx = w * EMU, cy = h * EMU;
+            inner = `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${n}" name="회의 사진 ${n}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${n}" name="photo${n}.jpeg"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+          }
+          tcs.push(`<w:tc><w:tcPr><w:tcW w:w="${cw}" w:type="dxa"/><w:tcBorders><w:top ${line}/><w:left ${line}/><w:bottom ${line}/><w:right ${line}/></w:tcBorders><w:vAlign w:val="center"/></w:tcPr>${inner}</w:tc>`);
+        }
+        trs.push(`<w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="${tw(L.cellH)}" w:hRule="exact"/></w:trPr>${tcs.join('')}</w:tr>`);
+      }
+      body.push(`<w:tbl><w:tblPr><w:tblW w:w="${cw * L.cols}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="28" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="28" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${`<w:gridCol w:w="${cw}"/>`.repeat(L.cols)}</w:tblGrid>${trs.join('')}</w:tbl><w:p/>`);
+    },
     table: (spec, colW, rowH) => {
       const R = spec.rows, C = spec.cols;
       const total = colW.reduce((a, b) => a + b, 0), k = total > HW.textW ? HW.textW / total : 1;
@@ -3511,16 +3581,18 @@ function docxBuilder(title) {
     },
     build() {
       const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
-      const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document ${W}><w:body>${body.join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+      const NS = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
+      const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document ${W} ${NS}><w:body>${body.join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>`;
       const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:styles ${W}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:eastAsia="맑은 고딕" w:cs="Malgun Gothic"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:lang w:val="ko-KR" w:eastAsia="ko-KR"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="384" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>`;
       return {
-        '[Content_Types].xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`,
+        '[Content_Types].xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`,
         '_rels/.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>`,
-        'word/_rels/document.xml.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,
+        'word/_rels/document.xml.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${media.map(m => `<Relationship Id="${m.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/photo${m.n}.jpeg"/>`).join('')}</Relationships>`,
         'word/document.xml': doc,
         'word/styles.xml': styles,
         'docProps/core.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xesc(title)}</dc:title><dc:creator>MeetNote</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created></cp:coreProperties>`,
-        'docProps/app.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>MeetNote</Application></Properties>`
+        'docProps/app.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>MeetNote</Application></Properties>`,
+        ...Object.fromEntries(media.map(m => [`word/media/photo${m.n}.jpeg`, { base64: m.base64 }]))
       };
     }
   };
@@ -3530,7 +3602,7 @@ function htmlBuilder(title) {
   const px = v => Math.round(v / HW.px * 10) / 10;
   const style = f => { const s = []; if (f.bold) s.push('font-weight:700'); if (f.italic) s.push('font-style:italic'); const td = [f.underline && 'underline', f.strike && 'line-through'].filter(Boolean).join(' '); if (td) s.push('text-decoration:' + td); if (f.color) s.push('color:' + f.color); if (f.shade) s.push('background:' + f.shade); if (f.size) s.push('font-size:' + (f.size / 100) + 'pt'); return s.join(';'); };
   const runsHtml = runs => runs.length ? runs.map(r => `<span style="${style(r.f || {})}">${xesc(r.t)}</span>`).join('') : '&nbsp;';
-  const para = (runs, pp = {}) => `<p style="text-align:${(pp.align || 'left').toLowerCase()};margin:${px(pp.before || 0)}px 0 ${px(pp.after || 0)}px ${px(pp.indent || 0)}px;line-height:${(pp.line || 160) / 100}">${runsHtml(runs)}</p>`;
+  const para = (runs, pp = {}) => `<p style="${pp.pageBreak ? 'break-before:page;page-break-before:always;' : ''}text-align:${(pp.align || 'left').toLowerCase()};margin:${px(pp.before || 0)}px 0 ${px(pp.after || 0)}px ${px(pp.indent || 0)}px;line-height:${(pp.line || 160) / 100}">${runsHtml(runs)}</p>`;
   const body = [];
   const BOX_PAD = 8;  // 테두리 상자 안쪽 여백(px)
   let inBox = false;
@@ -3538,6 +3610,21 @@ function htmlBuilder(title) {
     para: (runs, pp) => body.push(para(runs, pp)),
     /* 회의 세부 내용 입력 영역: 페이지를 넘어가도 각 페이지에서 테두리가 닫히도록 clone */
     boxStart: () => { inBox = true; body.push('<div class="body-box">'); },
+    photos: list => {
+      const L = photoLayout(list.length);
+      let h = `<table style="width:${px(L.cellW * L.cols)}px"><colgroup>${`<col style="width:${px(L.cellW)}px">`.repeat(L.cols)}</colgroup>`;
+      for (let r = 0; r < L.rows; r++) {
+        h += `<tr class="keep" style="height:${px(L.cellH)}px">`;
+        for (let c = 0; c < L.cols; c++) {
+          const ph = list[r * L.cols + c];
+          if (!ph) { h += '<td></td>'; continue; }
+          const [w, hh] = fitBox(ph.w, ph.h, L.cellW - 1020 - 400, L.cellH - 282 - 400);
+          h += `<td style="text-align:center;vertical-align:middle;padding:0"><img src="${ph.dataUrl}" alt="" style="width:${px(w)}px;height:${px(hh)}px;display:inline-block;vertical-align:middle"></td>`;
+        }
+        h += '</tr>';
+      }
+      body.push(h + '</table>');
+    },
     boxEnd: () => { inBox = false; body.push('</div>'); },
     table: (spec, colW, rowH, rowFixed) => {
       const lim = inBox ? HW.textW - (BOX_PAD * 2 + 1) * HW.px : HW.textW;
@@ -3561,7 +3648,7 @@ p{word-break:break-word}
 table{border-collapse:collapse;table-layout:fixed;margin:6px 0;page-break-inside:auto}
 td{border:.5px solid #000;padding:2px 7px;vertical-align:top;word-break:break-word}
 tr.keep{page-break-inside:avoid;break-inside:avoid}
-.body-box{width:${px(HW.textW)}px;box-sizing:border-box;min-height:120px;margin-top:-6.5px;padding:4px ${BOX_PAD}px;border:.5px solid #000;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.body-box{width:${px(HW.textW)}px;box-sizing:border-box;min-height:${Math.round(docMinPx())}px;margin-top:-6.5px;padding:4px ${BOX_PAD}px;border:.5px solid #000;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 </style></head><body><div class="page">${body.join('')}</div></body></html>`;
     }
   };
@@ -3757,24 +3844,35 @@ $('#actBody').addEventListener('input', e => { const i = e.target.dataset.i, k =
 $('#actBody').addEventListener('click', e => { const b = e.target.closest('[data-adel]'); if (!b) return; S.meta.actions.splice(+b.dataset.adel, 1); renderActions(); markDirty(); });
 $('#mNotes').addEventListener('input', e => { S.meta.notes = e.target.value; markDirty(); });
 
+/* 붙임 사진 배치: 1~2장은 1열(위아래), 3~4장은 2×2. 한 페이지(본문 높이 257mm)에 들어가도록 행 높이 고정(HWPUNIT) */
+function photoLayout(n) {
+  const cols = n <= 2 ? 1 : 2, rows = Math.ceil(n / cols);
+  return { cols, rows, cellW: Math.floor(HW.textW / cols), cellH: 33000 };
+}
+const fitBox = (w, h, maxW, maxH) => { w = w || 4; h = h || 3; const r = Math.min(maxW / w, maxH / h); return [Math.round(w * r), Math.round(h * r)]; };
+function renderPhotoPage(B) {
+  B.para([{ t: '붙임. 회의 사진', f: { size: 1400, bold: true } }], { pageBreak: true, after: 300 });
+  B.photos(S.photos);
+}
 function buildExportInto(B, opts) {
   trackBlocks(memoTrack, { structural: true }); trackBlocks(docTrack, { structural: true });
   HW.chips = !!opts.chips;
   TEMPLATES[curTemplate()].render(B, opts);
   renderAppendices(B, opts);
+  if (opts.photos && S.photos.length) renderPhotoPage(B);
   return B;
 }
 async function buildHwpx(opts) {
   const files = buildExportInto(hwpxBuilder(S.title || '회의록'), opts).build();
   const zip = new JSZip();
   zip.file('mimetype', files.mimetype, { compression: 'STORE' });
-  for (const [k, v] of Object.entries(files)) if (k !== 'mimetype') zip.file(k, v);
+  for (const [k, v] of Object.entries(files)) if (k !== 'mimetype') { if (v && v.base64) zip.file(k, v.base64, { base64: true }); else zip.file(k, v); }
   return zip.generateAsync({ type: 'blob', mimeType: 'application/hwp+zip', compression: 'DEFLATE' });
 }
 async function buildDocx(opts) {
   const files = buildExportInto(docxBuilder(S.title || '회의록'), opts).build();
   const zip = new JSZip();
-  for (const [k, v] of Object.entries(files)) zip.file(k, v);
+  for (const [k, v] of Object.entries(files)) { if (v && v.base64) zip.file(k, v.base64, { base64: true }); else zip.file(k, v); }
   return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', compression: 'DEFLATE' });
 }
 function exportPdf(opts) {
@@ -3790,7 +3888,7 @@ document.querySelectorAll('input[name="expFmt"]').forEach(r => r.addEventListene
 async function exportHwpx() {
   if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 내보내 주세요.'); return; }
   const fmt = expFmt();
-  const opts = { chips: $('#hxChips').checked, notes: $('#hxNotes').checked, minutes: $('#hxMinutes').checked, transcript: $('#hxTranscript').checked };
+  const opts = { chips: $('#hxChips').checked, notes: $('#hxNotes').checked, minutes: $('#hxMinutes').checked, transcript: $('#hxTranscript').checked, photos: $('#hxPhotos').checked };
   $('#hwpxDlg').close();
   try {
     if (fmt === 'pdf') { exportPdf(opts); return; }
@@ -3803,6 +3901,7 @@ async function exportHwpx() {
 $('#hwpxBtn').addEventListener('click', () => {
   $('#hxMinutes').disabled = !S.minutes; if (!S.minutes) $('#hxMinutes').checked = false;
   $('#hxTranscript').disabled = !S.segments.length; if (!S.segments.length) $('#hxTranscript').checked = false;
+  $('#hxPhotos').disabled = !S.photos.length; $('#hxPhotos').checked = S.photos.length > 0;
   try { $('#hwpxDlg').showModal(); } catch {}
 });
 $('#hwpxGo').addEventListener('click', exportHwpx);
@@ -4283,7 +4382,8 @@ async function buildZip() {
     timeUnit: 'seconds', duration: S.duration,
     audio: audioPath ? { path: audioPath, mime: S.audioMime, bytes: S.audioBlob.size, source: S.audioImported ? 'imported' : 'recorded' } : null,
     timing: S.clockOnly ? 'clock' : 'recording',
-    files: { notes: 'notes.json', transcript: 'transcript.json', minutes: S.minutes ? 'minutes.md' : null, readable: 'notes.md' }
+    files: { notes: 'notes.json', transcript: 'transcript.json', minutes: S.minutes ? 'minutes.md' : null, readable: 'notes.md' },
+    photos: S.photos.map((ph, i) => ({ id: ph.id, name: ph.name, path: `photos/photo${i + 1}.jpg`, w: ph.w, h: ph.h }))
   };
   zip.file('manifest.json', JSON.stringify(manifest, null, 2));
   if (audioPath) zip.file(audioPath, S.audioBlob, { compression: 'STORE' });
@@ -4305,6 +4405,7 @@ async function buildZip() {
     })
   }));
   zip.file('meeting.json', JSON.stringify({ meta: S.meta, attendees: S.attendees, speakers: S.speakers }));
+  S.photos.forEach((ph, i) => zip.file(`photos/photo${i + 1}.jpg`, ph.dataUrl.split(',')[1], { base64: true, compression: 'STORE' }));
   zip.file('notes.md', readable());
   return zip.generateAsync({ type: 'blob', mimeType: 'application/x-mnote+zip', compression: 'DEFLATE' });
 }
@@ -4382,6 +4483,11 @@ async function openFile(file) {
     if (mj) { try { const m = JSON.parse(await mj.async('string')); Object.assign(next.meta, m.meta || {}); next.attendees = Array.isArray(m.attendees) ? m.attendees.map(a => ({ org: String(a.org || ''), name: String(a.name || ''), title: String(a.title || '') })) : []; next.speakers = (m.speakers && typeof m.speakers === 'object') ? m.speakers : {}; } catch {} }
     const mdf = zip.file('minutes.md');
     if (mdf) next.minutes = await mdf.async('string');
+    for (const ph of (Array.isArray(man.photos) ? man.photos : []).slice(0, PHOTO_MAX)) {
+      const pf = ph && typeof ph.path === 'string' && zip.file(ph.path);
+      if (!pf) continue;
+      next.photos.push({ id: String(ph.id || uid()).replace(/[^\w-]/g, '').slice(0, 40) || uid(), name: String(ph.name || 'photo.jpg'), dataUrl: 'data:image/jpeg;base64,' + await pf.async('base64'), w: +ph.w || 0, h: +ph.h || 0 });
+    }
 
     audio.pause(); clearAudio();
     replayOn = false; $('#replayChk').checked = false; docReplayOn = false; $('#docReplayChk').checked = false;
@@ -4420,7 +4526,10 @@ $('#fileInput').addEventListener('change', e => { openFile(e.target.files[0]); e
 window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => {
   e.preventDefault();
-  const f = e.dataTransfer?.files?.[0];
+  const files = [...(e.dataTransfer?.files || [])];
+  const imgs = files.filter(x => /^image\//.test(x.type));
+  if (imgs.length) { addPhotos(imgs); return; }
+  const f = files[0];
   if (f) openFile(f);
 });
 document.addEventListener('keydown', e => {
@@ -4444,7 +4553,72 @@ function renderAll() {
   renderMeta();
   setEditMode(false);
   renderEditor(); renderTranscript(); renderMd(S.minutes); renderTimeline(); syncButtons(); tick(); scheduleGutter();
+  renderPhotoList();
 }
+
+/* ---------- 회의 사진(붙임) ---------- */
+const PHOTO_MAX = 4, PHOTO_EDGE = 1600;
+// 용량을 줄이려고 긴 변 1600px JPEG로 변환(투명 배경은 흰색)
+async function loadPhoto(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('이미지를 읽을 수 없어요')); i.src = url; });
+    const k = Math.min(1, PHOTO_EDGE / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
+    return { id: uid(), name: file.name || 'photo.jpg', dataUrl: c.toDataURL('image/jpeg', 0.85), w, h };
+  } finally { URL.revokeObjectURL(url); }
+}
+async function addPhotos(files) {
+  const list = [...(files || [])].filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|gif|webp|bmp|heic|heif)$/i.test(f.name || ''));
+  if (!list.length) return;
+  const room = PHOTO_MAX - S.photos.length;
+  if (room <= 0) { toast(`회의 사진은 최대 ${PHOTO_MAX}장까지 넣을 수 있어요.`); return; }
+  let added = 0, failed = 0;
+  for (const f of list.slice(0, room)) { try { S.photos.push(await loadPhoto(f)); added++; } catch { failed++; } }
+  if (added) { markDirty(); renderPhotoList(); }
+  aiLog('info', '회의 사진 추가', { added, failed, skipped: Math.max(0, list.length - room), total: S.photos.length });
+  toast([added && `사진 ${added}장을 붙임에 넣었어요.`, list.length > room && `최대 ${PHOTO_MAX}장이라 ${list.length - room}장은 넣지 않았어요.`, failed && `${failed}장은 읽을 수 없는 형식이에요.`].filter(Boolean).join(' '), 5000);
+}
+function renderPhotoList() {
+  const n = S.photos.length;
+  $('#photoCount').textContent = `(${n}/${PHOTO_MAX})`;
+  $('#photoAdd').disabled = n >= PHOTO_MAX;
+  $('#photoGrid').innerHTML = n ? S.photos.map((ph, i) => `<div class="photo-item"><img src="${ph.dataUrl}" alt="회의 사진 ${i + 1}"><span class="n">${i + 1}</span><button class="x" data-pdel="${i}" title="사진 삭제" aria-label="사진 ${i + 1} 삭제">×</button></div>`).join('')
+    : '<div class="photo-empty" style="grid-column:1/-1">사진 추가를 누르거나 이미지 파일을 끌어다 놓으세요.</div>';
+}
+$('#photoAdd').addEventListener('click', () => $('#photoInput').click());
+$('#photoInput').addEventListener('change', e => { addPhotos(e.target.files); e.target.value = ''; });
+$('#photoGrid').addEventListener('click', e => {
+  const b = e.target.closest('[data-pdel]'); if (!b) return;
+  S.photos.splice(+b.dataset.pdel, 1); markDirty(); renderPhotoList();
+});
+
+/* ---------- 회의 내용 영역 높이: 아래 손잡이를 끌어 조절(브라우저에 기억), 두 번 누르면 기본 높이 ---------- */
+const DOCH_KEY = 'meetnote.docMinH', DOCH_MIN = 120;
+const docMinPx = () => parseFloat(getComputedStyle(docEditor).minHeight) || 360;
+(() => {
+  const sheet = $('#docsheet'), grip = $('#docResize');
+  const apply = px => { if (px) sheet.style.setProperty('--doc-min', px + 'px'); else sheet.style.removeProperty('--doc-min'); };
+  const store = () => { try { localStorage.setItem(DOCH_KEY, String(Math.round(docMinPx()))); } catch {} };
+  try { const v = +localStorage.getItem(DOCH_KEY); if (v >= DOCH_MIN) apply(v); } catch {}
+  let drag = null;
+  grip.addEventListener('pointerdown', e => {
+    const ed = docReplayOn ? $('#docReplay') : docEditor;
+    drag = { y: e.clientY, h: ed.getBoundingClientRect().height }; grip.classList.add('on');
+    try { grip.setPointerCapture(e.pointerId); } catch {}
+    e.preventDefault();
+  });
+  grip.addEventListener('pointermove', e => { if (drag) apply(Math.max(DOCH_MIN, Math.round(drag.h + e.clientY - drag.y))); });
+  const end = () => { if (!drag) return; drag = null; grip.classList.remove('on'); store(); };
+  grip.addEventListener('pointerup', end); grip.addEventListener('pointercancel', end);
+  grip.addEventListener('dblclick', () => { apply(0); try { localStorage.removeItem(DOCH_KEY); } catch {} });
+  grip.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault(); apply(Math.max(DOCH_MIN, docMinPx() + (e.key === 'ArrowDown' ? 40 : -40))); store();
+  });
+})();
 
 /* ---------- resizable side panel ---------- */
 const SIDE_KEY = 'meetnote.sideW';

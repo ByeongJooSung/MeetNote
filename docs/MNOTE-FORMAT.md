@@ -10,6 +10,7 @@
 ├─ notes.json        블록(문단·제목·목록·표)별 시점 t, HTML, 편집 기록 history, removed
 ├─ transcript.json   전사 구간 {t0, t1, text}
 ├─ minutes.md        AI 회의록 초안 (있을 때)
+├─ photos/photoN.jpg 회의 사진(붙임, 최대 4장, 긴 변 1600px JPEG) — manifest.json의 photos에 이름·크기
 └─ notes.md          사람이 읽는 요약본
 ```
 
