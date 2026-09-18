@@ -2110,7 +2110,8 @@ const saveDevicePref = () => { try { localStorage.setItem(MIC_KEY, mic.deviceId)
 const env = (() => {
   const ua = navigator.userAgent;
   const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const android = /Android/.test(ua);
+  // 휴대폰 브라우저의 '데스크톱 버전으로 보기'는 UA가 X11; Linux로 바뀌므로 터치 지원 여부로 함께 판단
+  const android = /Android/.test(ua) || (/Linux/.test(ua) && !/CrOS/.test(ua) && navigator.maxTouchPoints > 0);
   const browser = /Edg\//.test(ua) ? 'edge' : /Firefox\//.test(ua) ? 'firefox' : /Chrome\//.test(ua) ? 'chrome' : /Safari\//.test(ua) ? 'safari' : 'other';
   return { ios, android, mobile: ios || android, mac: !ios && /Mac/.test(ua), win: /Windows/.test(ua), browser };
 })();
@@ -3038,6 +3039,12 @@ $('#aiToNotes').addEventListener('click', async () => {
 async function runAI() {
   const prompt = buildPrompt();
   if (!prompt) { toast('메모나 전사가 있어야 초안을 만들 수 있어요.'); return; }
+  if (ai.provider === 'auto' && !(await sampleP)) {
+    aiLog('warn', '엔진이 자동(Claude)인데 이 화면에서는 Claude를 부를 수 없음 → AI 설정 열기');
+    openAIDlg();
+    toast('이 화면에서는 Claude를 부를 수 없어요. AI 엔진을 골라 주세요 (휴대폰은 Anthropic API 키가 가장 간단해요).', 8000);
+    return;
+  }
   setEditMode(false);
   const go = $('#aiGo');
   go.disabled = true; $('#aiStop').hidden = false; showAIErr(null);
@@ -3226,6 +3233,7 @@ function inClaudeSandbox() { return framed && !!window.claude; }
 function localHint() {
   const b = localBase();
   if (inClaudeSandbox()) return 'Claude 화면 안에 들어간 페이지는 보안 정책 때문에 로컬 서버를 부를 수 없어요. GitHub Pages 등에 배포한 주소나 PC의 localhost로 여세요.';
+  if (env.mobile && /localhost|127\.0\.0\.1/.test(b)) return `휴대폰에서 localhost는 휴대폰 자신을 가리켜서 PC의 서버에 닿지 않아요. ① PC 브라우저에서 쓰거나 ② PC에서 "npx cloudflared tunnel --url ${b}"로 https 주소를 만들어 서버 주소에 넣으세요(서버의 CORS 허용 필요). 휴대폰만 쓴다면 엔진을 Anthropic API 키로 바꾸는 것이 가장 간단해요.`;
   if (/^https:/.test(location.protocol) && /^http:\/\//.test(b) && !/localhost|127\.0\.0\.1/.test(b)) return 'https 페이지에서는 http 주소의 서버(LAN IP)를 부를 수 없어요(혼합 콘텐츠). PC에서 localhost로 접속하거나 서버에 https를 붙이세요.';
   return '서버가 켜져 있는지, CORS가 허용됐는지(LM Studio: Enable CORS, Ollama: OLLAMA_ORIGINS=*) 확인하세요.';
 }
@@ -3850,7 +3858,8 @@ function browserDiarNote() {
   if (!window.Worker || !window.WebAssembly) return '이 브라우저는 내장 분석을 지원하지 않아요.';
   const gpu = !!navigator.gpu, dur = S.duration || (isFinite(audio.duration) ? audio.duration : 0);
   const est = dur ? `예상 ${Math.max(1, Math.round(dur / 60 * (gpu ? 0.3 : 1.2)))}~${Math.max(2, Math.round(dur / 60 * (gpu ? 0.6 : 2.5)))}분` : '';
-  return (gpu ? 'WebGPU 가속을 사용해요.' : 'WebGPU가 없어 CPU로 돌아가 느릴 수 있어요(최신 Chrome·Edge 권장).') + (est ? ` ${est} 걸려요.` : '') + ' 10분 단위로 나눠 분석하므로 긴 녹음은 구간마다 화자 번호가 달라질 수 있어요. 참석자 매핑에서 같은 사람으로 합치면 됩니다.';
+  const warn = env.mobile && dur > 20 * 60 ? ` ⚠ 휴대폰에서 ${Math.round(dur / 60)}분짜리 녹음은 시간이 오래 걸리고 메모리 부족으로 중단될 수 있어요. PC에서 분석하는 것을 권해요.` : '';
+  return (gpu ? 'WebGPU 가속을 사용해요.' : 'WebGPU가 없어 CPU로 돌아가 느릴 수 있어요(최신 Chrome·Edge 권장).') + (est ? ` ${est} 걸려요.` : '') + warn + ' 10분 단위로 나눠 분석하므로 긴 녹음은 구간마다 화자 번호가 달라질 수 있어요. 참석자 매핑에서 같은 사람으로 합치면 됩니다.';
 }
 function setupEngine(prefix) {
   const radios = document.querySelectorAll(`input[name="${prefix}Mode"]`);
