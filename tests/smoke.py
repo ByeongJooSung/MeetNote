@@ -4,7 +4,7 @@
   내보내기(HWPX/DOCX)·저장(파일 이름 입력)/불러오기·불러오기 창(목록·달력)을 확인한다.
 - 앱은 web/ 을 127.0.0.1 임시 포트로 띄워서 연다(디버그 훅 __meetnote 는 localhost 에서만 열린다). 로그인 게이트는 빈 설정으로 우회한다.
 """
-import asyncio, functools, http.server, os, re, subprocess, sys, tempfile, threading, zipfile
+import asyncio, functools, http.server, json, os, re, subprocess, sys, tempfile, threading, zipfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(ROOT, 'web')
 HTML = os.path.join(WEB, 'index.html')
@@ -77,8 +77,13 @@ async def run():
         prompt = await pg.evaluate("__meetnote.buildPrompt()")
         expect('용어는 영어 그대로' in prompt and '마크다운 표로 정리' not in prompt, '설정의 전역 지시문 수정')
         await pg.click('#setDraft [data-opt="tables"] [data-v="true"]'); await pg.click('#draftOptOk')
-        await pg.click('[data-set="author"]'); await pg.fill('#setAuthorOrg', '개발팀'); await pg.fill('#setAuthorName', '김작성'); await pg.click('#setAuthorApply'); await pg.wait_for_timeout(100)
-        expect(await pg.input_value('#mAuthor') == '개발팀 / 김작성', '설정의 작성자 반영')
+        await pg.click('[data-set="author"]'); await pg.fill('#setAuthorOrg', '개발팀'); await pg.fill('#setAuthorName', '김작성'); await pg.fill('#setAuthorTitle', '책임'); await pg.click('#setAuthorApply'); await pg.wait_for_timeout(100)
+        expect(await pg.input_value('#mAuthor') == '개발팀 / 김작성 책임', '설정의 작성자 반영')
+        expect(await pg.evaluate("__meetnote.S.attendees.some(a => a.name === '김작성' && a.org === '개발팀' && a.title === '책임')"), '작성자를 참석자에 포함')
+        # 참석자: AI 응답 파싱·병합, 같은 소속은 직급 최고 1명 + 외 N인
+        ans = '```json' + chr(10) + json.dumps([{'org': '개발팀', 'name': '박이사', 'title': '이사'}, {'org': '개발팀', 'name': '최사원', 'title': '사원'}, {'org': '', 'name': '홍길동', 'title': '부장'}], ensure_ascii=False) + chr(10) + '```'
+        r = await pg.evaluate("ans => { const m = __meetnote; const list = m.parseAttendeeJson(ans); const res = m.mergeAttendees(list); m.HW.attCompact = true; return { n: list.length, res, lines: m.attendeesByOrg(), rank: [m.titleRank('부사장') < m.titleRank('상무'), m.titleRank('수석연구원') < m.titleRank('연구원'), m.titleRank('대표이사') < m.titleRank('이사')] }; }", ans)
+        expect(r['n'] == 3 and r['res']['added'] == 2 and '[개발팀] 박이사 이사 외 2인' in r['lines'] and all(r['rank']), f"참석자 캡처 응답 파싱 · 외 N인 표기 {r['lines']}")
         await pg.click('[data-set="about"]')
         expect((await pg.inner_text('#aboutVer')).startswith('v0.') and await pg.locator('#patchNotes li').count() > 0, '버전 정보 · 패치 노트')
         await pg.click('#aiDlgClose')
@@ -90,19 +95,25 @@ async def run():
             await pg.click('#hwpxBtn'); await pg.click(f'input[name="expFmt"][value="{fmt}"]'); await pg.check('#hxMinutes')
             async with pg.expect_download() as dl: await pg.click('#hwpxGo')
             d = await dl.value; path = os.path.join(tempfile.gettempdir(), 'smoke.' + fmt); await d.save_as(path)
+            expect(re.fullmatch(r'스모크 회의_[0-9]{8}_[0-9]{6}[.]' + fmt, d.suggested_filename), f'{fmt} 파일 이름: 회의록 이름_날짜시분초')
             with zipfile.ZipFile(path) as z:
                 names = z.namelist()
                 expect(('word/document.xml' in names) if fmt == 'docx' else ('Contents/section0.xml' in names), f'{fmt} 내보내기')
-                if fmt == 'docx': expect('| 담당' not in z.read('word/document.xml').decode('utf-8'), 'docx 부록의 AI 초안 표 변환')
+                if fmt == 'docx':
+                    x = z.read('word/document.xml').decode('utf-8')
+                    expect('| 담당' not in x, 'docx 부록의 AI 초안 표 변환')
+                    expect('Noto Sans KR' in x and 'Malgun' not in x, 'docx 글꼴 Noto Sans KR')
+                    expect('김작성 책임' in x and '[개발팀] 박이사 이사 외 2인' in x and '최사원' not in x, 'docx 작성자 줄바꿈 · 같은 소속 외 N인')
+                else: expect('Noto Sans KR' in z.read('Contents/header.xml').decode('utf-8'), 'hwpx 글꼴 Noto Sans KR')
         # 저장/불러오기
         if not has_zip: expect(not errs, f'JS 오류 없음 {errs[:2]}'); await b.close(); srv.shutdown(); return ok
         await pg.click('#saveBtn'); await pg.fill('#textDlgInput', '스모크_저장')
         async with pg.expect_download() as dl: await pg.click('#textDlgYes')
         d = await dl.value; mn = os.path.join(tempfile.gettempdir(), 'smoke.mnote'); await d.save_as(mn)
-        expect(d.suggested_filename == '스모크_저장.mnote', '저장 시 파일 이름 입력')
+        expect(re.fullmatch(r'스모크_저장_[0-9]{8}_[0-9]{6}[.]mnote', d.suggested_filename), f'저장 시 파일 이름 입력 + 날짜시분초 ({d.suggested_filename})')
         await pg.click('#newBtn'); await pg.wait_for_timeout(200)
         if await pg.locator('#confirmDlg').is_visible(): await pg.click('#confirmYes')
-        expect(await pg.input_value('#mAuthor') == '개발팀 / 김작성', '새 회의에 작성자 기본값')
+        expect(await pg.input_value('#mAuthor') == '개발팀 / 김작성 책임' and await pg.evaluate("__meetnote.S.attendees.length === 1"), '새 회의에 작성자 기본값(참석자 포함)')
         await pg.set_input_files('#fileInput', mn); await pg.wait_for_timeout(800)
         expect(await pg.input_value('#mPlace') == '테스트실' and await pg.locator('#docEditor table').count() == 2, '.mnote 저장/불러오기 왕복')
         expect(await pg.evaluate("__meetnote.S.aiExtra") == '결정 사항을 맨 위에 요약하고 담당자를 굵게', '추가 지시 .mnote 왕복')

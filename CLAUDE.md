@@ -26,6 +26,7 @@ JS 문법은 `node --check`로 확인 가능: `python tests/smoke.py --check-onl
 - 편집기 블록은 `data-id`로 추적되며 `trackBlocks(track)`가 시점·편집 기록을 갱신한다(메모 `memoTrack`, 본문 `docTrack`). DOM을 직접 재배치했다면 `trackBlocks(track, {structural:true})`를 호출.
 - 외부/파일에서 온 HTML은 `sanitizeHTML`을 거친다. 허용 태그·스타일·클래스·data 속성을 늘릴 때는 `processEl`을 수정.
 - AI·분석 관련 실패는 `aiLog(level, msg, data)`에 남기고 사용자에게 **원인 + 해결 방법**을 함께 보여준다(`explainAIError`).
+- 내보내기 글꼴은 `EXPORT_FONT`(Noto Sans KR) 하나로 통일한다. 내려받는 파일 이름은 `dlBase()`(회의록 이름_날짜시분초)를 쓴다. 참석자 표기는 `attendeesForExport()`(같은 소속은 직급 최고 1명 + 외 N인)를 거친다.
 - 내보내기는 빌더 인터페이스(`B.para`, `B.table`)를 공유한다. 양식은 `TEMPLATES`, 서식 변환은 `hwpxBlock`/`inlineRuns`. HWPX·DOCX·PDF(HTML) 세 빌더에 동시에 반영할 것.
 - Claude 아티팩트 안(`inClaude`)에서는 외부 네트워크·마이크·Google 로그인이 막힌다. 해당 기능은 `inClaude`/`framed` 분기로 안내한다.
 - UI 문구는 한국어, 존댓말("~해요/~합니다"). 툴팁은 `toolbar tooltips` 섹션의 `T` 맵에 추가.

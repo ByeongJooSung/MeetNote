@@ -13,7 +13,7 @@
 <title>MeetNote</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
 <script data-app src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script data-app src="config.js"></script>
 <style>
@@ -96,7 +96,7 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 /* 회의록 시트를 출력물과 1:1로: A4 폭 210mm, 좌우 여백 20mm(본문 170mm), 본문은 출력과 같은 맑은 고딕 10pt·줄간격 160% */
 .docsheet{max-width:210mm;padding:14mm calc(20mm - 1px) 20mm}  /* 테두리 1px만큼 빼서 본문 폭을 정확히 170mm로 */
 @media (min-width:881px){.docsheet{width:210mm;min-width:210mm}}  /* 데스크톱: 창이 좁아도 A4 폭 유지(가로 스크롤) → 줄바꿈이 출력과 항상 같게 */
-#docEditor,#docReplay{font-family:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Noto Sans KR",sans-serif;font-size:10pt;line-height:1.6}
+#docEditor,#docReplay{font-family:"Noto Sans KR","Malgun Gothic","맑은 고딕","Apple SD Gothic Neo",sans-serif;font-size:10pt;line-height:1.6}
 #docEditor p,#docReplay p{margin:0}
 #docEditor h1,#docReplay h1{font-size:18pt;line-height:1.6;margin:5px 0 1px}
 #docEditor h2,#docReplay h2{font-size:15pt;line-height:1.6;margin:4px 0 1px}
@@ -122,7 +122,8 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .dochead label{color:var(--ink2);font-size:13px;white-space:nowrap}
 .dochead input{width:100%;border:1px solid var(--line);border-radius:7px;padding:6px 9px;background:var(--surface);font-size:14px}
 .att{margin:6px 0 18px}
-.att-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.att-head{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.att-btns{display:flex;gap:6px;flex-wrap:wrap}
 .att-head b{font-size:14px}
 .att table{width:100%;border-collapse:collapse;font-size:14px}
 .att th{background:var(--sunk);font-weight:600;text-align:left;padding:5px 8px;border:1px solid var(--line);font-size:13px}
@@ -682,11 +683,11 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
       <div class="dochead">
         <label for="mWhen">일시</label><input id="mWhen" type="datetime-local">
         <label for="mPlace">장소</label><input id="mPlace" placeholder="예: 3층 대회의실">
-        <label for="mAuthor">작성자</label><input id="mAuthor" placeholder="소속 / 이름">
+        <label for="mAuthor">작성자</label><input id="mAuthor" placeholder="소속 / 이름 직급">
         <label for="mHost" data-f="host">주관</label><input id="mHost" data-f="host" placeholder="부서 또는 담당자">
       </div>
       <div class="att">
-        <div class="att-head"><b>참석자</b><button class="btn" id="attAdd">참석자 추가</button></div>
+        <div class="att-head"><b>참석자</b><span class="att-btns"><button class="btn" id="attScan" title="참석자 명단을 캡처한 이미지를 AI가 읽어 소속·이름·직급을 채웁니다. 이 영역을 누른 뒤 Ctrl+V로 붙여 넣어도 돼요.">캡처 이미지에서 읽기</button><button class="btn" id="attAdd">참석자 추가</button></span><input id="attScanInput" type="file" accept="image/*" hidden></div>
         <table><thead><tr><th style="width:32%">소속</th><th style="width:28%">이름</th><th style="width:28%">직급</th><th></th></tr></thead><tbody id="attBody"></tbody></table>
       </div>
       <div class="sect sect-row"><span>회의 내용</span><span class="sect-tools">
@@ -857,6 +858,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   </div>
   <label class="field" style="margin:10px 0 4px">회의록 양식<select id="expTpl"></select></label>
   <div class="hx-opts">
+    <label class="chk"><input type="checkbox" id="hxAttCompact" checked> 같은 소속 참석자는 직급이 가장 높은 1명 + "외 N인"으로 표기</label>
     <label class="chk"><input type="checkbox" id="hxChips" checked> 문단 끝 시간 표기(출처용)</label>
     <label class="chk"><input type="checkbox" id="hxNotes"> 부록: 메모</label>
     <label class="chk"><input type="checkbox" id="hxMinutes"> 부록: AI 회의록 초안</label>
@@ -928,9 +930,10 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div class="row" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button class="btn" id="draftOptReset">기본값</button><span class="hint" id="draftOptState" style="flex:1"></span><button class="btn primary" id="draftOptOk">저장</button></div>
   </div>
   <div id="setAuthor" hidden>
-    <p>새 회의를 시작하면 회의 정보의 <b>작성자</b> 칸에 자동으로 채워져요. 회의마다 직접 고칠 수도 있습니다. 로그인하면 계정에 저장됩니다.</p>
+    <p>새 회의를 시작하면 회의 정보의 <b>작성자</b> 칸에 채워지고 <b>참석자</b>에도 들어가요. 내보낸 문서의 작성자 칸에는 소속과 이름이 두 줄로 적힙니다. 회의마다 직접 고칠 수도 있습니다. 로그인하면 계정에 저장됩니다.</p>
     <label class="field">소속<input id="setAuthorOrg" placeholder="예: 플랫폼개발팀" autocomplete="organization" maxlength="60"></label>
-    <label class="field">이름<input id="setAuthorName" placeholder="예: 홍길동 책임" autocomplete="name" maxlength="40"></label>
+    <label class="field">이름<input id="setAuthorName" placeholder="예: 홍길동" autocomplete="name" maxlength="40"></label>
+    <label class="field">직급<input id="setAuthorTitle" placeholder="예: 책임" autocomplete="organization-title" maxlength="40"></label>
     <div class="row" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="setAuthorSave">저장</button><button class="btn" id="setAuthorApply">지금 회의에도 적용</button><span class="hint" id="setAuthorState"></span></div>
   </div>
   <div id="setLog" hidden>
@@ -1151,8 +1154,15 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.6.0';
+const APP_VERSION = '0.7.0';
 const PATCH_NOTES = [
+  { v: '0.7.0', date: '2026-09-19', items: [
+    '참석자 명단 캡처 이미지를 AI가 읽어 소속·이름·직급을 자동으로 채워요(참석자의 "캡처 이미지에서 읽기" 또는 Ctrl+V).',
+    '내보내기: 같은 소속 참석자가 둘 이상이면 직급이 가장 높은 1명 + "외 N인"으로 표기해요(옵션).',
+    '작성자에 직급을 더했고, 작성자가 참석자에도 자동으로 들어가요. 내보낸 문서의 작성자 칸은 소속 다음 줄에 이름이 적혀요.',
+    '내보내는 문서(PDF·한글·Word)의 글꼴을 Noto Sans KR로 통일했어요.',
+    '내려받는 파일 이름을 "회의록 이름_날짜시분초"로 바꿨어요(.mnote·PDF·한글·Word).'
+  ] },
   { v: '0.6.0', date: '2026-09-19', items: [
     '녹음이 없는 회의에 전사 파일(.txt)을 올려 전사로 쓸 수 있어요. 전사 탭의 "전사 파일 가져오기" 또는 파일을 화면에 끌어다 놓기.',
     '클로바노트 내보내기를 알아봐요: 음성 기록·AI 요약, 시간 기록 포함/미포함을 구분해 가져오고 제목·일시·길이도 채워요.',
@@ -3187,7 +3197,7 @@ async function importTranscriptFile(file) {
   if (!S.meta.when && p.when) S.meta.when = p.when;
   if (!S.duration && p.duration) S.duration = p.duration;
   const names = p.people.filter(n => !/^(참석자|화자|발언자|Speaker)\s*\d+$/i.test(n));
-  if (names.length && !S.attendees.some(a => a.name || a.org)) S.attendees = names.map(name => ({ org: '', name: name.slice(0, 40), title: '' }));
+  for (const name of names) if (!S.attendees.some(a => (a.name || '').trim() === name)) S.attendees.push({ org: '', name: name.slice(0, 40), title: '' });
   markDirty(); renderMeta(); renderTranscript(); renderTimeline(); syncButtons(); selectTab('tr');
   aiLog('info', '전사 파일 가져오기', { src: p.src, kind: p.kind, timed: p.timed, segments: p.segs.length, duration: p.duration });
   toast(`${p.src === 'clova' ? '클로바노트 ' : ''}${p.kind === 'summary' ? 'AI 요약' : '전사'} ${p.segs.length}줄을 가져왔어요 (${p.timed ? '시간 기록 포함' : '시간 기록 없음 · 시각 표시는 생략'}).`, 6000);
@@ -3668,7 +3678,7 @@ ${tr || '(전사 없음)'}
 </전사>`}`;
 }
 
-async function callApi(prompt, signal) {
+async function callApi(prompt, signal, images) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST', signal,
     headers: {
@@ -3677,7 +3687,7 @@ async function callApi(prompt, signal) {
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true'
     },
-    body: JSON.stringify({ model: API_MODEL, max_tokens: 4096, messages: [{ role: 'user', content: prompt }] })
+    body: JSON.stringify({ model: API_MODEL, max_tokens: 4096, messages: [{ role: 'user', content: images && images.length ? [...images.map(u => ({ type: 'image', source: { type: 'base64', media_type: (u.match(/^data:([^;]+);/) || [])[1] || 'image/jpeg', data: u.split(',')[1] } })), { type: 'text', text: prompt }] : prompt }] })
   });
   const raw = await r.text().catch(() => '');
   let d = {}; try { d = JSON.parse(raw); } catch {}
@@ -4483,14 +4493,25 @@ document.querySelector('.set-tabs').addEventListener('click', e => { const b = e
 $('#settingsBtn').addEventListener('click', () => openAIDlg('view'));
 /* 설정 → 작성자(소속·이름): 새 회의의 작성자 칸 기본값. 브라우저에 기억하고 계정(DB)에도 동기화 */
 const AUTHOR_KEY = 'meetnote.author';
-const authorPref = { org: '', name: '' };
-const normAuthor = o => { if (o && typeof o === 'object') { authorPref.org = String(o.org || '').slice(0, 60); authorPref.name = String(o.name || '').slice(0, 40); } };
+const authorPref = { org: '', name: '', title: '' };
+const normAuthor = o => { if (o && typeof o === 'object') { authorPref.org = String(o.org || '').slice(0, 60); authorPref.name = String(o.name || '').slice(0, 40); authorPref.title = String(o.title || '').slice(0, 40); } };
 try { normAuthor(JSON.parse(localStorage.getItem(AUTHOR_KEY) || 'null')); } catch {}
-const authorText = () => [authorPref.org, authorPref.name].filter(Boolean).join(' / ');
-function applyAuthorDefault(force) { const t = authorText(); if (!t || (S.meta.author && !force)) return; S.meta.author = t; $('#mAuthor').value = t; }
-function renderAuthorBox() { $('#setAuthorOrg').value = authorPref.org; $('#setAuthorName').value = authorPref.name; $('#setAuthorState').textContent = ''; }
+const authorText = () => [authorPref.org, [authorPref.name, authorPref.title].filter(Boolean).join(' ')].filter(Boolean).join(' / ');
+const authorLines = () => { const t = String(S.meta.author || '').trim(), i = t.indexOf('/'); return (i < 0 ? [t] : [t.slice(0, i), t.slice(i + 1)]).map(x => x.trim()).filter(Boolean); };   // 내보내기: 소속 줄바꿈 뒤 이름
+function applyAuthorDefault(force) {
+  const t = authorText(); if (!t || (S.meta.author && !force)) return;
+  S.meta.author = t; $('#mAuthor').value = t;
+  // 작성자도 회의 참석자다: 같은 이름이 없으면 참석자 맨 위에 넣는다(있으면 빈 소속·직급만 채움)
+  if (authorPref.name) {
+    const hit = S.attendees.find(a => (a.name || '').trim() === authorPref.name);
+    if (hit) { if (!hit.org) hit.org = authorPref.org; if (!hit.title) hit.title = authorPref.title; }
+    else S.attendees.unshift({ org: authorPref.org, name: authorPref.name, title: authorPref.title });
+    renderAttendees();
+  }
+}
+function renderAuthorBox() { $('#setAuthorOrg').value = authorPref.org; $('#setAuthorName').value = authorPref.name; $('#setAuthorTitle').value = authorPref.title; $('#setAuthorState').textContent = ''; }
 function saveAuthor() {
-  normAuthor({ org: $('#setAuthorOrg').value.trim(), name: $('#setAuthorName').value.trim() });
+  normAuthor({ org: $('#setAuthorOrg').value.trim(), name: $('#setAuthorName').value.trim(), title: $('#setAuthorTitle').value.trim() });
   try { localStorage.setItem(AUTHOR_KEY, JSON.stringify(authorPref)); } catch {} prefsTouch();
   $('#setAuthorState').textContent = '저장했어요.'; applyAuthorDefault(false);
 }
@@ -4685,7 +4706,7 @@ async function callOpenAIOnce(prompt, signal, onText, sysPrompt, maxTokens, opts
   // 생각 끄기 옵션은 모르는 서버가 400으로 거절할 수 있다 → 그때는 옵션을 빼고 '빈 생각 미리 채우기'로 다시 보낸다
   const noThink = opts.noThink | 0;
   const body = { model, stream: true, temperature: 0.3, max_tokens: maxTokens || 4096,
-    messages: [{ role: 'system', content: sysPrompt || '당신은 회의록을 정리하는 비서입니다. 지시된 구조의 한국어 마크다운만 출력합니다.' }, { role: 'user', content: prompt }] };
+    messages: [{ role: 'system', content: sysPrompt || '당신은 회의록을 정리하는 비서입니다. 지시된 구조의 한국어 마크다운만 출력합니다.' }, { role: 'user', content: opts.images && opts.images.length ? [{ type: 'text', text: prompt }, ...opts.images.map(u => ({ type: 'image_url', image_url: { url: u } }))] : prompt }] };
   const prefill = () => { if (body.messages[body.messages.length - 1].role !== 'assistant') body.messages.push({ role: 'assistant', content: '<think>\n\n</think>\n\n' }); };
   if (noThink >= 1) { body.reasoning_effort = 'none'; body.chat_template_kwargs = { enable_thinking: false }; }
   if (noThink >= 2) prefill();
@@ -4747,6 +4768,8 @@ async function callOpenAIOnce(prompt, signal, onText, sysPrompt, maxTokens, opts
 }
 
 /* ---------- HWPX export ---------- */
+/* 내보내는 문서(PDF·한글·Word)의 글꼴. 한글·Word는 글꼴 이름만 적히므로 여는 PC에 Noto Sans KR이 없으면 그 프로그램의 대체 글꼴로 보인다 */
+const EXPORT_FONT = 'Noto Sans KR';
 /* 용지 기준(PDF·HWPX·DOCX·화면 공통): A4, 여백 상하좌우 20mm → 본문 폭 170mm. 1mm = 283.465 HWPUNIT, 1px = 75 */
 const HW = { px: 75, textW: 48189, pageW: 59528, pageH: 84188, margin: 5669 };
 const LIGHT_HEX = { '--ink': '#1C2638', '--tc-gray': '#737B87', '--tc-red': '#D0443F', '--tc-orange': '#C0650F', '--tc-green': '#3A7C55', '--tc-blue': '#2B6CA3', '--tc-purple': '#8656AB', '--tc-pink': '#B5427C',
@@ -4852,7 +4875,7 @@ function hwpxBuilder(title) {
       out(`<hp:p id="${pid++}" paraPrIDRef="${paraPr({ before: 200, after: 200 })}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0">${tbl}</hp:run></hp:p>`);
     },
     build() {
-      const fontfaces = ['HANGUL', 'LATIN', 'HANJA', 'JAPANESE', 'OTHER', 'SYMBOL', 'USER'].map(l => `<hh:fontface lang="${l}" fontCnt="1"><hh:font id="0" face="맑은 고딕" type="TTF" isEmbedded="0"/></hh:fontface>`).join('');
+      const fontfaces = ['HANGUL', 'LATIN', 'HANJA', 'JAPANESE', 'OTHER', 'SYMBOL', 'USER'].map(l => `<hh:fontface lang="${l}" fontCnt="1"><hh:font id="0" face="${EXPORT_FONT}" type="TTF" isEmbedded="0"/></hh:fontface>`).join('');
       const bfXml = [...bfs.values()].map(b => {
         const line = b.border ? 'type="SOLID" width="0.12 mm" color="#000000"' : 'type="NONE" width="0.1 mm" color="#000000"';
         const fill = b.fill ? `<hc:fillBrush><hc:winBrush faceColor="${b.fill}" hatchColor="#FF000000" alpha="0"/></hc:fillBrush>` : '';
@@ -4891,7 +4914,7 @@ function hwpxBuilder(title) {
 function docxBuilder(title) {
   const tw = v => Math.round(v / 5);            // HWPUNIT → twips
   const hex = c => (c || '#000000').replace('#', '');
-  const rPr = f => `<w:rPr><w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:eastAsia="맑은 고딕" w:cs="Malgun Gothic"/>${f.bold ? '<w:b/><w:bCs/>' : ''}${f.italic ? '<w:i/><w:iCs/>' : ''}${f.strike ? '<w:strike/>' : ''}${f.color ? `<w:color w:val="${hex(f.color)}"/>` : ''}<w:sz w:val="${Math.round((f.size || 1000) / 50)}"/><w:szCs w:val="${Math.round((f.size || 1000) / 50)}"/>${f.underline ? '<w:u w:val="single"/>' : ''}${f.shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${hex(f.shade)}"/>` : ''}</w:rPr>`;
+  const rPr = f => `<w:rPr><w:rFonts w:ascii="${EXPORT_FONT}" w:hAnsi="${EXPORT_FONT}" w:eastAsia="${EXPORT_FONT}" w:cs="${EXPORT_FONT}"/>${f.bold ? '<w:b/><w:bCs/>' : ''}${f.italic ? '<w:i/><w:iCs/>' : ''}${f.strike ? '<w:strike/>' : ''}${f.color ? `<w:color w:val="${hex(f.color)}"/>` : ''}<w:sz w:val="${Math.round((f.size || 1000) / 50)}"/><w:szCs w:val="${Math.round((f.size || 1000) / 50)}"/>${f.underline ? '<w:u w:val="single"/>' : ''}${f.shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${hex(f.shade)}"/>` : ''}</w:rPr>`;
   const runsXml = runs => runs.map(r => `<w:r>${rPr(r.f || {})}<w:t xml:space="preserve">${xesc(r.t)}</w:t></w:r>`).join('');
   const para = (runs, pp = {}) => `<w:p><w:pPr>${pp.pageBreak ? '<w:pageBreakBefore/>' : ''}${pp.align ? `<w:jc w:val="${pp.align === 'CENTER' ? 'center' : pp.align === 'RIGHT' ? 'right' : 'left'}"/>` : ''}<w:spacing w:before="${tw(pp.before || 0)}" w:after="${tw(pp.after || 0)}" w:line="${Math.round(240 * (pp.line || 160) / 100)}" w:lineRule="auto"/>${pp.indent ? `<w:ind w:left="${tw(pp.indent)}"/>` : ''}</w:pPr>${runsXml(runs)}</w:p>`;
   const body = [], media = [];
@@ -4958,7 +4981,7 @@ function docxBuilder(title) {
       const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
       const NS = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
       const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document ${W} ${NS}><w:body>${body.join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>`;
-      const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:styles ${W}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Malgun Gothic" w:hAnsi="Malgun Gothic" w:eastAsia="맑은 고딕" w:cs="Malgun Gothic"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:lang w:val="ko-KR" w:eastAsia="ko-KR"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="384" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>`;
+      const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:styles ${W}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${EXPORT_FONT}" w:hAnsi="${EXPORT_FONT}" w:eastAsia="${EXPORT_FONT}" w:cs="${EXPORT_FONT}"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:lang w:val="ko-KR" w:eastAsia="ko-KR"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="384" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>`;
       return {
         '[Content_Types].xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`,
         '_rels/.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>`,
@@ -5015,9 +5038,9 @@ function htmlBuilder(title) {
       body.push(`<table style="width:${cw.reduce((a, b) => a + b, 0)}px"><colgroup>${cw.map(w => `<col style="width:${w}px">`).join('')}</colgroup>${trs}</table>`);
     },
     build() {
-      return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${xesc(title)}</title><style>
+      return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${xesc(title)}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap"><style>
 @page{size:A4;margin:0}
-html,body{margin:0;padding:0;color:#000;background:#fff;font-family:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Noto Sans KR",sans-serif;font-size:10pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+html,body{margin:0;padding:0;color:#000;background:#fff;font-family:"${EXPORT_FONT}","Malgun Gothic","맑은 고딕","Apple SD Gothic Neo",sans-serif;font-size:10pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .page{box-sizing:border-box;width:210mm;margin:0 auto;padding:20mm;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 p{word-break:break-word}
 table{border-collapse:collapse;table-layout:fixed;margin:6px 0;page-break-inside:auto}
@@ -5107,7 +5130,29 @@ const HD = '#E8ECF1';
 const F = { lab: { size: 1000, bold: true }, val: { size: 1000 }, head: { size: 1100, bold: true }, muted: { size: 1000, color: '#5A6578' } };
 const spaced = s => s.length === 2 ? s[0] + '    ' + s[1] : s.length === 3 ? s.split('').join('  ') : s;
 const multiCell = (r, c, lines, f = F.val, extra = {}) => ({ r, c, rs: 1, cs: 1, paras: (lines.length ? lines : ['']).map(l => l ? [{ t: l, f }] : []), ...extra });
+/* 직급 서열(높은 순). 직급 글자에 들어 있는 낱말 중 가장 긴 것으로 판단한다(예: '부사장'은 '사장'이 아니라 '부사장'). 모르는 직급은 맨 아래, 같으면 먼저 적은 사람이 앞 */
+const TITLE_RANK = ['회장', '부회장', '이사장', '총장', '장관', '차관', '청장', '대표이사', '대표', '사장', '행장', '원장', '부사장', '부총장', '부원장', '전무', '상무', '이사', '본부장', '단장', '국장', '실장', '센터장', '소장', '처장', '교수', '부교수', '조교수', '부장', '서기관', '팀장', '수석연구원', '수석', '차장', '책임연구원', '책임', '사무관', '연구관', '과장', '파트장', '선임연구원', '선임', '대리', '계장', '주임', '연구사', '주무관', '전임', '연구원', '사원', '매니저', '인턴'];
+function titleRank(title) {
+  const t = String(title || '').replace(/\s+/g, ''); let best = -1, len = 0;
+  TITLE_RANK.forEach((k, i) => { if (t.includes(k) && k.length > len) { best = i; len = k.length; } });
+  return best < 0 ? TITLE_RANK.length : best;
+}
+/* 내보내기용 참석자: 소속이 같은 사람이 둘 이상이면 직급이 가장 높은 1명만 이름을 적고 나머지는 '외 N인'(HW.attCompact). 소속이 비어 있으면 묶지 않는다 */
+function attendeesForExport() {
+  const att = S.attendees.filter(a => a.name || a.org || a.title).map(a => ({ org: (a.org || '').trim(), name: (a.name || '').trim(), title: (a.title || '').trim(), extra: 0 }));
+  if (!HW.attCompact) return att;
+  const out = [], seen = new Map();
+  for (const a of att) {
+    if (!a.org) { out.push(a); continue; }
+    const g = seen.get(a.org);
+    if (!g) { const row = { ...a, _n: 1 }; seen.set(a.org, row); out.push(row); continue; }
+    g._n++; if (titleRank(a.title) < titleRank(g.title)) Object.assign(g, { name: a.name, title: a.title });
+  }
+  return out.map(({ _n, ...a }) => ({ ...a, extra: _n ? _n - 1 : 0 }));
+}
+const extraText = a => a.extra ? ` 외 ${a.extra}인` : '';
 function attendeesByOrg() {
+  if (HW.attCompact) return attendeesForExport().map(a => (a.org ? `[${a.org}] ` : '') + [a.name, a.title].filter(Boolean).join(' ') + extraText(a));
   const groups = new Map();
   S.attendees.filter(a => a.name || a.org || a.title).forEach(a => { const k = a.org || ''; if (!groups.has(k)) groups.set(k, []); groups.get(k).push([a.name, a.title].filter(Boolean).join(' ')); });
   return [...groups].map(([org, ppl]) => (org ? `[${org}] ` : '') + ppl.join(', '));
@@ -5162,11 +5207,11 @@ const TEMPLATES = {
       B.para([{ t: '회    의    록', f: { size: 2200, bold: true } }], { align: 'CENTER', after: 500 });
       const attLines = attendeesByOrg();
       B.table({ rows: 4, cols: 4, origin: [
-        [labc(0, 0, '일시'), valc(0, 1, metaWhenText()), labc(0, 2, '작성자'), valc(0, 3, S.meta.author || '')],
+        [labc(0, 0, '일시'), valc(0, 1, metaWhenText()), labc(0, 2, '작성자'), multiCell(0, 3, authorLines(), F.val, { valign: 'CENTER' })],
         [labc(1, 0, '장소'), valc(1, 1, S.meta.place || '', { cs: 3 })],
         [labc(2, 0, '제목'), valc(2, 1, S.title || '', { cs: 3 })],
         [labc(3, 0, '참석자'), { ...multiCell(3, 1, attLines, F.val, { valign: 'CENTER' }), cs: 3 }]
-      ] }, [wl, wv1, wl, wv2], [RH, RH, RH, Math.max(RH, 1300 * Math.max(1, attLines.length) + 500)]);
+      ] }, [wl, wv1, wl, wv2], [authorLines().length > 1 ? 2900 : RH, RH, RH, Math.max(RH, 1300 * Math.max(1, attLines.length) + 500)]);
       renderBody(B, { box: true, head: { text: '회 의   세 부   내 용', f: { size: 1200, bold: true }, height: 1900 } });
       const acts = (S.meta.actions || []).filter(a => a.due || a.who || a.what || a.out);
       const n = Math.max(1, acts.length);
@@ -5188,13 +5233,13 @@ const TEMPLATES = {
       const dur = S.duration ? `  (녹음 ${fmt(S.duration)})` : '';
       B.table({ rows: 2, cols: 4, origin: [
         [cellSpec(0, 0, '일시', lab, { fill: HD }), cellSpec(0, 1, metaWhenText() + dur, val), cellSpec(0, 2, '장소', lab, { fill: HD }), cellSpec(0, 3, S.meta.place || '', val)],
-        [cellSpec(1, 0, '주관', lab, { fill: HD }), cellSpec(1, 1, S.meta.host || '', val), cellSpec(1, 2, '작성자', lab, { fill: HD }), cellSpec(1, 3, S.meta.author || '', val)]
-      ] }, [wl, wv, wl, wv], [1600, 1600]);
-      const att = S.attendees.filter(a => a.org || a.name || a.title);
+        [cellSpec(1, 0, '주관', lab, { fill: HD }), cellSpec(1, 1, S.meta.host || '', val), cellSpec(1, 2, '작성자', lab, { fill: HD }), multiCell(1, 3, authorLines(), val)]
+      ] }, [wl, wv, wl, wv], [1600, authorLines().length > 1 ? 2700 : 1600]);
+      const att = attendeesForExport();
       hwpxPlainLine(B, '참석자', head, { before: 300, after: 100 });
       if (att.length) {
         const rows = [[cellSpec(0, 0, '소속', lab, { fill: HD }), cellSpec(0, 1, '이름', lab, { fill: HD }), cellSpec(0, 2, '직급', lab, { fill: HD })]];
-        att.forEach((a, i) => rows.push([cellSpec(i + 1, 0, a.org || '', val), cellSpec(i + 1, 1, a.name || '', val), cellSpec(i + 1, 2, a.title || '', val)]));
+        att.forEach((a, i) => rows.push([cellSpec(i + 1, 0, a.org || '', val), cellSpec(i + 1, 1, (a.name || '') + extraText(a), val), cellSpec(i + 1, 2, a.title || '', val)]));
         B.table({ rows: rows.length, cols: 3, origin: rows }, [Math.round(W * 0.4), Math.round(W * 0.3), Math.round(W * 0.3)], rows.map(() => 1500));
       } else hwpxPlainLine(B, '(미입력)', F.muted);
       hwpxPlainLine(B, '회의 내용', head, { before: 400, after: 100 });
@@ -5238,7 +5283,7 @@ function renderPhotoPage(B) {
 }
 function buildExportInto(B, opts) {
   trackBlocks(memoTrack, { structural: true }); trackBlocks(docTrack, { structural: true });
-  HW.chips = !!opts.chips;
+  HW.chips = !!opts.chips; HW.attCompact = opts.attCompact !== false;
   TEMPLATES[curTemplate()].render(B, opts);
   renderAppendices(B, opts);
   if (opts.photos && S.photos.length) renderPhotoPage(B);
@@ -5258,10 +5303,16 @@ async function buildDocx(opts) {
   return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', compression: 'DEFLATE' });
 }
 function exportPdf(opts) {
-  const html = buildExportInto(htmlBuilder(S.title || '회의록'), opts).build();
+  const html = buildExportInto(htmlBuilder(dlBase()), opts).build();   // <title> = 인쇄 창이 제안하는 PDF 파일 이름
   let f = $('#printFrame');
   if (!f) { f = document.createElement('iframe'); f.id = 'printFrame'; f.setAttribute('aria-hidden', 'true'); document.body.appendChild(f); }
-  f.onload = () => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) { toast('인쇄 창을 열지 못했어요: ' + (e.message || e)); } };
+  f.onload = async () => {
+    try {
+      const fd = f.contentDocument && f.contentDocument.fonts;   // Noto Sans KR 웹폰트를 다 받은 뒤 인쇄(최대 4초). 받지 못하면 기기 글꼴로 인쇄된다
+      if (fd) await Promise.race([Promise.all([fd.load(`400 10pt "${EXPORT_FONT}"`, '가'), fd.load(`700 10pt "${EXPORT_FONT}"`, '가')]).then(() => fd.ready), new Promise(r => setTimeout(r, 4000))]).catch(() => {});
+      f.contentWindow.focus(); f.contentWindow.print();
+    } catch (e) { toast('인쇄 창을 열지 못했어요: ' + (e.message || e)); }
+  };
   f.srcdoc = html;
   toast('인쇄 창에서 "PDF로 저장"을 고르면 PDF 파일이 됩니다.', 7000);
 }
@@ -5270,12 +5321,12 @@ document.querySelectorAll('input[name="expFmt"]').forEach(r => r.addEventListene
 async function exportHwpx() {
   if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 내보내 주세요.'); return; }
   const fmt = expFmt();
-  const opts = { chips: $('#hxChips').checked, notes: $('#hxNotes').checked, minutes: $('#hxMinutes').checked, transcript: $('#hxTranscript').checked, photos: $('#hxPhotos').checked };
+  const opts = { attCompact: $('#hxAttCompact').checked, chips: $('#hxChips').checked, notes: $('#hxNotes').checked, minutes: $('#hxMinutes').checked, transcript: $('#hxTranscript').checked, photos: $('#hxPhotos').checked };
   $('#hwpxDlg').close();
   try {
     if (fmt === 'pdf') { exportPdf(opts); return; }
     if (!window.JSZip) { toast('파일 모듈을 불러오지 못했어요. 새로고침해 주세요.'); return; }
-    const base = `${safeName(S.title || '회의록')}_${stamp(S.createdAt)}`;
+    const base = dlBase();
     if (fmt === 'docx') await saveBlob(await buildDocx(opts), base, 'docx');
     else await saveBlob(await buildHwpx(opts), base, 'hwpx');
   } catch (e) { aiLog('error', '내보내기 실패', errInfo(e)); toast('문서를 만들지 못했어요: ' + (e && e.message || e), 6000); }
@@ -5309,6 +5360,60 @@ function renderAttendees() {
   tb.innerHTML = S.attendees.map((a, i) => `<tr><td><input data-att="org" data-i="${i}" value="${esc(a.org || '')}" placeholder="소속"></td><td><input data-att="name" data-i="${i}" value="${esc(a.name || '')}" placeholder="이름"></td><td><input data-att="title" data-i="${i}" value="${esc(a.title || '')}" placeholder="직급"></td><td class="x"><button data-del="${i}" title="삭제" aria-label="삭제">×</button></td></tr>`).join('')
     || '<tr><td colspan="4" class="empty">참석자 추가를 눌러 소속·이름·직급을 입력하세요.</td></tr>';
 }
+/* 참석자 캡처 이미지 읽기: 명단을 찍은 화면 캡처·사진을 AI(이미지를 읽는 모델)에게 보내 소속·이름·직급을 받아 참석자 표에 채운다 */
+const ATT_SCAN_PROMPT = `이 이미지는 회의 참석자 명단(참석자 표, 메신저·메일·화상회의 참가자 목록, 명함 등)을 찍은 것입니다. 이미지에 보이는 사람만 뽑아 JSON 배열로만 답하세요. 설명·마크다운·코드 블록 없이 JSON만 출력합니다.
+형식: [{"org":"소속(회사·기관·부서)","name":"이름","title":"직급·직책"}]
+- 이미지에 없는 값은 빈 문자열로 두고 절대 지어내지 마세요.
+- "홍길동 부장"처럼 이름과 직급이 붙어 있으면 나누세요. 소속이 묶음 제목(머리글)으로 한 번만 적혀 있으면 그 아래 사람 모두에게 넣으세요.
+- 같은 사람이 두 번 보이면 한 번만 넣고, 사람이 아닌 글자(메뉴·버튼·날짜)는 무시하세요. 사람이 없으면 []를 출력하세요.`;
+function parseAttendeeJson(text) {
+  const t = String(text || '').replace(/<think>[\s\S]*?<\/think>/g, ''); const i = t.indexOf('['), j = t.lastIndexOf(']');
+  if (i < 0 || j <= i) throw Object.assign(new Error('AI가 참석자 목록 형식으로 답하지 않았어요.'), { code: 'bad_json', body: t.slice(0, 300) });
+  let arr; try { arr = JSON.parse(t.slice(i, j + 1)); } catch { throw Object.assign(new Error('AI의 답을 해석하지 못했어요.'), { code: 'bad_json', body: t.slice(0, 300) }); }
+  const clean = v => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  return (Array.isArray(arr) ? arr : []).filter(x => x && typeof x === 'object').map(x => ({ org: clean(x.org), name: clean(x.name), title: clean(x.title) })).filter(a => a.name || a.org).slice(0, 100);
+}
+function mergeAttendees(list) {   // 이름(+소속)이 같은 사람은 빈 칸만 채우고, 새 사람은 뒤에 붙인다. 내용이 없는 빈 줄은 정리
+  let added = 0, filled = 0;
+  S.attendees = S.attendees.filter(a => a.org || a.name || a.title);
+  for (const a of list) {
+    const hit = S.attendees.find(x => a.name && (x.name || '').trim() === a.name && (!x.org || !a.org || x.org.trim() === a.org));
+    if (hit) { let f = false; for (const k of ['org', 'title']) if (!hit[k] && a[k]) { hit[k] = a[k]; f = true; } if (f) filled++; }
+    else { S.attendees.push(a); added++; }
+  }
+  return { added, filled };
+}
+let attScanBusy = false;
+async function scanAttendees(file) {
+  if (!file || attScanBusy) return;
+  const prov = ai.provider, local = isLocal(prov), btn = $('#attScan');
+  attScanBusy = true; btn.disabled = true; btn.classList.add('busy-dots'); const label = btn.textContent; btn.textContent = '이미지를 읽는 중';
+  const t0 = performance.now();
+  try {
+    if (prov === 'anthropic' ? !apiKey : !local) throw Object.assign(new Error('이미지를 읽을 수 있는 AI 엔진이 필요해요.'), { code: 'no_vision' });
+    const img = await loadPhoto(file);
+    aiLog('info', '참석자 캡처 읽기 시작', { engine: prov, model: local ? curModel() : API_MODEL, w: img.w, h: img.h, kb: Math.round(img.dataUrl.length * 0.75 / 1024) });
+    const text = local ? await callOpenAI(ATT_SCAN_PROMPT, null, () => {}, '당신은 이미지에서 참석자 명단을 정확히 옮겨 적는 비서입니다. JSON만 출력합니다.', 2048, { images: [img.dataUrl] }) : await callApi(ATT_SCAN_PROMPT, null, [img.dataUrl]);
+    const list = parseAttendeeJson(text);
+    if (!list.length) { toast('이미지에서 참석자를 찾지 못했어요. 명단이 또렷하게 보이는 캡처로 다시 시도해 주세요.', 6000); aiLog('warn', '참석자 캡처: 찾은 사람 없음', { answer: String(text).slice(0, 200) }); return; }
+    const { added, filled } = mergeAttendees(list);
+    renderAttendees(); markDirty();
+    aiLog('info', '참석자 캡처 읽기 완료', { found: list.length, added, filled, ms: Math.round(performance.now() - t0) });
+    toast(`이미지에서 ${list.length}명을 읽어 ${added}명을 추가했어요${filled ? ` (기존 ${filled}명의 빈 칸 채움)` : ''}. 잘못 읽은 글자가 없는지 확인해 주세요.`, 7000);
+  } catch (e) {
+    aiLog('error', '참석자 캡처 읽기 실패', errInfo(e));
+    const noVision = e && (e.code === 'no_vision' || ((e.status === 400 || e.status === 415 || e.status === 422) && /image|vision|multimodal|mmproj|content.*(type|array)/i.test(String(e.body || e.message))));
+    if (e && e.code === 'no_vision') { toast('참석자 캡처를 읽으려면 이미지를 읽는 AI 엔진이 필요해요. 설정(⚙) → AI 엔진에서 Anthropic API 키를 넣거나, LM Studio·Ollama에서 비전 모델(예: qwen2.5-vl, gemma-3)을 고르세요.', 9000); openAIDlg('ai'); }
+    else if (noVision) toast(`지금 고른 모델(${curModel() || API_MODEL})은 이미지를 읽지 못해요. 설정(⚙) → AI 엔진에서 비전 모델(예: qwen2.5-vl, gemma-3, llava)을 골라 다시 시도하세요.`, 9000);
+    else { const { msg, hint } = explainAIError(e); toast(`참석자 캡처를 읽지 못했어요: ${msg} ${hint || ''}`, 9000); }
+  } finally { attScanBusy = false; btn.disabled = false; btn.classList.remove('busy-dots'); btn.textContent = label; }
+}
+$('#attScan').addEventListener('click', () => $('#attScanInput').click());
+$('#attScanInput').addEventListener('change', e => { scanAttendees(e.target.files[0]); e.target.value = ''; });
+document.querySelector('.att').addEventListener('paste', e => {   // 참석자 영역에서 Ctrl+V로 캡처 붙여 넣기
+  const f = [...(e.clipboardData?.files || [])].find(x => /^image\//.test(x.type)); if (!f) return;
+  e.preventDefault(); scanAttendees(f);
+});
 $('#attAdd').addEventListener('click', () => { S.attendees.push({ org: '', name: '', title: '' }); renderAttendees(); markDirty(); const inp = $('#attBody').querySelector(`input[data-i="${S.attendees.length - 1}"]`); if (inp) inp.focus(); });
 $('#attBody').addEventListener('input', e => { const i = e.target.dataset.i, k = e.target.dataset.att; if (i == null) return; S.attendees[+i][k] = e.target.value; markDirty(); });
 $('#attBody').addEventListener('keydown', e => {
@@ -5892,10 +5997,13 @@ async function buildZip() {
   return zip.generateAsync({ type: 'blob', mimeType: 'application/x-mnote+zip', compression: 'DEFLATE' });
 }
 
-const defaultFileName = () => S.fileName || `${safeName(S.title || '회의록')}_${stamp(S.createdAt)}`;
+const stampSec = (d = new Date()) => { const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; };
+const stripStamp = n => String(n || '').replace(/_\d{8}_\d{4}(\d{2})?$/, '');
+const defaultFileName = () => stripStamp(S.fileName) || safeName(S.title || '회의록');   // 회의록 이름(클라우드에 저장되는 이름)
+const dlBase = base => `${stripStamp(base || defaultFileName()) || '회의록'}_${stampSec()}`;   // 내려받는 파일: 회의록 이름 + 날짜시분초
 async function askFileName(title) {   // 저장 직전에 파일 이름을 한 번 묻는다(취소하면 null)
   const name = await askText(title, '파일 이름 (.mnote)', defaultFileName(), { max: 80, yes: '저장' });
-  return name ? safeName(name.replace(/\.mnote$/i, '')) : null;
+  return name ? safeName(stripStamp(name.replace(/\.mnote$/i, ''))) : null;
 }
 async function save() {
   if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 저장해 주세요.'); return; }
@@ -5904,7 +6012,7 @@ async function save() {
   const btn = $('#saveBtn'); btn.disabled = true;
   try {
     const blob = await buildZip();
-    await saveBlob(blob, base, 'mnote');
+    await saveBlob(blob, dlBase(base), 'mnote');
     S.fileName = base; markClean();
   } catch (e) {
     const code = e && e.code;
@@ -6353,7 +6461,7 @@ async function dbUpsert(m) {
 /* 내 설정 동기화: 발언자 분석(방식·PC 서비스 주소·발언자 수), AI 엔진(종류·주소·모델), 다듬기 옵션, AI 작성 설정(시간 표시·표 정리 포함)·추가 지시 템플릿·작성자를 계정에 저장해 다른 기기·브라우저에서도 이어 쓴다.
    보안 토큰·API 키는 넣지 않는다. 규칙에 settings 경로가 없으면(403) 이 브라우저에만 기억한다 */
 const prefsDoc = a => `${EP.fs}/projects/${encodeURIComponent(FB.projectId)}/databases/(default)/documents/users/${encodeURIComponent(a.uid)}/settings/prefs`;
-const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0 }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, tables: draftOpt.tables, times: draftOpt.times, sections: draftOpt.sections, extra: draftOpt.extra }, tpls: draftTpls, author: { org: authorPref.org, name: authorPref.name } });
+const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0 }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, tables: draftOpt.tables, times: draftOpt.times, sections: draftOpt.sections, extra: draftOpt.extra }, tpls: draftTpls, author: { org: authorPref.org, name: authorPref.name, title: authorPref.title } });
 const prefs403 = e => { if (e && e.status === 403) { prefsOff = true; aiLog('warn', '설정 동기화 꺼짐: 목록 DB 규칙에 settings 경로가 없어요(이 브라우저에만 기억)'); renderCloudState(); return true; } return false; };
 async function prefsPush() {
   if (!FB || !user || prefsOff) return;
@@ -6578,7 +6686,7 @@ async function cloudOpenItem(m) {
     const blob = await r.blob(); progClose(); progAbort = null;
     const before = S.id;
     await openFile(new File([blob], (m.name || m.title || 'meeting') + '.mnote', { type: MNOTE_MIME }));
-    if (S.id !== before || safeId(S.id) === m.id) S.cloud = { fileId: m.fileId };
+    if (S.id !== before || safeId(S.id) === m.id) { S.cloud = { fileId: m.fileId }; S.fileName = safeName(stripStamp(String(m.name || '').replace(/[.]mnote$/i, ''))) || ''; }   // 내려받을 때 클라우드에 저장된 이름을 쓴다
     aiLog('info', '클라우드에서 열기', { bytes: blob.size });
   } catch (e) {
     if (e && e.name === 'AbortError') toast('열기를 취소했어요.');
@@ -6886,7 +6994,7 @@ if (FB && user && fbSess && fbSess.sub === user.sub) prefsPull();   // 이미 �
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, draftOpt, parseTranscriptText, importTranscriptFile, renderCloudList, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, draftOpt, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
 applyAuthorDefault(false);
 renderAll();
 selectTab(curTab);
