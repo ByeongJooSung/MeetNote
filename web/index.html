@@ -119,6 +119,12 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .photo-empty{padding:10px;color:var(--ink2);font-size:13.5px;border:1px dashed var(--line);border-radius:6px;text-align:center}
 .ref-sec .hint{margin:6px 0 0;font-size:12.5px;color:var(--ink2)}
 .ref-list{display:flex;flex-direction:column;gap:4px}
+.ref-fmt{margin:6px 0 0;font-size:12.5px;color:var(--ink2)}
+.ref-fmt summary{cursor:pointer;width:max-content;max-width:100%}
+.ref-fmt summary:hover{color:var(--tape)}
+.ref-fmt table{border-collapse:collapse;margin:6px 0 2px;width:100%}
+.ref-fmt th{text-align:left;vertical-align:top;white-space:nowrap;font-weight:600;padding:3px 10px 3px 0;color:var(--ink)}
+.ref-fmt td{padding:3px 0;line-height:1.55;overflow-wrap:anywhere}
 .ref-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:var(--surface);cursor:pointer;font-size:13.5px}
 .ref-item:hover{border-color:var(--tape)}
 .ref-item .k{font-size:11px;font-weight:600;color:var(--tape);background:var(--tape-soft);border-radius:6px;padding:1px 6px;text-transform:uppercase}
@@ -720,9 +726,18 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
         <table><thead><tr><th style="width:32%">소속</th><th style="width:28%">이름</th><th style="width:28%">직급</th><th></th></tr></thead><tbody id="attBody"></tbody></table>
       </div>
       <div class="att ref-sec" id="refSec">
-        <div class="att-head"><b>참고 자료 <span id="refCount" style="font-weight:400;color:var(--ink2)"></span></b><button class="btn" id="refAdd" title="회의 안건 자료(PDF·Word·PowerPoint·Excel·한글 HWPX·텍스트)를 올리면 글로 변환해 AI가 회의록을 쓸 때 참고합니다">자료 추가</button></div>
+        <div class="att-head"><b>참고 자료 <span id="refCount" style="font-weight:400;color:var(--ink2)"></span></b><button class="btn" id="refAdd" title="회의 안건 자료를 올리면 글로 변환해 AI가 회의록을 쓸 때 참고합니다. 지원: pdf · docx · pptx · xlsx · hwpx · txt · md · csv · tsv · json · log · html · srt · vtt (hwp · doc · ppt · xls · 스캔 PDF는 안 돼요)">자료 추가</button></div>
         <input type="file" id="refInput" multiple hidden accept=".pdf,.docx,.pptx,.xlsx,.hwpx,.txt,.md,.csv,.tsv,.json,.html,.htm,.srt,.vtt,.log">
         <div class="ref-list" id="refList"></div>
+        <details class="ref-fmt">
+          <summary>올릴 수 있는 파일 형식</summary>
+          <table>
+            <tr><th>문서</th><td><b>PDF</b>(.pdf · 글자가 들어 있는 PDF), <b>Word</b>(.docx), <b>PowerPoint</b>(.pptx · 슬라이드별), <b>Excel</b>(.xlsx · 시트별), <b>한글</b>(.hwpx)</td></tr>
+            <tr><th>글·자막</th><td>.txt, .md, .csv, .tsv, .json, .log, .html/.htm(본문 글만), .srt, .vtt</td></tr>
+            <tr><th>안 되는 형식</th><td><b>.hwp</b> → 한글에서 "다른 이름으로 저장"으로 <b>HWPX</b> 또는 PDF로 · <b>.doc/.ppt/.xls</b>(옛 Office) → .docx/.pptx/.xlsx 또는 PDF로 · <b>스캔(이미지) PDF와 그림 파일</b> → 글자 정보가 없어 읽지 못해요(OCR한 PDF나 글로 옮긴 파일을 올리세요)</td></tr>
+            <tr><th>제한</th><td>회의당 8개, 파일당 40MB까지. 변환된 글은 자료당 20만 자까지 보관하고, 표·도형 안의 글은 읽지만 그림 속 글자는 읽지 못해요. PDF는 처음 한 번 변환 모듈을 인터넷에서 받아요.</td></tr>
+          </table>
+        </details>
         <p class="hint">파일은 글로 변환한 내용만 보관하고 원본 파일은 저장하지 않아요. AI는 용어·수치·배경을 확인하는 데에만 참고하고, 회의록 내용은 전사와 메모에서 가져옵니다. 자료로 확인한 곳에는 <span class="src">(자료: 이름)</span> 표시가 붙어요. 내보내는 문서에는 자료 내용이 들어가지 않습니다.</p>
       </div>
       <div class="sect sect-row"><span>회의 내용</span><span class="sect-tools">
@@ -1205,8 +1220,9 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.9.0';
+const APP_VERSION = '0.9.1';
 const PATCH_NOTES = [
+  { v: '0.9.1', date: '2026-09-19', items: ['참고 자료에 올릴 수 있는 파일 형식(지원·미지원·제한)을 화면에서 바로 볼 수 있게 안내를 더했어요.'] },
   { v: '0.9.0', date: '2026-09-19', items: [
     '전사 듣기: 글자를 누르면 그 자리부터, 행(시각)을 누르면 그 문단을 처음부터 끝까지 들려줘요.',
     '전사의 시각 표시가 발언자 이름과 같은 색으로 구분돼요.',
@@ -6413,7 +6429,7 @@ async function extractRef(file) {
   if (['html', 'htm'].includes(ext)) { const d = new DOMParser().parseFromString(await readTextFile(file), 'text/html'); d.querySelectorAll('script,style,noscript,template').forEach(x => x.remove()); return { kind: 'html', text: d.body ? d.body.innerText || d.body.textContent : '' }; }
   if (['txt', 'md', 'csv', 'tsv', 'json', 'srt', 'vtt', 'log'].includes(ext) || /^text\//.test(file.type)) return { kind: ext || 'txt', text: await readTextFile(file) };
   const why = { hwp: '한글(.hwp)은 한글 프로그램에서 "다른 이름으로 저장 → HWPX 또는 PDF"로 바꿔 올려 주세요.', doc: '옛 Word(.doc)는 .docx 또는 PDF로 저장해 올려 주세요.', ppt: '옛 PowerPoint(.ppt)는 .pptx 또는 PDF로 저장해 올려 주세요.', xls: '옛 Excel(.xls)은 .xlsx로 저장해 올려 주세요.' }[ext];
-  throw Object.assign(new Error(why || `지원하지 않는 형식이에요(.${ext || '?'}). PDF·Word(docx)·PowerPoint(pptx)·Excel(xlsx)·한글(hwpx)·텍스트를 올릴 수 있어요.`), { code: 'unsupported' });
+  throw Object.assign(new Error(why || `지원하지 않는 형식이에요(.${ext || '?'}). 올릴 수 있는 형식: pdf, docx, pptx, xlsx, hwpx, txt, md, csv, tsv, json, log, html, srt, vtt`), { code: 'unsupported' });
 }
 let refBusy = false;
 async function addRefs(files) {
