@@ -106,6 +106,36 @@ async def run():
         await pg.set_input_files('#fileInput', mn); await pg.wait_for_timeout(800)
         expect(await pg.input_value('#mPlace') == '테스트실' and await pg.locator('#docEditor table').count() == 2, '.mnote 저장/불러오기 왕복')
         expect(await pg.evaluate("__meetnote.S.aiExtra") == '결정 사항을 맨 위에 요약하고 담당자를 굵게', '추가 지시 .mnote 왕복')
+        # 전사 파일 가져오기(클로바노트 .txt): 요약/음성 기록 × 시간 있음/없음
+        head = ['주간 회의', '2026.07.03 금 오후 2:16 ・ 109분 32초', '홍길동', '', '']
+        summ = ['AI 맞춤 요약', '주요 주제', '', '• 예산', '• 일정', '', '다음 할 일', '', '• 견적 요청', '', '', '시간대별 요약']
+        blocks_t = ['01:31~02:25', '예산 논의', '• 예산을 10% 늘림', '• 집행은 10월', '105:18~109:09', '일정 논의', '• 출시는 10월 말']
+        blocks_n = [l for l in blocks_t if '~' not in l]
+        foot = ['', '', 'clovanote.naver.com', '', 'AI가 요약한 결과가 포함되어 있습니다.']
+        voice_t = ['참석자 1 00:03', '안녕하세요. 시작하겠습니다.', '', '참석자 2 01:10', '네 예산부터 보시죠.', '', '참석자 1 61:05', '좋습니다.']
+        voice_n = ['참석자 1', '안녕하세요. 시작하겠습니다.', '', '참석자 2', '네 예산부터 보시죠.', '', '참석자 1', '좋습니다.']
+        parse = lambda lines: pg.evaluate("t => { const p = __meetnote.parseTranscriptText(t); return { kind: p.kind, timed: p.timed, n: p.segs.length, first: p.segs[0], last: p.segs[p.segs.length - 1], topics: p.topics.length, todos: p.todos.length, dur: p.duration, title: p.title, spk: p.segs.filter(g => g.spk).length }; }", '﻿' + '\r\n'.join(lines))
+        r = await parse(head + summ + blocks_t + foot)
+        expect(r['kind'] == 'summary' and r['timed'] and r['n'] == 5 and r['first']['t0'] == 91 and r['last']['t0'] >= 105 * 60 + 18 and r['topics'] == 2 and r['todos'] == 1 and r['dur'] == 6572 and r['title'] == '주간 회의', '클로바 AI 요약(시간 있음) 파싱')
+        r = await parse(head + summ + blocks_n + foot)
+        expect(r['kind'] == 'summary' and not r['timed'] and r['n'] == 5 and r['first']['text'] == '■ 예산 논의' and r['last']['t1'] <= 6572.01, '클로바 AI 요약(시간 없음) 파싱')
+        r = await parse(head + voice_t)
+        expect(r['kind'] == 'transcript' and r['timed'] and r['n'] == 3 and r['spk'] == 3 and r['last']['t0'] == 3665 and r['first']['spk'] == '참석자 1', '클로바 음성 기록(시간 있음) 파싱')
+        r = await parse(head + voice_n)
+        expect(r['kind'] == 'transcript' and not r['timed'] and r['n'] == 3 and r['spk'] == 3 and r['first']['text'].startswith('안녕하세요'), '클로바 음성 기록(시간 없음) 파싱')
+        await pg.click('#newBtn'); await pg.wait_for_timeout(200)
+        if await pg.locator('#confirmDlg').is_visible(): await pg.click('#confirmYes')
+        txt = os.path.join(tempfile.gettempdir(), 'smoke_clova.txt'); open(txt, 'w', encoding='utf-8-sig', newline='').write('\r\n'.join(head + summ + blocks_n + foot))
+        await pg.set_input_files('#trInput', txt); await pg.wait_for_timeout(500)
+        if await pg.locator('#confirmDlg').is_visible(): await pg.click('#confirmYes')   # 주요 주제·다음 할 일을 메모에 넣기
+        await pg.wait_for_timeout(300)
+        expect(await pg.locator('#segList .seg').count() == 5 and await pg.locator('#segList .ts').count() == 0 and await pg.input_value('#title') == '주간 회의', '전사 파일 가져오기(시간 없음: 시각 숨김, 제목 채움)')
+        expect(await pg.locator('#editor li').count() == 3, '요약의 주요 주제·다음 할 일을 메모에 넣기')
+        expect(await pg.is_disabled('#recBtn') and await pg.is_disabled('#attachBtn'), '전사를 가져오면 녹음·녹음 파일 붙이기 잠금')
+        prompt = await pg.evaluate("__meetnote.buildPrompt()")
+        expect('시간 정보가 없습니다' in prompt and '[00:' not in prompt.split('<전사')[1], '시간 없는 전사: 프롬프트에서 시각 제외')
+        await pg.click('#tabTr'); await pg.click('#trImportClear'); await pg.click('#confirmYes'); await pg.wait_for_timeout(200)
+        expect(await pg.locator('#segList .seg').count() == 0 and not await pg.is_disabled('#recBtn'), '가져온 전사 지우기 → 녹음 가능')
         expect(not errs, f'JS 오류 없음 {errs[:2]}')
         await b.close()
     srv.shutdown()
