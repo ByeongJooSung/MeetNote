@@ -317,7 +317,22 @@ select{border:1px solid var(--line);background:var(--surface);border-radius:8px;
 .empty{color:var(--ink2);font-size:14px}
 .seg{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;padding:6px 8px;margin:0 -8px;border-radius:6px}
 .seg.now{background:var(--hl)}
-.seg .ts{margin-top:2px}
+.seg{-webkit-touch-callout:none}
+.can-play .seg{cursor:pointer}
+.can-play .seg .stext{cursor:text}
+.can-play .seg:hover{background:color-mix(in srgb,var(--hl) 55%,transparent)}
+.seg .ts[data-k="0"]{background:#DCEFED;color:#0F7B78}.seg .ts[data-k="1"]{background:#D6E8F5;color:#2B6CA3}.seg .ts[data-k="2"]{background:#FADFC8;color:#C0650F}.seg .ts[data-k="3"]{background:#E8DDF3;color:#8656AB}.seg .ts[data-k="4"]{background:#D9EEDC;color:#3A7C55}.seg .ts[data-k="5"]{background:#FBDADA;color:#D0443F}
+.stext mark{background:var(--bg-yellow);color:inherit;border-radius:3px;padding:0 1px}
+.stext.editing{outline:2px solid var(--focus);outline-offset:3px;border-radius:4px;background:var(--surface);cursor:text;white-space:pre-wrap}
+.tr-search{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tr-search input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--surface);color:var(--ink);font-size:13.5px}
+.tr-search .hint{white-space:nowrap;font-size:12.5px}
+.seg-menu{position:fixed;z-index:60;min-width:168px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 28px rgba(10,14,20,.22);padding:4px;display:flex;flex-direction:column}
+.seg-menu[hidden]{display:none}
+.seg-menu button{border:0;background:none;text-align:left;padding:8px 12px;border-radius:7px;font-size:14px;color:var(--ink);cursor:pointer}
+.seg-menu button:hover,.seg-menu button:focus-visible{background:var(--sunk)}
+.seg-menu button:disabled{color:var(--ink2);opacity:.55;cursor:default;background:none}
+.seg .ts{margin-top:2px;align-self:start}
 .stext{font-size:14.5px}
 .seg.topic .stext{font-weight:600}
 .seg .ts-none{width:6px}
@@ -764,6 +779,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
           <option value="zh-CN">中文</option>
         </select>
       </div>
+      <div class="tr-search"><input id="trSearch" type="search" placeholder="전사에서 검색 — 그 낱말이 들어간 문단만 보기" aria-label="전사 검색" autocomplete="off"><span id="trSearchInfo" class="hint"></span></div>
       <div id="trImportInfo" class="tr-import" hidden><span id="trImportText"></span><button type="button" class="link" id="trImportClear">가져온 전사 지우기</button></div>
       <div id="segList"></div>
       <p id="interim" class="interim"></p>
@@ -838,6 +854,12 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   </div>
 </footer>
 
+<div id="segMenu" class="seg-menu" role="menu" hidden>
+  <button type="button" role="menuitem" data-segact="edit">문단 수정</button>
+  <button type="button" role="menuitem" data-segact="split">여기서 문단 나누기</button>
+  <button type="button" role="menuitem" data-segact="play">이 문단 듣기</button>
+  <button type="button" role="menuitem" data-segact="del" style="color:var(--rec)">문단 삭제</button>
+</div>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
 <dialog id="micDlg" aria-labelledby="micTitle">
@@ -1183,8 +1205,15 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.8.0';
+const APP_VERSION = '0.9.0';
 const PATCH_NOTES = [
+  { v: '0.9.0', date: '2026-09-19', items: [
+    '전사 듣기: 글자를 누르면 그 자리부터, 행(시각)을 누르면 그 문단을 처음부터 끝까지 들려줘요.',
+    '전사의 시각 표시가 발언자 이름과 같은 색으로 구분돼요.',
+    '전사 고치기: 마우스는 우클릭 → 문단 수정·여기서 나누기·삭제, 태블릿·휴대폰은 길게 누르면 바로 수정해요.',
+    '전사 검색: 낱말이 들어간 문단만 골라 보고, 찾은 곳은 표시해 줘요.',
+    '녹음 중 실시간 전사의 문단을 더 짧게 끊어 알아보기 쉽게 했어요.'
+  ] },
   { v: '0.8.0', date: '2026-09-19', items: [
     '참고 자료: 회의 안건 자료(PDF·Word·PowerPoint·Excel·한글 HWPX·텍스트)를 올리면 글로 변환해 AI가 회의록을 쓸 때 참고해요. 원본 파일은 보관하지 않고 변환된 글만 회의 파일에 남겨요.',
     '자료는 용어·수치·배경 확인에만 쓰고 회의록 내용은 전사·메모에서 가져와요. 자료에 없는 논의도 빠뜨리지 않고, 자료로 확인한 곳에는 (자료: 이름) 출처 표시를 붙여요.',
@@ -2504,7 +2533,9 @@ reel.addEventListener('keydown', e => {
   }
 });
 
+let segStopAt = null;   // '이 문단 듣기': 이 시각에 닿으면 멈춘다(다른 곳으로 이동하면 해제)
 function seek(t, play) {
+  segStopAt = null;
   if (rec.state !== 'idle') { toast('녹음 중에는 이동할 수 없어요. 정지한 뒤 다시 눌러 주세요.'); return; }
   if (!S.audioBlob) { toast('이 회의에는 녹음이 없어 이동할 수 없어요.'); return; }
   audio.currentTime = Math.max(0, Math.min(t, totalDur()));
@@ -2551,7 +2582,8 @@ audio.addEventListener('loadedmetadata', () => {
   } else renderTimeline();
 });
 audio.addEventListener('play', () => { kick(); syncButtons(); });
-audio.addEventListener('pause', () => { tick(); syncButtons(); });
+audio.addEventListener('pause', () => { segStopAt = null; tick(); syncButtons(); });
+audio.addEventListener('timeupdate', () => { if (segStopAt != null && audio.currentTime >= segStopAt) audio.pause(); });
 audio.addEventListener('ended', () => { tick(); syncButtons(); });
 audio.addEventListener('seeked', tick);
 $('#rate').addEventListener('change', e => { audio.playbackRate = +e.target.value; });
@@ -2954,6 +2986,7 @@ function syncButtons() {
   $('#syncBtn').hidden = !(canPlay && S.audioImported);
   $('#saveBtn').disabled = rec.state !== 'idle';
   if (typeof autoSync === 'function') autoSync();
+  try { $('#segList').classList.toggle('can-play', segCanPlay()); } catch {}   // 전사를 눌러 들을 수 있는 상태인지(커서 모양)
 }
 
 /* ---------- attach external recording & sync ---------- */
@@ -3106,6 +3139,7 @@ function cleanSegments(list) {
 }
 
 /* ---------- 전사 문단 통합: 같은 발언자의 말이 다음 구간으로 이어지면 한 문단으로 합친다 ----------
+   - 녹음 중 실시간 전사(발언자 모름)는 훨씬 짧게 끊는다: 0.7초(문장 중간이면 1.8초), 120자·18초
    - 발언자가 같고, 사이가 짧으면(2.5초 이내) 합친다. 앞 구간이 문장 중간에서 끊겼으면(마침표 없이 끝남) 6초까지 이어진 말로 본다
    - 문단이 너무 길어지지 않게 500자·2분에서 끊는다(끊을 때는 문장이 끝난 자리에서) */
 const SEG_MERGE = { gap: 2.5, gapOpen: 6, maxChars: 500, maxDur: 120 };
@@ -3114,7 +3148,7 @@ function canMergeSeg(prev, g) {
   if (!prev || (prev.spk || '') !== (g.spk || '')) return false;
   const gap = g.t0 - prev.t1, known = !!prev.spk;
   // 발언자를 아직 모르는 전사(녹음 중 실시간 전사)는 다른 사람의 말이 섞일 수 있어 더 짧게·보수적으로 묶는다
-  const lim = known ? SEG_MERGE : { gap: 1.2, gapOpen: 4, maxChars: 260, maxDur: 45 };
+  const lim = known ? SEG_MERGE : { gap: 0.7, gapOpen: 1.8, maxChars: 120, maxDur: 18 };   // 한 문단에 너무 많이 몰리면 읽기 어렵다 → 말이 잠깐만 끊겨도(0.7초, 문장 중간이면 1.8초), 120자·18초를 넘어도 새 문단
   if (gap < -1 || gap > (endsSentence(prev.text) ? lim.gap : lim.gapOpen)) return false;
   if (g.t1 - prev.t0 > lim.maxDur) return false;
   return prev.text.length + g.text.length + 1 <= lim.maxChars || (!endsSentence(prev.text) && prev.text.length < lim.maxChars * 1.3);
@@ -3416,8 +3450,10 @@ function sortSegments() {
   if (S.segments.some((s, i) => i && s.t0 < S.segments[i - 1].t0)) S.segments.sort((a, b) => a.t0 - b.t0 || a.t1 - b.t1);
 }
 function renderTranscript() {
+  if (segEdit) { segEdit.pending = true; return; }   // 수정 중에는 다시 그리지 않는다(끝나면 그린다)
   const list = $('#segList');
   renderTrImportInfo();
+  $('#trSearch').parentElement.hidden = !S.segments.length;
   lastSegIdx = -1;
   if (!S.segments.length) {
     list.innerHTML = `<p class="empty">${SR
@@ -3427,9 +3463,15 @@ function renderTranscript() {
   }
   sortSegments();
   const timed = segTimed();   // 시간 없는 전사 파일을 가져온 경우: 순서를 위한 가짜 시각이므로 화면에 보이지 않는다
-  list.innerHTML = S.segments.map((s, i) =>
-    `<div class="seg${/^■ /.test(s.text) ? ' topic' : ''}" data-i="${i}">${timed ? `<button class="ts num" data-seek="${+s.t0 || 0}">${fmt(s.t0)}</button>` : '<span class="ts-none"></span>'}<div>${s.spk ? `<button class="spk" data-k="${spkIdx(s.spk) % 6}" data-spk="${esc(s.spk)}" title="이름 바꾸기">${esc(speakerName(s.spk))}</button> ` : ''}<div class="stext">${esc(s.text)}</div><button class="link" data-add="${i}">메모에 넣기</button></div></div>`
-  ).join('');
+  const q = $('#trSearch').value.trim().toLowerCase();
+  const hl = text => { if (!q) return esc(text); let out = '', low = text.toLowerCase(), p = 0, k; while ((k = low.indexOf(q, p)) >= 0) { out += esc(text.slice(p, k)) + '<mark>' + esc(text.slice(k, k + q.length)) + '</mark>'; p = k + q.length; } return out + esc(text.slice(p)); };
+  let shown = 0;
+  list.innerHTML = S.segments.map((s, i) => {
+    if (q && !(s.text.toLowerCase().includes(q) || (s.spk && speakerName(s.spk).toLowerCase().includes(q)))) return '';
+    shown++; const k = s.spk ? spkIdx(s.spk) % 6 : null;
+    return `<div class="seg${/^■ /.test(s.text) ? ' topic' : ''}" data-i="${i}">${timed ? `<button class="ts num" data-segplay="${i}"${k != null ? ` data-k="${k}"` : ''} title="이 문단 듣기">${fmt(s.t0)}</button>` : '<span class="ts-none"></span>'}<div>${s.spk ? `<button class="spk" data-k="${k}" data-spk="${esc(s.spk)}" title="이름 바꾸기">${esc(speakerName(s.spk))}</button> ` : ''}<div class="stext">${hl(s.text)}</div><button class="link" data-add="${i}">메모에 넣기</button></div></div>`;
+  }).join('') || '<p class="empty">검색한 낱말이 들어간 문단이 없어요.</p>';
+  $('#trSearchInfo').textContent = q ? `${shown} / ${S.segments.length}문단` : '';
 }
 const spkIdx = k => { const ids = [...new Set(S.segments.map(s => s.spk).filter(Boolean))]; return Math.max(0, ids.indexOf(k)); };
 const speakerName = k => (S.speakers && S.speakers[k]) || (/^\d+$/.test(k) ? `화자 ${+k + 1}` : k.replace(/^SPEAKER_0*/, '화자 '));
@@ -3447,10 +3489,100 @@ $('#spkOk').addEventListener('click', () => {
   if (v) S.speakers[spkEditing] = v; else delete S.speakers[spkEditing];
   $('#spkDlg').close(); markDirty(); renderTranscript();
 });
+/* 전사 듣기: 글자를 누르면(또는 끌어서 고르면) 그 자리부터, 행(시각·여백)을 누르면 그 문단을 처음부터 끝까지 들려준다.
+   한 문단 안에서의 위치는 글자 수 비율로 어림한다(문단의 시작~끝 시각 사이) */
+function segCanPlay() { return segTimed() && !!S.audioBlob && rec.state === 'idle'; }
+function playSegment(i) { const g = S.segments[i]; if (!g || !segCanPlay()) return; seek(g.t0, true); if (g.t1 > g.t0 + 0.5) segStopAt = g.t1; }
+function segTextOffset(stext, e) {   // 누른 자리(또는 고른 범위의 시작)가 문단 글자의 몇 번째인지
+  let node = null, off = 0; const sel = getSelection();
+  if (sel.rangeCount && !sel.isCollapsed && stext.contains(sel.getRangeAt(0).startContainer)) { const r = sel.getRangeAt(0); node = r.startContainer; off = r.startOffset; }
+  else if (document.caretRangeFromPoint) { const r = document.caretRangeFromPoint(e.clientX, e.clientY); if (r) { node = r.startContainer; off = r.startOffset; } }
+  else if (document.caretPositionFromPoint) { const p = document.caretPositionFromPoint(e.clientX, e.clientY); if (p) { node = p.offsetNode; off = p.offset; } }
+  if (!node || !stext.contains(node)) return 0;
+  const r = document.createRange(); r.setStart(stext, 0); r.setEnd(node, off); return r.toString().length;
+}
+const segTimeAt = (g, off) => g.t0 + Math.max(0, g.t1 - g.t0) * Math.min(1, off / Math.max(1, g.text.length));
+let segEdit = null, segSuppressClick = false;
+function startSegEdit(i, e) {
+  if (segEdit) return; const g = S.segments[i], row = $('#segList').querySelector(`.seg[data-i="${i}"]`); if (!g || !row) return;
+  const el = row.querySelector('.stext'); audio.pause();
+  segEdit = { i, el, orig: g.text, pending: false };
+  el.textContent = g.text; el.classList.add('editing');
+  try { el.contentEditable = 'plaintext-only'; } catch { el.contentEditable = 'true'; }
+  if (el.contentEditable !== 'plaintext-only') el.contentEditable = 'true';
+  el.focus();
+  try { const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } catch {}
+  toast('전사를 고친 뒤 Enter로 저장, Esc로 취소해요.', 3500);
+}
+function endSegEdit(save) {
+  if (!segEdit) return; const { i, el, orig, pending } = segEdit, g = S.segments[i]; segEdit = null;
+  el.contentEditable = 'false'; el.classList.remove('editing');
+  const text = (el.innerText || '').replace(/\s+/g, ' ').trim();
+  if (save && g && text && text !== orig) {
+    g.text = (g.text !== orig && g.text.startsWith(orig) ? text + g.text.slice(orig.length) : text).slice(0, 5000);   // 수정하는 사이(녹음 중) 뒤에 붙은 말은 살린다
+    markDirty(); aiLog('info', '전사 문단 수정', { i, before: orig.length, after: g.text.length });
+  } else if (save && g && !text) toast('내용이 비어 있어 바꾸지 않았어요. 지우려면 우클릭 → 문단 삭제를 쓰세요.', 5000);
+  renderTranscript(); if (pending) renderTimeline();
+}
+$('#segList').addEventListener('keydown', e => {
+  if (!segEdit || e.target !== segEdit.el) return;
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); endSegEdit(true); }
+  else if (e.key === 'Escape') { e.preventDefault(); endSegEdit(false); }
+});
+$('#segList').addEventListener('focusout', e => { if (segEdit && e.target === segEdit.el) setTimeout(() => { if (segEdit && document.activeElement !== segEdit.el) endSegEdit(true); }, 0); });
+/* 우클릭 메뉴(마우스) · 길게 누르기(터치·펜 → 바로 수정) */
+const segMenu = $('#segMenu'); let segMenuAt = null, segLastPointer = 'mouse', segPress = null;
+function closeSegMenu() { segMenu.hidden = true; segMenuAt = null; }
+function openSegMenu(i, off, x, y) {
+  segMenuAt = { i, off }; const g = S.segments[i];
+  segMenu.querySelector('[data-segact="play"]').disabled = !segCanPlay();
+  segMenu.querySelector('[data-segact="split"]').disabled = !(off > 0 && off < g.text.length);
+  segMenu.hidden = false; const w = segMenu.offsetWidth, h = segMenu.offsetHeight;
+  segMenu.style.left = Math.max(6, Math.min(x, innerWidth / UIZ - w - 6)) + 'px'; segMenu.style.top = Math.max(6, Math.min(y, innerHeight / UIZ - h - 6)) + 'px';
+}
+$('#segList').addEventListener('contextmenu', e => {
+  const row = e.target.closest('.seg'); if (!row || segEdit) return;
+  e.preventDefault();
+  if (segLastPointer !== 'mouse') return;   // 터치·펜은 길게 누르면 바로 수정으로 들어간다
+  const st = e.target.closest('.stext'); openSegMenu(+row.dataset.i, st ? segTextOffset(st, e) : 0, e.zx, e.zy);
+});
+segMenu.addEventListener('click', e => {
+  const b = e.target.closest('[data-segact]'); if (!b || !segMenuAt) return; const { i, off } = segMenuAt, g = S.segments[i]; closeSegMenu(); if (!g) return;
+  if (b.dataset.segact === 'edit') startSegEdit(i);
+  else if (b.dataset.segact === 'play') playSegment(i);
+  else if (b.dataset.segact === 'del') { S.segments.splice(i, 1); markDirty(); renderTranscript(); renderTimeline(); toast('문단을 지웠어요. (저장하기 전이면 파일을 다시 열어 되돌릴 수 있어요)'); }
+  else if (b.dataset.segact === 'split') {   // 누른 자리에서 둘로: 낱말 중간이면 앞 낱말 끝으로 당긴다
+    let k = off; while (k > 0 && !/\s/.test(g.text[k - 1]) && !/\s/.test(g.text[k] || ' ')) k--; if (k <= 0 || k >= g.text.length) k = off;
+    const a = g.text.slice(0, k).trim(), c = g.text.slice(k).trim(); if (!a || !c) return;
+    const tm = +segTimeAt(g, k).toFixed(2); S.segments.splice(i, 1, { ...g, text: a, t1: tm }, { ...g, text: c, t0: tm });
+    markDirty(); renderTranscript(); renderTimeline();
+  }
+});
+document.addEventListener('pointerdown', e => { if (!segMenu.hidden && !segMenu.contains(e.target)) closeSegMenu(); }, true);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !segMenu.hidden) closeSegMenu(); });
+$('#paneTr').addEventListener('scroll', closeSegMenu);
+$('#segList').addEventListener('pointerdown', e => {
+  segLastPointer = e.pointerType || 'mouse'; clearTimeout(segPress && segPress.timer); segPress = null;
+  const row = e.target.closest('.seg'); if (!row || segEdit || segLastPointer === 'mouse' || e.target.closest('button')) return;
+  const i = +row.dataset.i, x = e.clientX, y = e.clientY;
+  segPress = { x, y, timer: setTimeout(() => { segPress = null; segSuppressClick = true; setTimeout(() => { segSuppressClick = false; }, 900); try { getSelection().removeAllRanges(); } catch {} startSegEdit(i); }, 550) };
+});
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('#segList').addEventListener(ev, () => { if (segPress) { clearTimeout(segPress.timer); segPress = null; } });
+$('#segList').addEventListener('pointermove', e => { if (segPress && Math.hypot(e.clientX - segPress.x, e.clientY - segPress.y) > 10) { clearTimeout(segPress.timer); segPress = null; } });
+$('#trSearch').addEventListener('input', () => renderTranscript());
 $('#segList').addEventListener('click', e => {
+  if (segSuppressClick) { segSuppressClick = false; return; }
+  if (segEdit) return;
   const sp = e.target.closest('.spk'); if (sp) { openSpkDlg(sp.dataset.spk); return; }
   const add = e.target.closest('[data-add]');
-  if (!add) return;
+  if (!add) {
+    const row = e.target.closest('.seg'); if (!row || e.target.closest('button,a') && !e.target.closest('[data-segplay]')) return;
+    const i = +row.dataset.i, st = e.target.closest('.stext');
+    if (!segCanPlay()) return;
+    if (st) seek(Math.max(0, segTimeAt(S.segments[i], segTextOffset(st, e)) - 0.25), true);   // 글자: 그 자리부터 이어서
+    else playSegment(i);                                                                      // 행: 그 문단만
+    return;
+  }
   const s = S.segments[+add.dataset.add];
   if (replayOn) { toast('따라 쓰기를 끈 뒤 노트에 넣어 주세요.'); return; }
   const p = document.createElement('p'); p.textContent = (s.spk ? speakerName(s.spk) + ': ' : '') + s.text;
@@ -7026,6 +7158,7 @@ if (FB && user && fbSess && fbSess.sub === user.sub) prefsPull();   // 이미 �
     '#memoToDoc': '메모 전체를 회의록 본문 끝에 넣습니다. 각 문단 끝에 녹음 시점 칩이 붙어요.',
     '#aiToDoc': 'AI 초안을 회의록 본문 끝에 넣습니다. "타임라인 시간 표시"가 켜져 있으면 문단 끝에 시점 칩이 붙어요.',
     '#aiTimes': '초안 문단 끝의 [mm:ss] 출처 시간을 보이거나 숨깁니다. 누르면 그 부분이 재생돼요.',
+    '#trSearch': '전사에서 낱말을 찾아 그 낱말(또는 발언자 이름)이 들어간 문단만 보여 줍니다. 지우면 전체가 다시 보여요.',
     '#trImportBtn': '녹음 없이 전사 파일(.txt)을 올려 전사로 씁니다. 클로바노트의 음성 기록·AI 요약 내보내기를 알아보고, 시간 기록이 있으면 시각까지, 없으면 순서만 가져와요. 가져온 뒤에는 녹음·녹음 파일 붙이기를 쓸 수 없어요.',
     '#diarBtn': '녹음을 분석해 전사를 만들고 발언자를 나눕니다(브라우저 내장 또는 PC 서비스).',
     '#mapBtn': '분석된 화자(화자 1, 2…)에 참석자 이름을 연결합니다.',
@@ -7194,7 +7327,7 @@ if (FB && user && fbSess && fbSess.sub === user.sub) prefsPull();   // 이미 �
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, draftOpt, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, draftOpt, playSegment, startSegEdit, endSegEdit, renderTranscript, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
 applyAuthorDefault(false);
 renderAll();
 selectTab(curTab);

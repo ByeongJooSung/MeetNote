@@ -147,6 +147,17 @@ async def run():
         expect('시간 정보가 없습니다' in prompt and '[00:' not in prompt.split('<전사')[1], '시간 없는 전사: 프롬프트에서 시각 제외')
         await pg.click('#tabTr'); await pg.click('#trImportClear'); await pg.click('#confirmYes'); await pg.wait_for_timeout(200)
         expect(await pg.locator('#segList .seg').count() == 0 and not await pg.is_disabled('#recBtn'), '가져온 전사 지우기 → 녹음 가능')
+        # 전사: 발언자 색 시각 · 검색 · 우클릭 수정 · 실시간 전사 문단 끊기
+        await pg.evaluate("(() => { const m = __meetnote; m.S.segments = [{ t0: 2, t1: 5, text: '첫 문단 예산 이야기', spk: '0' }, { t0: 10, t1: 30, text: '둘째 문단 챗봇 학습 이야기', spk: '1' }]; m.renderTranscript(); })()")
+        await pg.click('#tabTr'); await pg.evaluate("document.querySelector('#toast').hidden = true")
+        expect(await pg.evaluate("[...document.querySelectorAll('#segList .seg')].every(r => r.querySelector('.ts').dataset.k === r.querySelector('.spk').dataset.k && getComputedStyle(r.querySelector('.ts')).color === getComputedStyle(r.querySelector('.spk')).color)"), '전사 시각 색 = 발언자 색')
+        await pg.fill('#trSearch', '챗봇'); await pg.wait_for_timeout(150)
+        expect(await pg.locator('#segList .seg').count() == 1 and await pg.locator('#segList mark').count() == 1 and '1 / 2' in await pg.inner_text('#trSearchInfo'), '전사 검색: 낱말이 든 문단만')
+        await pg.fill('#trSearch', ''); await pg.click('#segList .seg[data-i="0"] .stext', button='right'); await pg.click('#segMenu [data-segact="edit"]')
+        await pg.keyboard.press('End'); await pg.keyboard.type(' 수정됨'); await pg.keyboard.press('Enter'); await pg.wait_for_timeout(150)
+        expect(await pg.evaluate("__meetnote.S.segments[0].text") == '첫 문단 예산 이야기 수정됨', '전사 우클릭 → 문단 수정')
+        n_par = await pg.evaluate("(() => { const m = __meetnote; m.S.segments = []; const put = (t0, t1, text) => m.pushSegment({ t0, t1, text }); put(0, 3, '회의를 시작하겠습니다.'); put(3.4, 6, '안건은 세 가지입니다.'); put(7.2, 10, '첫 번째는 예산입니다.'); put(21, 24, '다음 안건으로 가겠습니다.'); const n = m.S.segments.length; m.S.segments = []; m.renderTranscript(); return n; })()")
+        expect(n_par == 3, f'실시간 전사 문단을 짧게 끊음 ({n_par}문단)')
         # 참고 자료: 파일 → 글 변환(원본은 보관하지 않음), 프롬프트에는 참고용으로만, 출처 표시
         docx = os.path.join(tempfile.gettempdir(), '스모크 제안서.docx')
         with zipfile.ZipFile(docx, 'w') as z:
