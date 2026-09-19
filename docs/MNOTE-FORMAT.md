@@ -8,6 +8,7 @@
 ├─ manifest.json     형식 버전(1.1), 제목, 일시, 길이, 오디오 경로, timing(recording|clock)
 ├─ audio/recording.* 녹음 원본 (webm/m4a/mp3/wav 등)
 ├─ notes.json        블록(문단·제목·목록·표)별 시점 t, HTML, 편집 기록 history, removed
+├─ refs.json         (있을 때만) 참고 자료를 글로 변환한 내용 {refs:[{name, kind, pages, text, cut, addedAt}]} — 원본 파일은 들어가지 않는다
 ├─ transcript.json   전사 구간 {t0, t1, text, spk?} · 파일에서 가져온 전사면 imported {src, kind, timed, name} (timed=false면 t0·t1은 순서용 가짜 시각)
 ├─ minutes.md        AI 회의록 초안 (있을 때)
 ├─ photos/photoN.jpg 회의 사진(붙임, 최대 4장, 긴 변 1600px JPEG) — manifest.json의 photos에 이름·크기
