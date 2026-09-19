@@ -400,16 +400,64 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 .tb[data-hist]:disabled{opacity:.35;cursor:default}
 /* 내 회의록(클라우드) */
 #cloudDlg{width:min(760px,calc((100vw - 32px) / var(--ui,1)))}
-.cloud-list{max-height:min(56vh,480px);overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:8px}
-.cloud-list table{width:100%;border-collapse:collapse;font-size:13.5px}
-.cloud-list th{position:sticky;top:0;background:var(--sunk);text-align:left;font-weight:600;font-size:12.5px;color:var(--ink2);padding:6px 8px;border-bottom:1px solid var(--line)}
-.cloud-list td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
-.cloud-list tr:last-child td{border-bottom:0}
-.cloud-list td.t{font-weight:600;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cloud-list td.n{white-space:nowrap;color:var(--ink2);font-size:12.5px}
-.cloud-list td.a{white-space:nowrap;text-align:right}
-.cloud-list td.a .btn{padding:3px 9px;font-size:12.5px;margin-left:4px}
-.cloud-list tr.cur td.t::after{content:"열려 있음";margin-left:6px;font-size:11px;font-weight:500;color:var(--tape);background:var(--tape-soft);padding:1px 6px;border-radius:8px}
+.cloud-list{display:flex;flex-direction:column;gap:6px;max-height:min(50vh,440px);overflow-y:auto;overflow-x:hidden;margin-top:8px;padding:1px}
+#cloudDlg{overflow-x:hidden}
+.cl-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.cl-head h2{margin:0}.cl-head .set-row{margin:0}
+.cl-local{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 12px}
+.cl-tools{display:flex;gap:8px;margin:8px 0 0}
+.cl-tools input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--surface);color:var(--ink)}
+.cl-tools select{flex:none;max-width:45%}
+.cl-item{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface);cursor:pointer}
+.cl-item:hover,.cl-item:focus-visible{border-color:var(--tape);background:var(--tape-soft)}
+.cl-item.cur{border-color:var(--tape)}
+.cl-date{display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;background:var(--sunk);padding:4px 0;line-height:1.2}
+.cl-date b{font-size:17px}.cl-date small{font-size:11px;color:var(--ink2)}
+.cl-main{min-width:0}
+.cl-title,.cl-meta{display:block}
+.cl-title{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cl-title em{font-style:normal;margin-left:6px;font-size:11px;font-weight:500;color:var(--tape);background:var(--tape-soft);padding:1px 6px;border-radius:8px}
+.cl-meta{font-size:12.5px;color:var(--ink2);overflow-wrap:anywhere;line-height:1.45}
+.cl-act{display:flex;gap:4px;white-space:nowrap}
+.cl-act .btn{padding:3px 9px;font-size:12.5px}
+@media (max-width:560px){.cl-item{grid-template-columns:44px minmax(0,1fr)}.cl-act{grid-column:1/-1;justify-content:flex-end}}
+.cal-nav{display:flex;align-items:center;gap:6px;margin:10px 0 8px}
+.cal-nav b{min-width:96px;text-align:center;font-size:15px}
+.cal-nav .btn{padding:3px 10px}
+.cal-nav #calToday{margin-left:auto;font-size:13px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.cal-grid .dow{font-size:12px;color:var(--ink2);text-align:center;padding:2px 0}
+.cal-cell{border:1px solid transparent;border-radius:8px;background:none;min-height:42px;padding:4px 2px;font-size:13px;color:var(--ink2);display:flex;flex-direction:column;align-items:center;gap:3px}
+.cal-cell.has{background:var(--sunk);color:var(--ink);cursor:pointer;font-weight:600}
+.cal-cell.has:hover{border-color:var(--tape)}
+.cal-cell.today{border-color:var(--line)}
+.cal-cell.on{border-color:var(--tape);background:var(--tape-soft)}
+.cal-cell i{font-style:normal;font-size:10.5px;font-weight:600;color:#fff;background:var(--tape);border-radius:999px;padding:0 6px;line-height:15px}
+#cloudCal + .cloud-list{max-height:min(30vh,260px)}
+.tpl-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.tpl-row select{flex:1;min-width:0}
+.tpl-row .btn{padding:4px 10px;font-size:13px}
+#draftOptDlg textarea,#setDraft textarea{width:100%}
+#meetExtra{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface);color:var(--ink);font-size:13.5px;line-height:1.55;resize:vertical}
+#textDlg{width:min(420px,calc((100vw - 32px) / var(--ui,1)))}
+#textDlg input{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--ink)}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:40px;height:34px;padding:0;border-radius:999px}
+.icon-btn svg{display:block}
+.icon-btn .ic-pause,.icon-btn[data-playing="true"] .ic-play{display:none}
+.icon-btn[data-playing="true"] .ic-pause{display:block}
+.icon-btn[data-playing="true"]{background:var(--tape);border-color:var(--tape);color:#fff}
+.patch-notes{display:flex;flex-direction:column;gap:10px;font-size:13.5px}
+.patch-notes .pn-head{display:flex;align-items:baseline;gap:8px;font-weight:600}
+.patch-notes .pn-head small{font-weight:400;color:var(--ink2)}
+.patch-notes .pn-head .cur{font-size:11.5px;font-weight:600;color:#fff;background:var(--tape);border-radius:999px;padding:1px 8px}
+.patch-notes ul{margin:4px 0 0;padding-left:18px;color:var(--ink2);line-height:1.6}
+.md li>ul,.md li>ol{margin:2px 0}
+.md .md-tbl{overflow-x:auto;margin:8px 0;-webkit-overflow-scrolling:touch}
+.md table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.5}
+.md th,.md td{border:1px solid var(--tbl-line);padding:4px 8px;vertical-align:top;text-align:left}
+.md th{background:var(--bg-gray);font-weight:600;white-space:nowrap}
+.md blockquote{margin:6px 0;padding:2px 10px;border-left:3px solid var(--line);color:var(--ink2)}
+.md hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 .cloud-empty{padding:22px 12px;text-align:center;color:var(--ink2);font-size:13.5px}
 .set-kv{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13.5px;margin:8px 0 12px}
 .set-kv dt{color:var(--ink2)}.set-kv dd{margin:0}
@@ -418,7 +466,7 @@ dialog textarea{width:100%;border:1px solid var(--line);border-radius:8px;paddin
 #draftSecs{gap:6px 14px}
 /* 설정 창 */
 #aiDlg{width:min(600px,calc((100vw - 32px) / var(--ui,1)))}
-.set-tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:6px 0 12px}
+.set-tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);margin:6px 0 12px}
 .set-tabs button{border:0;background:none;padding:8px 12px;font-size:14px;color:var(--ink2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
 .set-tabs button[aria-selected="true"]{color:var(--tape);border-bottom-color:var(--tape);font-weight:600}
 #setLog #aiLogView{max-height:min(52vh,420px)}
@@ -673,7 +721,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
         <button class="btn" id="diarBtn" title="녹음을 분석해 발언자를 나눕니다">발언자 구분</button>
         <button class="btn" id="mapBtn" title="분석된 화자를 참석자와 연결합니다">참석자 매핑</button>
         <button class="btn primary" id="trToDoc" title="전사 내용을 바탕으로 AI가 회의록을 작성해 왼쪽 '회의 내용'에 넣습니다 (메모가 있으면 함께 반영)">전사로 회의록 작성</button>
-        <button class="btn" id="draftOptBtn2" title="AI에 보내는 지시문 조절: 분량·문체·발언자 표시·포함 항목·추가 지시">작성 옵션</button>
+        <button class="btn" id="draftOptBtn2" title="타임라인 시간 표시, 이번 회의의 추가 지시(템플릿 저장·불러오기)">작성 옵션</button>
         <select id="lang" aria-label="전사 언어">
           <option value="ko-KR">한국어</option>
           <option value="en-US">English</option>
@@ -705,9 +753,8 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
         <button id="aiEdit" class="btn" disabled>편집</button>
         <button id="aiToNotes" class="btn" disabled>복사</button>
         <button id="aiToDoc" class="btn" disabled title="초안을 회의록 본문 끝에 넣습니다">회의록에 넣기</button>
-        <button id="draftOptBtn" class="btn" title="AI에 보내는 지시문 조절: 분량·문체·발언자 표시·포함 항목·추가 지시">작성 옵션</button>
+        <button id="draftOptBtn" class="btn" title="타임라인 시간 표시, 이번 회의의 추가 지시(템플릿 저장·불러오기)">작성 옵션</button>
       </div>
-      <div class="pane-tools" style="margin-top:-4px"><label class="chk"><input type="checkbox" id="aiTimes" checked> 타임라인 시간 표시</label></div>
       <div class="ai-status"><span class="sdot" id="aiDot"></span><span id="aiStatus">확인 중…</span><button class="link" id="aiStatusLink">설정</button></div>
       <div id="aiErr" class="ai-err" hidden>
         <p><b>초안을 만들지 못했어요.</b> <span id="aiErrMsg"></span></p>
@@ -742,7 +789,10 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     </div>
   </div>
   <div class="play-group">
-    <button id="playBtn" class="btn" disabled>재생</button>
+    <button id="playBtn" class="btn icon-btn" disabled aria-label="재생" title="재생">
+      <svg class="ic-play" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.52.85l10.4-6.5a1 1 0 0 0 0-1.7L9.52 4.65A1 1 0 0 0 8 5.5z" fill="currentColor"/></svg>
+      <svg class="ic-pause" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4.5" height="14" rx="1.2" fill="currentColor"/><rect x="13.5" y="5" width="4.5" height="14" rx="1.2" fill="currentColor"/></svg>
+    </button>
     <select id="rate" aria-label="재생 속도" disabled>
       <option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option>
     </select>
@@ -808,8 +858,11 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div class="set-tabs" role="tablist">
     <button type="button" role="tab" data-set="view" aria-selected="false">화면</button>
     <button type="button" role="tab" data-set="ai" aria-selected="true">AI 엔진</button>
+    <button type="button" role="tab" data-set="draft" aria-selected="false">AI 작성</button>
+    <button type="button" role="tab" data-set="author" aria-selected="false">작성자</button>
     <button type="button" role="tab" data-set="log" aria-selected="false">로그</button>
     <button type="button" role="tab" data-set="acct" aria-selected="false">계정·클라우드</button>
+    <button type="button" role="tab" data-set="about" aria-selected="false">버전 정보</button>
   </div>
   <div id="setView" hidden>
     <div class="sect">테마</div>
@@ -842,6 +895,28 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   </div>
   <p id="aiProvHelp" class="ai-help"></p>
   </div>
+  <div id="setDraft" hidden>
+  <p><b>AI 회의록 초안</b>, <b>전사로 회의록 작성</b>, 녹음 중 <b>자동 작성</b>에 공통으로 쓰는 지시문이에요. 모든 회의에 적용되고, 로그인하면 계정에 저장돼 다른 기기에서도 이어집니다. 회의마다 다른 요청은 작성 화면의 <b>작성 옵션 → 추가 지시</b>에 적으세요.</p>
+  <div class="sect">분량</div>
+  <div class="set-row"><span class="seg" data-opt="len"><button type="button" data-v="short">짧게</button><button type="button" data-v="mid">중간</button><button type="button" data-v="long">길게</button></span></div>
+  <div class="sect">문체</div>
+  <div class="set-row"><span class="seg" data-opt="tone"><button type="button" data-v="auto">AI에 맡김</button><button type="button" data-v="gaejo">개조식 (~함)</button><button type="button" data-v="narr">서술식 (~했습니다)</button></span></div>
+  <div class="sect">발언자 표시</div>
+  <div class="set-row"><span class="seg" data-opt="spk"><button type="button" data-v="keep">포함</button><button type="button" data-v="drop">제외</button></span></div>
+  <div class="sect">표로 정리</div>
+  <div class="set-row"><span class="seg" data-opt="tables"><button type="button" data-v="true">표가 어울리면 표로 (할 일·결정 사항 등)</button><button type="button" data-v="false">표 없이 글머리표로</button></span></div>
+  <div class="sect">포함할 항목</div>
+  <div class="set-row" id="draftSecs"></div>
+  <label class="field">공통 지시 (모든 회의에 적용 · 선택)<textarea id="draftExtra" rows="4" maxlength="800" placeholder="모든 회의록에 늘 적용할 지시를 적으세요.&#10;예) 우리 팀 용어: 'PG사'는 결제대행사, 'QA'는 품질검증&#10;예) 일정은 'M월 D일' 형식으로 통일"></textarea></label>
+  <details style="margin:6px 0"><summary class="hint" style="cursor:pointer">AI에 보낼 지시문 미리 보기</summary><pre id="draftPreview" style="max-height:220px;overflow:auto;white-space:pre-wrap;font-size:12px"></pre></details>
+  <div class="row" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button class="btn" id="draftOptReset">기본값</button><span class="hint" id="draftOptState" style="flex:1"></span><button class="btn primary" id="draftOptOk">저장</button></div>
+  </div>
+  <div id="setAuthor" hidden>
+    <p>새 회의를 시작하면 회의 정보의 <b>작성자</b> 칸에 자동으로 채워져요. 회의마다 직접 고칠 수도 있습니다. 로그인하면 계정에 저장됩니다.</p>
+    <label class="field">소속<input id="setAuthorOrg" placeholder="예: 플랫폼개발팀" autocomplete="organization" maxlength="60"></label>
+    <label class="field">이름<input id="setAuthorName" placeholder="예: 홍길동 책임" autocomplete="name" maxlength="40"></label>
+    <div class="row" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="setAuthorSave">저장</button><button class="btn" id="setAuthorApply">지금 회의에도 적용</button><span class="hint" id="setAuthorState"></span></div>
+  </div>
   <div id="setLog" hidden>
     <p>AI 호출·녹음 분석·내보내기에서 생긴 일을 시간순으로 기록합니다. 문제가 생기면 <b>복사</b>해서 전달해 주세요. 이 브라우저에만 저장됩니다.</p>
     <div class="row" style="justify-content:flex-end;align-items:center;gap:6px;display:flex;margin-bottom:6px"><label class="chk" style="margin-right:auto"><input type="checkbox" id="logAll"> 전체 기록 보기 (기본: 오류·경고만)</label><button class="btn" id="aiLogCopy">복사</button><button class="btn" id="aiLogClear">지우기</button></div>
@@ -859,6 +934,13 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
       <p>로그인 설정(클라이언트 ID·로그인 필수)은 관리자 계정에만 보입니다.</p>
       <div class="row"><button class="btn" id="setAuthBtn">Google 로그인 설정 열기</button></div>
     </div>
+  </div>
+  <div id="setAbout" hidden>
+    <div class="sect">MeetNote <span id="aboutVer" class="num"></span></div>
+    <p>정식 출시 전 미리보기 버전이에요. 0.x 버전 동안에는 기능과 화면이 바뀔 수 있습니다.</p>
+    <p class="hint" id="aboutEnv"></p>
+    <div class="sect">패치 노트</div>
+    <div id="patchNotes" class="patch-notes"></div>
   </div>
   <div class="dlg-actions"><button class="btn primary" id="aiDlgClose">닫기</button></div>
 </dialog>
@@ -952,28 +1034,30 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
 </dialog>
 
 <dialog id="cloudDlg" aria-labelledby="cloudTitle">
-  <h2 id="cloudTitle">회의록 불러오기</h2>
-  <div class="row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 12px"><button class="btn primary" id="cloudLocal">내 컴퓨터에서 .mnote 파일 열기</button><span class="hint">파일을 화면에 끌어다 놓아도 열려요.</span></div>
+  <div class="cl-head"><h2 id="cloudTitle">회의록 불러오기</h2><div class="set-row"><span class="seg" id="cloudViewSeg"><button type="button" data-cview="list">목록</button><button type="button" data-cview="cal">달력</button></span></div></div>
+  <div class="cl-local"><button class="btn primary" id="cloudLocal">내 컴퓨터에서 .mnote 파일 열기</button><span class="hint">파일을 화면에 끌어다 놓아도 열려요.</span></div>
   <div class="sect" style="margin-bottom:2px">☁ 클라우드에 저장한 회의록</div>
   <p class="hint" id="cloudInfo" style="margin-top:0"></p>
+  <div class="cl-tools"><input id="cloudSearch" type="search" placeholder="제목 검색" aria-label="회의록 검색" autocomplete="off"><select id="cloudSort" aria-label="정렬"><option value="saved">최근 저장순</option><option value="when">회의 일시순</option><option value="title">제목순</option></select></div>
+  <div id="cloudCal" hidden>
+    <div class="cal-nav"><button type="button" class="btn" id="calPrev" aria-label="이전 달">‹</button><b id="calLabel" class="num"></b><button type="button" class="btn" id="calNext" aria-label="다음 달">›</button><button type="button" class="btn" id="calToday">오늘</button></div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
   <div class="cloud-list" id="cloudList"></div>
   <div class="dlg-actions"><button class="btn" id="cloudSync" title="Drive의 MeetNote 폴더를 읽어 목록을 다시 맞춥니다 (다른 기기에서 지웠거나 목록이 어긋났을 때)">Drive와 목록 맞추기</button><button class="btn" id="cloudRefresh">새로고침</button><button class="btn primary" id="cloudClose">닫기</button></div>
 </dialog>
 
 <dialog id="draftOptDlg" aria-labelledby="draftOptTitle">
-  <h2 id="draftOptTitle">AI 작성 옵션</h2>
-  <p><b>AI 회의록 초안</b>과 <b>전사로 회의록 작성</b>에 적용됩니다. AI에 보내는 지시문을 여기서 조절하세요.</p>
-  <div class="sect">분량</div>
-  <div class="set-row"><span class="seg" data-opt="len"><button type="button" data-v="short">짧게</button><button type="button" data-v="mid">중간</button><button type="button" data-v="long">길게</button></span></div>
-  <div class="sect">문체</div>
-  <div class="set-row"><span class="seg" data-opt="tone"><button type="button" data-v="auto">AI에 맡김</button><button type="button" data-v="gaejo">개조식 (~함)</button><button type="button" data-v="narr">서술식 (~했습니다)</button></span></div>
-  <div class="sect">발언자 표시</div>
-  <div class="set-row"><span class="seg" data-opt="spk"><button type="button" data-v="keep">포함</button><button type="button" data-v="drop">제외</button></span></div>
-  <div class="sect">포함할 항목</div>
-  <div class="set-row" id="draftSecs"></div>
-  <label class="field">추가 지시 (선택)<textarea id="draftExtra" rows="4" maxlength="800" placeholder="AI에게 더 시키고 싶은 것을 적으세요.&#10;예) 우리 팀 용어: 'PG사'는 결제대행사, 'QA'는 품질검증&#10;예) 결정 사항은 표로 정리&#10;예) 일정은 'M월 D일' 형식으로 통일"></textarea></label>
-  <details style="margin:6px 0"><summary class="hint" style="cursor:pointer">AI에 보낼 지시문 미리 보기</summary><pre id="draftPreview" style="max-height:220px;overflow:auto;white-space:pre-wrap;font-size:12px"></pre></details>
-  <div class="dlg-actions"><button class="btn" id="draftOptReset">기본값</button><span style="flex:1"></span><button class="btn" id="draftOptCancel">취소</button><button class="btn primary" id="draftOptOk">저장</button></div>
+  <h2 id="draftOptTitle">작성 옵션</h2>
+  <p>이번 회의록 작성에 적용됩니다. 분량·문체·포함 항목·표 정리 같은 기본 지시문은 <button type="button" class="link" id="draftToSettings" style="font-size:inherit">설정 → AI 작성</button>에서 모든 회의에 공통으로 정해요.</p>
+  <label class="chk"><input type="checkbox" id="aiTimes" checked> 타임라인 시간 표시</label>
+  <p class="hint" style="margin-top:4px">초안과 회의록에 넣는 문단 끝(표는 행의 마지막 칸)에 [mm:ss] 출처 시간을 붙입니다. 누르면 그 부분이 재생돼요. 끄면 시간이 빠지고, 비게 되는 "근거" 열도 함께 사라집니다.</p>
+  <div class="sect">추가 지시 (이번 회의에만 · 선택)</div>
+  <div class="tpl-row"><select id="draftTplSel" aria-label="추가 지시 템플릿"></select><button type="button" class="btn" id="tplRename">이름 변경</button><button type="button" class="btn" id="tplDel" style="color:var(--rec)">삭제</button></div>
+  <textarea id="meetExtra" rows="5" maxlength="800" placeholder="이번 회의록에만 더할 지시를 적으세요.&#10;예) 결정 사항을 맨 위에 요약&#10;예) 고객사 요구사항은 표로 정리&#10;예) 기술 용어는 영어 그대로"></textarea>
+  <div class="tpl-row"><button type="button" class="btn" id="tplSave">템플릿으로 저장</button><button type="button" class="btn" id="tplSaveAs">새 템플릿으로 저장</button></div>
+  <p class="hint">추가 지시는 이 회의 파일(.mnote)에 함께 저장되고, 템플릿은 이 브라우저와 계정에 저장돼 다른 회의에서도 불러올 수 있어요.</p>
+  <div class="dlg-actions"><button class="btn primary" id="draftOptCancel">닫기</button></div>
 </dialog>
 
 <dialog id="refineDlg" aria-labelledby="refineTitle">
@@ -995,6 +1079,15 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <label class="field">추가 지시 (선택)<textarea id="refExtra" rows="3" maxlength="800" placeholder="예) 영문 약어는 그대로 두기&#10;예) 금액은 천 단위 쉼표로 표기&#10;예) '검토 필요' 항목은 맨 아래로 모으기"></textarea></label>
   <p class="hint" id="refineEngine"></p>
   <div class="dlg-actions"><button class="btn" id="refineCancel">취소</button><button class="btn primary" id="refineGo">다듬기</button></div>
+</dialog>
+
+<dialog id="textDlg" aria-labelledby="textDlgTitle">
+  <h2 id="textDlgTitle">이름</h2>
+  <label class="field"><span id="textDlgLabel"></span><input id="textDlgInput" autocomplete="off" spellcheck="false"></label>
+  <div class="dlg-actions">
+    <button class="btn" id="textDlgNo">취소</button>
+    <button class="btn primary" id="textDlgYes">확인</button>
+  </div>
 </dialog>
 
 <dialog id="confirmDlg">
@@ -1041,6 +1134,34 @@ const fmt = s => {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 };
 const API_MODEL = 'claude-sonnet-5';
+/* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
+const APP_VERSION = '0.5.0';
+const PATCH_NOTES = [
+  { v: '0.5.0', date: '2026-09-19', items: [
+    'AI 초안을 회의록에 넣으면 마크다운 기호 대신 제목·목록·굵게·표 서식 그대로 들어가요.',
+    '표가 어울리는 내용(할 일·결정 사항 등)은 AI가 표로 정리하고, 회의록에 넣어도 표로 유지돼요.',
+    '기본 지시문(분량·문체·항목·표 정리)은 설정 → AI 작성으로 옮기고, 작성 화면의 작성 옵션은 시간 표시와 추가 지시만 받아요.',
+    '추가 지시를 템플릿으로 저장·수정·삭제하고, 옵션·템플릿·작성자를 계정(DB)에 동기화해요.',
+    '설정에 작성자(소속·이름)와 버전 정보를 더했어요.',
+    '회의록 불러오기 창을 카드 목록·달력 보기로 바꾸고 가로 스크롤을 없앴어요.',
+    '저장할 때 파일 이름을 먼저 묻고, 재생·일시정지 버튼을 아이콘으로 바꿨어요.'
+  ] },
+  { v: '0.4.1', date: '2026-09-19', items: ['추론(생각) 모델에서 초안이 빈 응답으로 끝나던 문제를 고쳤어요.'] },
+  { v: '0.4.0', date: '2026-09-18', items: [
+    '전사 기반 회의록 작성: 전사 탭에서 한 번에 작성해 회의 내용에 넣기.',
+    'AI 작성 옵션(분량·문체·발언자·포함 항목·추가 지시), 전사 문단 통합, 전사 환청 방지.',
+    '발언자 분석·AI 엔진 설정을 기억하고 계정에 동기화.'
+  ] },
+  { v: '0.3.0', date: '2026-09-18', items: [
+    '클라우드 저장: 파일은 내 Google Drive, 목록은 DB에. Google 로그인.',
+    '화면 설정(다크·배율), 전사·메모 함께 보기, 모바일 편집·기기 내 실시간 전사.'
+  ] },
+  { v: '0.2.0', date: '2026-09-18', items: [
+    '회의 사진 붙임, 회의록 스타일로 다듬기, 되돌리기/다시 실행, AI 작업 중 편집 잠금.',
+    'PDF·한글 내보내기 개선(A4 여백 통일, 페이지 넘김), 내장 분석 안정화.'
+  ] },
+  { v: '0.1.0', date: '2026-09-18', items: ['첫 버전: 녹음·메모 타임라인, 따라 쓰기, 전사·발언자 구분, AI 초안, 양식 내보내기, .mnote 저장, exe·Docker 배포.'] }
+];
 
 /* ---------- capabilities (Claude viewer) ---------- */
 const capP = name => (window.claude && typeof window.claude.use === 'function')
@@ -1054,6 +1175,8 @@ const fresh = () => ({
   id: uid(), title: '', createdAt: new Date().toISOString(),
   blocks: [],
   segments: [], minutes: '', docHtml: '', docBlocks: [], meta: { when: '', place: '', author: '', host: '', template: 'kcsa', actions: [], notes: '' }, attendees: [], speakers: {}, audioBlob: null, audioMime: '', audioExt: '', audioImported: false, clockOnly: false, duration: 0,
+  aiExtra: '',  // 이번 회의에만 쓰는 AI 추가 지시(작성 옵션)
+  fileName: '',  // 마지막으로 저장하거나 연 파일 이름(확장자 제외)
   cloud: null,  // 클라우드에서 열었거나 저장한 경우 { fileId }
   photos: []   // 회의 사진(붙임) [{ id, name, dataUrl(JPEG), w, h }] 최대 PHOTO_MAX장
 });
@@ -1103,6 +1226,19 @@ function askConfirm(title, msg, yes = '계속') {
     $('#confirmNo').onclick = () => done(false);
     d.oncancel = () => done(false);
     try { d.showModal(); } catch { res(true); }
+  });
+}
+function askText(title, label, value = '', opt = {}) {
+  const d = $('#textDlg'), inp = $('#textDlgInput');
+  $('#textDlgTitle').textContent = title; $('#textDlgLabel').textContent = label; inp.value = value; inp.maxLength = opt.max || 40;
+  $('#textDlgYes').textContent = opt.yes || '확인';
+  return new Promise(res => {
+    const done = v => { d.close(); $('#textDlgYes').onclick = $('#textDlgNo').onclick = inp.onkeydown = null; res(v); };
+    $('#textDlgYes').onclick = () => done(inp.value.trim() || null);
+    $('#textDlgNo').onclick = () => done(null);
+    inp.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); done(inp.value.trim() || null); } };
+    d.oncancel = () => done(null);
+    try { d.showModal(); inp.focus(); inp.select(); } catch { res(null); }
   });
 }
 
@@ -2727,7 +2863,9 @@ function syncButtons() {
   st.textContent = rec.state === 'recording' ? (rec.mode === 'clock' ? '시계 기록 중' : '녹음 중') : rec.state === 'paused' ? '일시정지됨' : (S.audioBlob ? (audio.paused ? '녹음 있음' : '재생 중') : S.clockOnly ? '녹음 파일 필요' : '녹음 전');
   const canPlay = !!S.audioBlob && rec.state === 'idle';
   $('#playBtn').disabled = !canPlay;
-  $('#playBtn').textContent = (!audio.paused && canPlay) ? '일시정지' : '재생';
+  const playing = !audio.paused && canPlay, pb = $('#playBtn');
+  pb.dataset.playing = String(playing); pb.setAttribute('aria-pressed', String(playing));
+  pb.title = playing ? '일시정지' : '재생'; pb.setAttribute('aria-label', pb.title);
   $('#rate').disabled = !canPlay;
   const rc = $('#replayChk');
   rc.disabled = !canPlay;
@@ -3197,8 +3335,11 @@ $('#tabAi').addEventListener('click', () => selectTab('ai'));
 /* ---------- AI minutes ---------- */
 const aiOut = $('#aiOut');
 function inline(s) {
-  s = esc(s);
+  s = esc(s).replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(^|[^*\w])\*(?!\s)([^*]*[^*\s])\*(?![*\w])/g, '$1<em>$2</em>');
+  s = s.replace(/~~(.+?)~~/g, '<s>$1</s>');
   s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
   s = s.replace(/\[([0-9:,\s~\-–]+)\]/g, (m, inner) => {
     if (!/\d{1,2}:\d{2}/.test(inner)) return m;
@@ -3213,7 +3354,7 @@ function inline(s) {
 const TS_RE = /\s*\[(?:\d{1,2}:)?\d{1,2}:\d{2}(?:\s*[~,\-–]\s*(?:\d{1,2}:)?\d{1,2}:\d{2})*\]/g;
 const stripTimes = s => s.replace(TS_RE, '');
 function renderMd(md) {
-  if (md && !$('#aiTimes').checked) md = stripTimes(md);
+  if (md && !draftOpt.times) md = stripTimes(md);
   if (!md) {
     aiOut.innerHTML = '<p class="empty">메모와 전사를 바탕으로 회의록 초안을 만듭니다.</p>';
     $('#aiEdit').disabled = true; $('#aiToNotes').disabled = true; $('#aiToDoc').disabled = true;
@@ -3223,19 +3364,50 @@ function renderMd(md) {
   const busy = aiOut.classList.contains('ai-busy');   // 쓰는 중에는 편집·복사·넣기 잠금
   $('#aiEdit').disabled = busy; $('#aiToNotes').disabled = busy; $('#aiToDoc').disabled = busy;
 }
+const MD_SEP = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+const mdCells = row => row.trim().replace(/^\|/, '').replace(/\|$/, '').replace(/\\\|/g, '').split('|').map(c => c.trim());
+const mdCell = c => inline(c).replace(//g, '|');
+function mdTable(rows) {
+  const hasHead = rows.length > 1 && MD_SEP.test(rows[1]);
+  const aligns = hasHead ? mdCells(rows[1]).map(c => /^:-+:$/.test(c) ? 'center' : /-:$/.test(c) ? 'right' : '') : [];
+  const head = hasHead ? mdCells(rows[0]).map(mdCell) : null;
+  const body = rows.slice(hasHead ? 2 : 0).filter(r => !MD_SEP.test(r)).map(r => mdCells(r).map(mdCell));
+  const n = Math.max(head ? head.length : 0, ...body.map(r => r.length));
+  // 시간 표시를 끄면 '근거' 같은 열이 통째로 비므로 그런 열은 뺀다
+  const blank = (c, loose) => !c || (loose && /^[-–—]$/.test(c));
+  const keep = [...Array(n).keys()].filter(i => !body.length || !body.every(r => blank(r[i], head && /^(근거|시점|시각|시간|출처)/.test((head[i] || '').replace(/<[^>]+>/g, '')))));
+  const al = i => aligns[i] ? ` style="text-align:${aligns[i]}"` : '';
+  const tr = (r, tag) => '<tr>' + keep.map(i => `<${tag}${al(i)}>${r[i] || ''}</${tag}>`).join('') + '</tr>';
+  return `<div class="md-tbl"><table>${head ? `<thead>${tr(head, 'th')}</thead>` : ''}<tbody>${body.map(r => tr(r, 'td')).join('')}</tbody></table></div>`;
+}
 function mdToHtml(md) {
-  const out = []; let list = null;
-  const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
-  for (const raw of md.split('\n')) {
-    const line = raw.replace(/\s+$/, ''); let m;
+  const lines = String(md || '').replace(/\r/g, '').split('\n');
+  const out = [], stack = [];
+  const pop = () => out.push(`</li></${stack.pop().tag}>`);
+  const close = () => { while (stack.length) pop(); };
+  const item = (indent, tag, cls, html) => {
+    while (stack.length && stack[stack.length - 1].indent > indent) pop();
+    const top = stack[stack.length - 1];
+    if (top && top.indent === indent && top.tag === tag && top.cls === cls) out.push('</li>');
+    else { if (top && top.indent === indent) pop(); out.push(`<${tag}${cls ? ` class="${cls}"` : ''}>`); stack.push({ tag, indent, cls }); }
+    out.push(`<li>${html}`);
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].replace(/\s+$/, ''); let m;
     if (!line.trim()) { close(); continue; }
-    if ((m = line.match(/^(#{1,3})\s+(.*)/))) { close(); const n = m[1].length; out.push(`<h${n}>${inline(m[2])}</h${n}>`); continue; }
-    if ((m = line.match(/^\s*[-*]\s+\[( |x|X)\]\s+(.*)/))) {
-      if (list !== 'ul') { close(); out.push('<ul class="todo">'); list = 'ul'; }
-      out.push(`<li><span class="box${m[1].trim() ? ' on' : ''}"></span>${inline(m[2])}</li>`); continue;
+    if (/^\s*(```|~~~)/.test(line)) continue; // 모델이 본문을 코드 블록으로 감싸는 경우: 울타리만 걷어낸다
+    const indent = line.match(/^\s*/)[0].replace(/\t/g, '    ').length;
+    if ((m = line.match(/^\s*(#{1,6})\s+(.*?)\s*#*$/))) { close(); const n = Math.min(3, m[1].length); out.push(`<h${n}>${inline(m[2])}</h${n}>`); continue; }
+    if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(line)) { close(); out.push('<hr>'); continue; }
+    if (/^\s*\|/.test(line) || (line.includes('|') && MD_SEP.test(lines[i + 1] || ''))) {
+      close(); const rows = [line];
+      while (i + 1 < lines.length && lines[i + 1].trim() && lines[i + 1].includes('|')) rows.push(lines[++i]);
+      out.push(mdTable(rows)); continue;
     }
-    if ((m = line.match(/^\s*[-*]\s+(.*)/))) { if (list !== 'ul') { close(); out.push('<ul>'); list = 'ul'; } out.push(`<li>${inline(m[1])}</li>`); continue; }
-    if ((m = line.match(/^\s*\d+[.)]\s+(.*)/))) { if (list !== 'ol') { close(); out.push('<ol>'); list = 'ol'; } out.push(`<li>${inline(m[1])}</li>`); continue; }
+    if ((m = line.match(/^\s*[-*+]\s+\[( |x|X)\]\s+(.*)/))) { item(indent, 'ul', 'todo', `<span class="box${m[1].trim() ? ' on' : ''}"></span>${inline(m[2])}`); continue; }
+    if ((m = line.match(/^\s*[-*+]\s+(.*)/))) { item(indent, 'ul', '', inline(m[1])); continue; }
+    if ((m = line.match(/^\s*\d+[.)]\s+(.*)/))) { item(indent, 'ol', '', inline(m[1])); continue; }
+    if ((m = line.match(/^\s*>\s?(.*)/))) { close(); out.push(`<blockquote>${inline(m[1])}</blockquote>`); continue; }
     close(); out.push(`<p>${inline(line)}</p>`);
   }
   close();
@@ -3245,21 +3417,33 @@ function mdToHtml(md) {
 /* 작성 옵션: AI 초안·'전사로 회의록 작성'에 쓰는 프롬프트를 사용자가 조절한다(분량·문체·화자·포함 항목·추가 지시). 브라우저에 기억하고 계정에도 동기화 */
 const DRAFT_KEY = 'meetnote.draftOpt';
 const DRAFT_SECTIONS = [['overview', '개요', '## 개요  (일시, 녹음 길이, 두세 문장 요약)'], ['discussion', '주요 논의', null], ['decisions', '결정 사항', '## 결정 사항'], ['todos', '할 일', '## 할 일  (- [ ] 할 일 내용 (담당, 기한) [mm:ss])'], ['followups', '추가로 확인할 점', '## 추가로 확인할 점']];
-const draftOpt = { len: 'mid', tone: 'auto', spk: 'keep', sections: { overview: true, discussion: true, decisions: true, todos: true, followups: true }, extra: '' };
+const draftOpt = { len: 'mid', tone: 'auto', spk: 'keep', tables: true, times: true, sections: { overview: true, discussion: true, decisions: true, todos: true, followups: true }, extra: '' };
 function normDraftOpt(o, into) {
   if (!o || typeof o !== 'object') return into;
   if (['short', 'mid', 'long'].includes(o.len)) into.len = o.len;
   if (['auto', 'gaejo', 'narr'].includes(o.tone)) into.tone = o.tone;
   if (['keep', 'drop'].includes(o.spk)) into.spk = o.spk;
+  for (const k of ['tables', 'times']) if (typeof o[k] === 'boolean') into[k] = o[k];
   if (o.sections && typeof o.sections === 'object') for (const [k] of DRAFT_SECTIONS) if (typeof o.sections[k] === 'boolean') into.sections[k] = o.sections[k];
   if (!Object.values(into.sections).some(Boolean)) into.sections.discussion = true;
   if (typeof o.extra === 'string') into.extra = o.extra.slice(0, 800);
   return into;
 }
 try { normDraftOpt(JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'), draftOpt); } catch {}
+const saveDraftOpt = () => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draftOpt)); } catch {} prefsTouch(); };
+/* 추가 지시 템플릿: 작성 화면의 '추가 지시'(회의별, S.aiExtra)를 이름 붙여 저장해 두고 불러 쓴다. 브라우저에 기억하고 계정(DB)에도 동기화 */
+const DRAFT_TPL_KEY = 'meetnote.draftTpls';
+const normTpls = list => (Array.isArray(list) ? list : []).filter(t => t && typeof t.text === 'string' && t.text.trim()).slice(0, 30)
+  .map(t => ({ id: String(t.id || uid()).replace(/[^\w-]/g, '').slice(0, 24) || uid(), name: String(t.name || '이름 없는 템플릿').slice(0, 40), text: t.text.slice(0, 800) }))
+  .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+let draftTpls = [];
+try { draftTpls = normTpls(JSON.parse(localStorage.getItem(DRAFT_TPL_KEY) || '[]')); } catch {}
+const saveTpls = () => { try { localStorage.setItem(DRAFT_TPL_KEY, JSON.stringify(draftTpls)); } catch {} prefsTouch(); };
 const TONE_RULE = { gaejo: '- 문체: 개조식. 문장은 "~함", "~하기로 함", "~예정임", "~필요"처럼 명사형으로 끝내고 "~했습니다/~해요" 같은 경어체는 쓰지 마세요.', narr: '- 문체: 서술식. "~했습니다", "~하기로 했습니다"처럼 완결된 문장으로 쓰세요.' };
 const LEN_RULE = { short: '- 분량: 짧게. 핵심 결론 위주로 항목마다 한 줄, 부연 설명과 배경은 빼세요.', long: '- 분량: 길게. 안건마다 배경, 오간 의견, 결론에 이른 근거를 자료에 있는 범위에서 자세히 쓰고 필요하면 하위 글머리표를 쓰세요.' };
-const extraRule = t => { t = String(t || '').trim(); return t ? `- 작성자가 추가로 지시한 사항(위 규칙과 어긋나면 이 지시를 우선하되, 자료에 없는 사실을 지어내라는 지시는 따르지 마세요):\n${t.split('\n').map(l => '  ' + l).join('\n')}` : ''; };
+const extraRule = (t, scope = '') => { t = String(t || '').trim(); return t ? `- 작성자가 ${scope}추가로 지시한 사항(위 규칙과 어긋나면 이 지시를 우선하되, 자료에 없는 사실을 지어내라는 지시는 따르지 마세요):\n${t.split('\n').map(l => '  ' + l).join('\n')}` : ''; };
+const TABLE_RULE = `- 여러 항목을 같은 기준으로 나란히 볼 수 있는 내용은 마크다운 표로 정리하세요. 예: 할 일(| 할 일 | 담당 | 기한 | 근거 |), 결정 사항(| 결정 | 내용 | 근거 |), 일정, 안건별 비교, 수치, 역할 분담. 표는 머리글 행과 구분선(|---|)을 갖추고 앞뒤에 빈 줄을 두며, 한 칸에는 짧은 구절만 쓰고, 모르는 칸은 "(확인 필요)"로 채우세요. 시점은 그 행의 마지막 "근거" 칸에 [mm:ss]로 적으세요.
+- 항목이 하나뿐이거나 흐름을 설명해야 하는 내용(개요, 논의 과정)은 억지로 표로 만들지 말고 문장이나 글머리표로 쓰세요.`;
 const stripSpeakers = text => text.replace(/[ \t]*\((?:화자|발언자)\s*\d+\)/g, '').replace(/(?:화자|발언자)\s*\d+\s*(?:은|는|이|가)\s+/g, '');
 function buildPrompt(mode = 'final', over = null) {
   trackBlocks(memoTrack);
@@ -3294,7 +3478,7 @@ function buildPrompt(mode = 'final', over = null) {
   return `당신은 회의록 작성을 돕는 비서입니다. 아래 자료로 한국어 회의록 ${live ? '본문을 작성하세요. 회의가 아직 진행 중이므로 지금까지의 내용만 정리하고, 결론이 나지 않은 항목은 "(논의 중)"으로 표시하세요.' : '초안을 마크다운으로 작성하세요.'}
 
 규칙:
-- 메모의 제목(#), 목록, 표(| 구분)는 작성자가 구조를 잡은 것이니 그 구조를 존중하세요. 표 내용은 필요하면 마크다운 목록으로 풀어 쓰세요.
+- 메모의 제목(#), 목록, 표(| 구분)는 작성자가 구조를 잡은 것이니 그 구조를 존중하세요. ${draftOpt.tables ? '메모의 표는 마크다운 표로 유지하세요.' : '표 내용은 필요하면 마크다운 목록으로 풀어 쓰세요.'}
 ${segs.length ? `- 전사(실제 발언 기록)를 기본 근거로 삼아 회의에서 오간 내용을 빠짐없이 정리하세요. 안건별로 어떤 의견이 나왔고 어떻게 결론 났는지가 드러나야 합니다. 인사·잡담·말버릇은 빼세요.
 - 전사에는 음성 인식 오류가 있습니다. 앞뒤 문맥으로 뜻이 분명하면 바른 말로 고쳐 쓰고, 고유명사·수치처럼 확신할 수 없는 것은 들린 대로 적고 "(확인 필요)"를 붙이세요.
 - 메모는 작성자가 중요하다고 직접 적은 표시입니다. 메모에 있는 항목은 반드시 회의록에 포함하고, 메모와 전사가 어긋나면 메모를 따르되 "(확인 필요)"를 붙이세요. 메모가 없으면 전사만으로 작성하세요.
@@ -3302,13 +3486,13 @@ ${segs.length ? `- 전사(실제 발언 기록)를 기본 근거로 삼아 회�
 - 자료에 없는 사실(참석자 이름, 수치, 담당자, 기한 등)은 지어내지 말고 필요한 곳에 "(확인 필요)"라고 적으세요.
 - 항목마다 근거가 된 시점을 [mm:ss] 형식으로 그 줄의 맨 끝에만 붙이세요. 문장 중간이나 제목에는 시간을 쓰지 마세요. 자료에 적힌 시점만 사용하세요.
 ${draftOpt.spk === 'drop' ? '- 발언자 표시는 쓰지 마세요: "화자 1", "OOO이 ~라고 말함" 같은 표현 없이 내용만 서술하세요. 단, 할 일의 담당자가 실제 이름으로 나오면 담당자로는 적으세요.' : '- 전사에 발언자 이름이 있으면 "주요 논의", "결정 사항", "할 일"에 누가 말했는지 반영하세요.'}
-${[TONE_RULE[draftOpt.tone], LEN_RULE[draftOpt.len], extraRule(draftOpt.extra)].filter(Boolean).join('\n')}
+${[draftOpt.tables ? TABLE_RULE : '', TONE_RULE[draftOpt.tone], LEN_RULE[draftOpt.len], extraRule(draftOpt.extra, '모든 회의에 공통으로 '), extraRule(S.aiExtra, '이번 회의록에만 ')].filter(Boolean).join('\n')}
 - 아래 구조를 따르세요${live ? '' : '(적힌 항목만, 이 순서로)'}:
 ${live ? `## 회의 안건
 ## 주요 논의  (주제별 글머리표. 전사가 있으면 누가 어떤 의견을 냈고 어떻게 정리됐는지를 쓰고, 각 줄 끝에 [mm:ss])
 ## 결정 사항
-## 할 일  (- [ ] 할 일 내용 (담당, 기한) [mm:ss])` : ['# 회의 제목', ...DRAFT_SECTIONS.filter(([k]) => draftOpt.sections[k]).map(([k, , line]) => line || `## 주요 논의  (주제별 글머리표. ${draftOpt.spk === 'drop' ? '어떤 의견이 나왔고' : '전사가 있으면 누가 어떤 의견을 냈고'} 어떻게 정리됐는지를 쓰고, 각 줄 끝에 [mm:ss])`)].join('\n')}
-- 인사말이나 설명 없이 마크다운 본문만 출력하세요.
+## 할 일  ${draftOpt.tables ? '(표: | 할 일 | 담당 | 기한 | 근거 |)' : '(- [ ] 할 일 내용 (담당, 기한) [mm:ss])'}` : ['# 회의 제목', ...DRAFT_SECTIONS.filter(([k]) => draftOpt.sections[k]).map(([k, , line]) => draftOpt.tables && k === 'todos' ? '## 할 일  (표: | 할 일 | 담당 | 기한 | 근거 |)' : draftOpt.tables && k === 'decisions' ? '## 결정 사항  (둘 이상이면 표: | 결정 | 내용 | 근거 |)' : line || `## 주요 논의  (주제별 글머리표. ${draftOpt.spk === 'drop' ? '어떤 의견이 나왔고' : '전사가 있으면 누가 어떤 의견을 냈고'} 어떻게 정리됐는지를 쓰고, 각 줄 끝에 [mm:ss])`)].join('\n')}
+- 인사말이나 설명 없이 마크다운 본문만 출력하세요. 코드 블록(\`\`\`)으로 감싸지 마세요.
 
 회의 제목: ${S.title || '(제목 없음)'}
 일시: ${metaWhenText()}
@@ -3352,7 +3536,6 @@ function setEditMode(on) {
 }
 $('#aiEditArea').addEventListener('input', e => { S.minutes = e.target.value; markDirty(); });
 $('#aiEdit').addEventListener('click', () => setEditMode($('#aiEditArea').hidden));
-$('#aiTimes').addEventListener('change', () => { if ($('#aiEditArea').hidden) renderMd(S.minutes); });
 /* ---------- insert into document (chips at paragraph end) ---------- */
 const makeChip = t => { const c = document.createElement('span'); c.className = 'tchip'; c.setAttribute('contenteditable', 'false'); c.dataset.t = t; c.textContent = fmt(t); return c; };
 function addChip(el, t) {
@@ -3395,17 +3578,41 @@ function mdToDocNodes(md, withTimes) {
   d.querySelectorAll('.box').forEach(b => b.replaceWith(b.classList.contains('on') ? '☑ ' : '☐ '));
   d.querySelectorAll('code').forEach(c => c.replaceWith(c.textContent));
   d.querySelectorAll('h1').forEach(x => renameEl(x, 'h2'));
-  d.querySelectorAll('button.ts[data-seek]').forEach(b => {
-    const t = +b.dataset.seek, host = b.closest('li,p,h1,h2,h3');
-    b.remove();
-    if (host) host.appendChild(makeChip(t));
+  d.querySelectorAll('hr').forEach(x => x.remove());
+  d.querySelectorAll('blockquote').forEach(x => renameEl(x, 'p'));
+  d.querySelectorAll('a').forEach(a => a.replaceWith(...a.childNodes));
+  d.querySelectorAll('ul.todo').forEach(x => x.removeAttribute('class'));
+  // 마크다운 표 → 편집기 표(.tbl-wrap). 머리글 행은 굵게 + 회색 배경으로 옮긴다.
+  d.querySelectorAll('.md-tbl').forEach(box => {
+    const wrap = document.createElement('div'); wrap.className = 'tbl-wrap';
+    const table = document.createElement('table'), tb = document.createElement('tbody');
+    for (const row of box.querySelectorAll('tr')) {
+      const tr = document.createElement('tr');
+      for (const c of row.cells) {
+        const td = document.createElement('td'), headCell = c.tagName === 'TH';
+        const into = headCell ? td.appendChild(document.createElement('b')) : td;
+        while (c.firstChild) into.appendChild(c.firstChild);
+        if (headCell) td.style.setProperty('background-color', 'var(--bg-gray)');
+        if (!td.textContent.trim() && !td.querySelector('button.ts')) td.innerHTML = '<br>';
+        tr.appendChild(td);
+      }
+      tb.appendChild(tr);
+    }
+    table.appendChild(tb); wrap.appendChild(table); box.replaceWith(wrap);
   });
-  d.querySelectorAll('p,li,h2,h3').forEach(x => { for (const n of [...x.childNodes]) if (n.nodeType === 3) n.textContent = n.textContent.replace(/\s*\[\s*\]\s*/g, ' '); });
+  d.querySelectorAll('button.ts[data-seek]').forEach(b => {
+    const t = +b.dataset.seek, host = b.closest('li,p,h1,h2,h3,td');
+    b.remove();
+    if (!host) return;
+    const sub = host.tagName === 'LI' ? [...host.children].find(x => x.tagName === 'UL' || x.tagName === 'OL') : null; // 하위 목록이 있으면 그 앞(자기 줄 끝)에
+    if (sub) host.insertBefore(makeChip(t), sub); else host.appendChild(makeChip(t));
+  });
+  d.querySelectorAll('p,li,h2,h3,td').forEach(x => { for (const n of [...x.childNodes]) if (n.nodeType === 3) n.textContent = n.textContent.replace(/\s*\[\s*\]\s*/g, ' '); });
   return [...d.children];
 }
 $('#aiToDoc').addEventListener('click', () => {
   if (!S.minutes) return;
-  appendToDoc(mdToDocNodes(S.minutes, $('#aiTimes').checked)); toast('AI 초안을 회의록에 넣었어요.');
+  appendToDoc(mdToDocNodes(S.minutes, draftOpt.times)); toast('AI 초안을 회의록에 넣었어요.');
 });
 
 /* ---------- AI 작업 중 잠금: 본문/AI 초안을 고칠 수 없게 하고 로딩 애니메이션을 보여 준다 ---------- */
@@ -3714,7 +3921,7 @@ async function runAutoDraft() {
     else throw Object.assign(new Error('자동 작성에 쓸 엔진이 없어요.'), { code: 'no_engine' });
     text = (text || '').trim();
     if (!text) throw new Error('모델이 빈 응답을 보냈어요.');
-    replaceAutoBlocks(mdToDocNodes(text, $('#aiTimes').checked));
+    replaceAutoBlocks(mdToDocNodes(text, draftOpt.times));
     auto.lastRun = performance.now(); auto.lastMat = autoMaterialKey();
     autoStatus('ok', `본문 갱신 ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} · 다음 갱신은 ${$('#autoEvery').value}분 뒤 (수동 편집한 문단은 유지돼요)`);
     aiLog('info', '자동 작성 완료', { ms: Math.round(performance.now() - t0), chars: text.length });
@@ -3806,7 +4013,7 @@ async function runAI(opts) {
     S.minutes = text.trim(); renderMd(S.minutes); markDirty();
     if (toDoc && S.minutes) {
       setDocBusy(false);
-      const nodes = mdToDocNodes(S.minutes, $('#aiTimes').checked), hadBody = [...docEditor.children].some(hasContent);
+      const nodes = mdToDocNodes(S.minutes, draftOpt.times), hadBody = [...docEditor.children].some(hasContent);
       if (hadBody) appendToDoc(nodes); else setDocHtml(nodes);     // 이미 쓴 내용이 있으면 지우지 않고 그 아래에 붙인다(되돌리기 Ctrl+Z 가능)
       autoStatus('ok', hadBody ? '전사로 쓴 회의록을 기존 내용 아래에 넣었어요. "회의록 스타일로 다듬기"로 분량·문체를 맞출 수 있어요.' : '전사로 회의록을 작성했어요. "회의록 스타일로 다듬기"로 분량·문체를 맞출 수 있어요.');
       toast('전사로 회의록을 작성해 회의 내용에 넣었어요.');
@@ -3877,29 +4084,84 @@ $('#aiErrLog').addEventListener('click', () => openAIDlg('log'));
 $('#aiErrRetry').addEventListener('click', runAI);
 $('#aiGo').addEventListener('click', runAI);
 $('#trToDoc').addEventListener('click', () => runAI({ toDoc: true }));
-(() => {   // 작성 옵션 창: 창 안에서는 임시 값(tmp)을 바꾸고 '저장'을 눌러야 반영된다
-  const dlg = $('#draftOptDlg'); let tmp = null;
+let renderDraftSettings = () => {};
+(() => {   // 설정 → AI 작성(모든 회의 공통 지시문): 탭 안에서는 임시 값(tmp)을 바꾸고 '저장'을 눌러야 반영된다
+  const pane = $('#setDraft'); let tmp = null;
+  const clone = o => JSON.parse(JSON.stringify(o));
   const paint = () => {
-    dlg.querySelectorAll('.seg[data-opt]').forEach(seg => seg.querySelectorAll('[data-v]').forEach(b => b.setAttribute('aria-pressed', String(tmp[seg.dataset.opt] === b.dataset.v))));
+    pane.querySelectorAll('.seg[data-opt]').forEach(seg => seg.querySelectorAll('[data-v]').forEach(b => b.setAttribute('aria-pressed', String(String(tmp[seg.dataset.opt]) === b.dataset.v))));
     $('#draftSecs').innerHTML = DRAFT_SECTIONS.map(([k, label]) => `<label class="chk"><input type="checkbox" data-sec="${k}"${tmp.sections[k] ? ' checked' : ''}> ${label}</label>`).join('');
     preview();
   };
   const preview = () => {   // 실제로 보낼 지시문(자료 부분 제외)을 그대로 보여 준다
-    const keep = JSON.parse(JSON.stringify({ ...draftOpt })); Object.assign(draftOpt, JSON.parse(JSON.stringify(tmp)));
+    const keep = clone(draftOpt); Object.assign(draftOpt, clone(tmp));
     try { const pr = buildPrompt('final', { notes: '(메모)', flow: '(전사)', hasTimeline: false }) || ''; $('#draftPreview').textContent = pr.split('\n회의 제목:')[0]; }
     catch { $('#draftPreview').textContent = ''; } finally { Object.assign(draftOpt, keep); }
   };
-  const open = () => { tmp = JSON.parse(JSON.stringify(draftOpt)); $('#draftExtra').value = tmp.extra; paint(); try { dlg.showModal(); } catch {} };
-  $('#draftOptBtn').addEventListener('click', open); $('#draftOptBtn2').addEventListener('click', open);
-  dlg.addEventListener('click', e => { const b = e.target.closest('.seg[data-opt] [data-v]'); if (b) { tmp[b.closest('.seg').dataset.opt] = b.dataset.v; paint(); } });
-  dlg.addEventListener('change', e => { const c = e.target.closest('[data-sec]'); if (!c) return; tmp.sections[c.dataset.sec] = c.checked; if (!Object.values(tmp.sections).some(Boolean)) { tmp.sections.discussion = true; toast('항목은 하나 이상 있어야 해서 "주요 논의"를 남겼어요.'); } paint(); });
-  $('#draftExtra').addEventListener('input', e => { tmp.extra = e.target.value.slice(0, 800); preview(); });
-  $('#draftOptReset').addEventListener('click', () => { tmp = { len: 'mid', tone: 'auto', spk: 'keep', sections: { overview: true, discussion: true, decisions: true, todos: true, followups: true }, extra: '' }; $('#draftExtra').value = ''; paint(); });
-  $('#draftOptCancel').addEventListener('click', () => dlg.close());
+  renderDraftSettings = () => { tmp = clone(draftOpt); $('#draftExtra').value = tmp.extra; $('#draftOptState').textContent = ''; paint(); };
+  pane.addEventListener('click', e => { const b = e.target.closest('.seg[data-opt] [data-v]'); if (!b || !tmp) return; const k = b.closest('.seg').dataset.opt; tmp[k] = k === 'tables' ? b.dataset.v === 'true' : b.dataset.v; $('#draftOptState').textContent = '저장을 눌러야 반영돼요.'; paint(); });
+  pane.addEventListener('change', e => { const c = e.target.closest('[data-sec]'); if (!c || !tmp) return; tmp.sections[c.dataset.sec] = c.checked; if (!Object.values(tmp.sections).some(Boolean)) { tmp.sections.discussion = true; toast('항목은 하나 이상 있어야 해서 "주요 논의"를 남겼어요.'); } $('#draftOptState').textContent = '저장을 눌러야 반영돼요.'; paint(); });
+  $('#draftExtra').addEventListener('input', e => { if (!tmp) return; tmp.extra = e.target.value.slice(0, 800); $('#draftOptState').textContent = '저장을 눌러야 반영돼요.'; preview(); });
+  $('#draftOptReset').addEventListener('click', () => { tmp = { len: 'mid', tone: 'auto', spk: 'keep', tables: true, times: draftOpt.times, sections: { overview: true, discussion: true, decisions: true, todos: true, followups: true }, extra: '' }; $('#draftExtra').value = ''; $('#draftOptState').textContent = '기본값으로 바꿨어요. 저장을 눌러야 반영돼요.'; paint(); });
   $('#draftOptOk').addEventListener('click', () => {
     normDraftOpt(tmp, draftOpt); draftOpt.extra = (tmp.extra || '').trim().slice(0, 800);
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draftOpt)); } catch {} prefsTouch();
-    dlg.close(); toast('작성 옵션을 저장했어요. 다음 작성부터 적용됩니다.');
+    saveDraftOpt(); $('#draftOptState').textContent = '저장했어요.';
+    toast('AI 작성 설정을 저장했어요. 다음 작성부터 모든 회의에 적용됩니다.');
+  });
+})();
+function updateDraftBtns() { const on = !!(S.aiExtra || '').trim(); for (const id of ['#draftOptBtn', '#draftOptBtn2']) { const b = $(id); b.textContent = on ? '작성 옵션 ●' : '작성 옵션'; b.title = '타임라인 시간 표시, 이번 회의의 추가 지시(템플릿 저장·불러오기)' + (on ? ' — 추가 지시가 적혀 있어요' : ''); } }
+(() => {   // 작성 옵션 창(작성 화면): 타임라인 시간 표시 + 이번 회의의 추가 지시. 바꾸는 즉시 반영되고, 추가 지시는 템플릿으로 저장·수정·삭제할 수 있다
+  const dlg = $('#draftOptDlg'); let tplId = '';
+  const cur = () => draftTpls.find(t => t.id === tplId) || null;
+  const paint = () => {
+    const sel = $('#draftTplSel'); sel.innerHTML = '';
+    sel.appendChild(new Option(draftTpls.length ? '템플릿 불러오기…' : '저장된 템플릿 없음', ''));
+    draftTpls.forEach(t => sel.appendChild(new Option(t.name, t.id)));
+    const tpl = cur(); sel.value = tpl ? tpl.id : '';
+    const text = (S.aiExtra || '').trim(), changed = !!tpl && tpl.text.trim() !== text;
+    $('#tplSave').disabled = !text || (!!tpl && !changed);
+    $('#tplSave').textContent = tpl ? (changed ? `"${tpl.name}"에 덮어쓰기` : '템플릿 저장됨') : '템플릿으로 저장';
+    $('#tplSaveAs').hidden = !tpl; $('#tplSaveAs').disabled = !text;
+    $('#tplRename').hidden = $('#tplDel').hidden = !tpl;
+    updateDraftBtns();
+  };
+  const open = () => {
+    $('#aiTimes').checked = draftOpt.times; $('#meetExtra').value = S.aiExtra || '';
+    const text = (S.aiExtra || '').trim(); if (!cur() || cur().text.trim() !== text) tplId = (draftTpls.find(t => t.text.trim() === text) || {}).id || (cur() && text ? tplId : '');
+    paint(); try { dlg.showModal(); } catch {}
+  };
+  $('#draftOptBtn').addEventListener('click', open); $('#draftOptBtn2').addEventListener('click', open);
+  $('#draftOptCancel').addEventListener('click', () => dlg.close());
+  $('#draftToSettings').addEventListener('click', () => { dlg.close(); openAIDlg('draft'); });
+  $('#aiTimes').addEventListener('change', e => { draftOpt.times = e.target.checked; saveDraftOpt(); if ($('#aiEditArea').hidden) renderMd(S.minutes); });
+  $('#meetExtra').addEventListener('input', e => { S.aiExtra = e.target.value.slice(0, 800); markDirty(); paint(); });
+  $('#draftTplSel').addEventListener('change', async e => {
+    const tpl = draftTpls.find(t => t.id === e.target.value), text = (S.aiExtra || '').trim();
+    if (tpl && text && text !== tpl.text.trim() && !draftTpls.some(t => t.text.trim() === text)
+      && !(await askConfirm('추가 지시를 바꿀까요?', `지금 적어 둔 추가 지시가 "${tpl.name}" 템플릿 내용으로 바뀝니다.`, '불러오기'))) { paint(); return; }
+    tplId = tpl ? tpl.id : '';
+    if (tpl) { S.aiExtra = tpl.text; $('#meetExtra').value = tpl.text; markDirty(); }
+    paint();
+  });
+  const put = tpl => { draftTpls = normTpls([...draftTpls.filter(t => t.id !== tpl.id), tpl]); tplId = tpl.id; saveTpls(); paint(); };
+  const askName = async (title, value, selfId) => {
+    const name = await askText(title, '템플릿 이름', value, { max: 40 }); if (!name) return null;
+    if (draftTpls.some(t => t.name === name && t.id !== selfId) && !(await askConfirm('같은 이름이 있어요', `"${name}" 템플릿이 이미 있어요. 그래도 이 이름을 쓸까요?`, '이 이름 쓰기'))) return null;
+    return name;
+  };
+  const saveAs = async () => {
+    const text = (S.aiExtra || '').trim(); if (!text) return;
+    if (draftTpls.length >= 30) { toast('템플릿은 30개까지 저장할 수 있어요. 안 쓰는 템플릿을 지워 주세요.', 6000); return; }
+    const name = await askName('추가 지시를 템플릿으로 저장', '', ''); if (!name) return;
+    put({ id: uid(), name, text }); toast(`"${name}" 템플릿을 저장했어요.`);
+  };
+  $('#tplSave').addEventListener('click', () => { const tpl = cur(), text = (S.aiExtra || '').trim(); if (!text) return; if (!tpl) return saveAs(); put({ ...tpl, text }); toast(`"${tpl.name}" 템플릿을 고쳤어요.`); });
+  $('#tplSaveAs').addEventListener('click', saveAs);
+  $('#tplRename').addEventListener('click', async () => { const tpl = cur(); if (!tpl) return; const name = await askName('템플릿 이름 변경', tpl.name, tpl.id); if (!name || name === tpl.name) return; put({ ...tpl, name }); toast('템플릿 이름을 바꿨어요.'); });
+  $('#tplDel').addEventListener('click', async () => {
+    const tpl = cur(); if (!tpl) return;
+    if (!(await askConfirm('템플릿을 삭제할까요?', `"${tpl.name}" 템플릿을 지웁니다. 지금 입력칸에 적힌 추가 지시는 그대로 남아요.`, '삭제'))) return;
+    draftTpls = draftTpls.filter(t => t.id !== tpl.id); tplId = ''; saveTpls(); paint(); toast('템플릿을 삭제했어요.');
   });
 })();
 $('#aiStop').addEventListener('click', () => aiCtl?.abort());
@@ -4048,14 +4310,39 @@ function renderAIStatus() {
 }
 function showSetTab(tab) {
   document.querySelectorAll('.set-tabs [data-set]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.set === tab)));
-  $('#setView').hidden = tab !== 'view'; $('#setAi').hidden = tab !== 'ai'; $('#setLog').hidden = tab !== 'log'; $('#setAcct').hidden = tab !== 'acct';
+  $('#setView').hidden = tab !== 'view'; $('#setAi').hidden = tab !== 'ai'; $('#setDraft').hidden = tab !== 'draft'; $('#setAuthor').hidden = tab !== 'author'; $('#setAbout').hidden = tab !== 'about'; $('#setLog').hidden = tab !== 'log'; $('#setAcct').hidden = tab !== 'acct';
   if (tab === 'view') renderViewSettings();
+  if (tab === 'draft') renderDraftSettings();
+  if (tab === 'author') renderAuthorBox();
+  if (tab === 'about') renderAbout();
   if (tab === 'acct') renderCloudState();
   if (tab === 'log') { renderAILog(); const v = $('#aiLogView'); v.scrollTop = v.scrollHeight; }
 }
 function openAIDlg(tab) { renderAIDlg(); showSetTab(typeof tab === 'string' ? tab : 'ai'); try { if (!$('#aiDlg').open) $('#aiDlg').showModal(); } catch {} renderAILog(); }
 document.querySelector('.set-tabs').addEventListener('click', e => { const b = e.target.closest('[data-set]'); if (b) showSetTab(b.dataset.set); });
 $('#settingsBtn').addEventListener('click', () => openAIDlg('view'));
+/* 설정 → 작성자(소속·이름): 새 회의의 작성자 칸 기본값. 브라우저에 기억하고 계정(DB)에도 동기화 */
+const AUTHOR_KEY = 'meetnote.author';
+const authorPref = { org: '', name: '' };
+const normAuthor = o => { if (o && typeof o === 'object') { authorPref.org = String(o.org || '').slice(0, 60); authorPref.name = String(o.name || '').slice(0, 40); } };
+try { normAuthor(JSON.parse(localStorage.getItem(AUTHOR_KEY) || 'null')); } catch {}
+const authorText = () => [authorPref.org, authorPref.name].filter(Boolean).join(' / ');
+function applyAuthorDefault(force) { const t = authorText(); if (!t || (S.meta.author && !force)) return; S.meta.author = t; $('#mAuthor').value = t; }
+function renderAuthorBox() { $('#setAuthorOrg').value = authorPref.org; $('#setAuthorName').value = authorPref.name; $('#setAuthorState').textContent = ''; }
+function saveAuthor() {
+  normAuthor({ org: $('#setAuthorOrg').value.trim(), name: $('#setAuthorName').value.trim() });
+  try { localStorage.setItem(AUTHOR_KEY, JSON.stringify(authorPref)); } catch {} prefsTouch();
+  $('#setAuthorState').textContent = '저장했어요.'; applyAuthorDefault(false);
+}
+$('#setAuthorSave').addEventListener('click', saveAuthor);
+$('#setAuthorApply').addEventListener('click', () => { saveAuthor(); if (!authorText()) { toast('소속이나 이름을 먼저 입력해 주세요.'); return; } applyAuthorDefault(true); markDirty(); toast('지금 회의의 작성자를 바꿨어요.'); });
+/* 설정 → 버전 정보 · 패치 노트 */
+function renderAbout() {
+  $('#aboutVer').textContent = 'v' + APP_VERSION;
+  const where = native() ? '안드로이드 앱' : inClaudeSandbox() ? 'Claude 화면 안' : diar.embedded ? 'PC 서비스(내장 서버)' : /^https?:$/.test(location.protocol) ? '웹' : '로컬 파일';
+  $('#aboutEnv').textContent = `실행 환경: ${where}`;
+  $('#patchNotes').innerHTML = PATCH_NOTES.map((n, i) => `<div><div class="pn-head">v${esc(n.v)} <small>${esc(n.date)}</small>${i === 0 ? '<span class="cur">현재</span>' : ''}</div><ul>${n.items.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`).join('');
+}
 /* 화면 설정: 테마(시스템/라이트/다크), 배율(80~130%) */
 const THEME_KEY = 'meetnote.theme', UI_KEY = 'meetnote.ui';
 const curTheme = () => { try { const t = localStorage.getItem(THEME_KEY); return t === 'light' || t === 'dark' ? t : 'system'; } catch { return 'system'; } };
@@ -4691,8 +4978,12 @@ function renderAppendices(B, opts) {
   }
   if (opts.minutes && S.minutes) {
     hwpxPlainLine(B, '부록 2. AI 회의록 초안', F.head, { before: 500, after: 100 });
-    const d = document.createElement('div'); d.innerHTML = mdToHtml(HW.chips ? S.minutes : stripTimes(S.minutes));
-    for (const el of d.children) hwpxBlock(B, el);
+    for (const el of mdToDocNodes(S.minutes, HW.chips)) {
+      // 화면에 없는 표라 너비를 잴 수 없으므로 본문 폭을 열 수로 고르게 나눈다
+      const tb = el.querySelector('table');
+      if (tb) { const cg = ensureColgroup(tb), w = Math.floor(HW.textW / HW.px / cg.children.length); for (const col of cg.children) col.style.width = w + 'px'; }
+      hwpxBlock(B, el);
+    }
   }
   if (opts.transcript && S.segments.length) {
     hwpxPlainLine(B, '부록 3. 전사', F.head, { before: 500, after: 100 });
@@ -5407,7 +5698,7 @@ async function buildZip() {
   zip.file('mimetype', 'application/x-mnote+zip', { compression: 'STORE' });
   const audioPath = S.audioBlob ? 'audio/recording.' + (S.audioExt || mimeExt(S.audioMime)) : null;
   const manifest = {
-    format: 'mnote', version: '1.2', notes: 'html-blocks', generator: 'MeetNote web',
+    format: 'mnote', version: '1.2', notes: 'html-blocks', generator: 'MeetNote web ' + APP_VERSION,
     id: S.id, title: S.title || '제목 없는 회의',
     createdAt: S.createdAt, savedAt: new Date().toISOString(),
     timeUnit: 'seconds', duration: S.duration,
@@ -5435,21 +5726,26 @@ async function buildZip() {
       return { id: b.id, t: b.t, removed: !!b.dead, html: el ? serialize(el) : '', history: b.hist };
     })
   }));
-  zip.file('meeting.json', JSON.stringify({ meta: S.meta, attendees: S.attendees, speakers: S.speakers }));
+  zip.file('meeting.json', JSON.stringify({ meta: S.meta, attendees: S.attendees, speakers: S.speakers, ai: { extra: S.aiExtra || '' } }));
   S.photos.forEach((ph, i) => zip.file(`photos/photo${i + 1}.jpg`, ph.dataUrl.split(',')[1], { base64: true, compression: 'STORE' }));
   zip.file('notes.md', readable());
   return zip.generateAsync({ type: 'blob', mimeType: 'application/x-mnote+zip', compression: 'DEFLATE' });
 }
 
+const defaultFileName = () => S.fileName || `${safeName(S.title || '회의록')}_${stamp(S.createdAt)}`;
+async function askFileName(title) {   // 저장 직전에 파일 이름을 한 번 묻는다(취소하면 null)
+  const name = await askText(title, '파일 이름 (.mnote)', defaultFileName(), { max: 80, yes: '저장' });
+  return name ? safeName(name.replace(/\.mnote$/i, '')) : null;
+}
 async function save() {
   if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 저장해 주세요.'); return; }
   if (!window.JSZip) { toast('파일 모듈을 불러오지 못했어요. 네트워크 연결을 확인하고 새로고침해 주세요.', 6000); return; }
+  const base = await askFileName('회의록 저장'); if (!base) return;
   const btn = $('#saveBtn'); btn.disabled = true;
   try {
     const blob = await buildZip();
-    const base = `${safeName(S.title || '회의록')}_${stamp(S.createdAt)}`;
     await saveBlob(blob, base, 'mnote');
-    markClean();
+    S.fileName = base; markClean();
   } catch (e) {
     const code = e && e.code;
     toast(code === 'declined' ? '저장을 취소했어요.'
@@ -5516,7 +5812,7 @@ async function openFile(file) {
       });
     }
     const mj = zip.file('meeting.json');
-    if (mj) { try { const m = JSON.parse(await mj.async('string')); Object.assign(next.meta, m.meta || {}); next.attendees = Array.isArray(m.attendees) ? m.attendees.map(a => ({ org: String(a.org || ''), name: String(a.name || ''), title: String(a.title || '') })) : []; next.speakers = {}; if (m.speakers && typeof m.speakers === 'object') for (const [k, v] of Object.entries(m.speakers).slice(0, 200)) next.speakers[String(k).slice(0, 40)] = String(v ?? '').slice(0, 80); } catch {} }
+    if (mj) { try { const m = JSON.parse(await mj.async('string')); Object.assign(next.meta, m.meta || {}); next.aiExtra = String(m.ai && m.ai.extra || '').slice(0, 800); next.attendees = Array.isArray(m.attendees) ? m.attendees.map(a => ({ org: String(a.org || ''), name: String(a.name || ''), title: String(a.title || '') })) : []; next.speakers = {}; if (m.speakers && typeof m.speakers === 'object') for (const [k, v] of Object.entries(m.speakers).slice(0, 200)) next.speakers[String(k).slice(0, 40)] = String(v ?? '').slice(0, 80); } catch {} }
     const mdf = zip.file('minutes.md');
     if (mdf) next.minutes = await mdf.async('string');
     for (const ph of (Array.isArray(man.photos) ? man.photos : []).slice(0, PHOTO_MAX)) {
@@ -5551,6 +5847,7 @@ async function newMeeting() {
   replayOn = false; $('#replayChk').checked = false;
   docReplayOn = false; $('#docReplayChk').checked = false;
   S = fresh(); recMap = new Map(); docRec = new Map();
+  applyAuthorDefault(false);
   renderAll(); markClean();
   setActive(docEditor); placeCaretIn(docEditor.firstElementChild, false);
 }
@@ -5588,7 +5885,7 @@ function renderAll() {
   document.title = (S.title ? S.title + ' · ' : '') + 'MeetNote';
   $('#metaDate').textContent = new Date(S.createdAt).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' });
   $('#aiGo').textContent = S.minutes ? '다시 작성' : '초안 작성';
-  renderMeta();
+  renderMeta(); updateDraftBtns();
   setEditMode(false);
   renderEditor(); renderTranscript(); renderMd(S.minutes); renderTimeline(); syncButtons(); tick(); scheduleGutter();
   renderPhotoList();
@@ -5758,6 +6055,7 @@ function onGoogleCredential(resp) {
     if (FB) fbAuth().then(() => prefsPull()).catch(e => aiLog('warn', '목록 DB 로그인 실패', errInfo(e)));   // 로그인 직후 refresh 토큰을 받아 두고, 계정에 저장된 설정을 불러온다
     if (again) { try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch {} renderUser(); return; }
     try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch {}
+    applyAuthorDefault(false);
     if (!S.meta.author && user.name) { S.meta.author = user.name; $('#mAuthor').value = user.name; }
     renderUser(); toast(`${user.name || user.email}님, 환영합니다.`);
     aiLog('info', 'Google 로그인', { email: (user.email || '').replace(/^(..).*(@.*)$/, '$1***$2') });
@@ -5874,10 +6172,10 @@ async function dbUpsert(m) {
   const a = await fbAuth(); const fields = {}; for (const [k, v] of Object.entries(m)) if (k !== 'id') fields[k] = fsVal(v);
   await jfetch(`${fsBase(a)}/${encodeURIComponent(safeId(m.id))}`, { method: 'PATCH', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ fields }) });
 }
-/* 내 설정 동기화: 발언자 분석(방식·PC 서비스 주소·발언자 수), AI 엔진(종류·주소·모델), 다듬기 옵션을 계정에 저장해 다른 기기·브라우저에서도 이어 쓴다.
+/* 내 설정 동기화: 발언자 분석(방식·PC 서비스 주소·발언자 수), AI 엔진(종류·주소·모델), 다듬기 옵션, AI 작성 설정(시간 표시·표 정리 포함)·추가 지시 템플릿·작성자를 계정에 저장해 다른 기기·브라우저에서도 이어 쓴다.
    보안 토큰·API 키는 넣지 않는다. 규칙에 settings 경로가 없으면(403) 이 브라우저에만 기억한다 */
 const prefsDoc = a => `${EP.fs}/projects/${encodeURIComponent(FB.projectId)}/databases/(default)/documents/users/${encodeURIComponent(a.uid)}/settings/prefs`;
-const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0 }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, sections: draftOpt.sections, extra: draftOpt.extra } });
+const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0 }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, tables: draftOpt.tables, times: draftOpt.times, sections: draftOpt.sections, extra: draftOpt.extra }, tpls: draftTpls, author: { org: authorPref.org, name: authorPref.name } });
 const prefs403 = e => { if (e && e.status === 403) { prefsOff = true; aiLog('warn', '설정 동기화 꺼짐: 목록 DB 규칙에 settings 경로가 없어요(이 브라우저에만 기억)'); renderCloudState(); return true; } return false; };
 async function prefsPush() {
   if (!FB || !user || prefsOff) return;
@@ -5906,7 +6204,9 @@ async function prefsPull() {
         ai.provider = o.ai.provider; ai.base = o.ai.base.replace(/\/+$/, ''); ai.model = String(o.ai.model || '').slice(0, 120); ai.models = ai.model ? [ai.model] : []; saveAI(); renderAIStatus();
       }
       if (o.refine) { normRefine(o.refine); try { localStorage.setItem(REFINE_KEY, JSON.stringify({ len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra })); } catch {} }
-      if (o.draft) { normDraftOpt(o.draft, draftOpt); try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draftOpt)); } catch {} }
+      if (o.draft) { normDraftOpt(o.draft, draftOpt); try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draftOpt)); } catch {} if ($('#aiEditArea').hidden) renderMd(S.minutes); }
+      if (Array.isArray(o.tpls)) { draftTpls = normTpls(o.tpls); try { localStorage.setItem(DRAFT_TPL_KEY, JSON.stringify(draftTpls)); } catch {} }
+      if (o.author) { normAuthor(o.author); try { localStorage.setItem(AUTHOR_KEY, JSON.stringify(authorPref)); } catch {} applyAuthorDefault(false); }
       try { localStorage.setItem(PREFS_AT, String(f.updatedAt)); } catch {}
       aiLog('info', '계정에 저장된 설정을 불러옴');
     } finally { prefsApplying = false; }
@@ -5997,6 +6297,7 @@ async function cloudSave() {
   cloudBusy = true; const ctl = new AbortController(), t0 = performance.now();
   try {
     await driveAuth();                                   // 팝업이 막히지 않게 가장 먼저
+    const base = await askFileName('클라우드에 저장'); if (!base) return;
     progAbort = () => ctl.abort(); progOpen('클라우드에 저장하는 중', { local: true });
     progSet(3, '회의록 파일을 만드는 중');
     const blob = await buildZip(); if (ctl.signal.aborted) throw Object.assign(new Error('취소됨'), { name: 'AbortError' });
@@ -6006,10 +6307,10 @@ async function cloudSave() {
     // 같은 회의를 다시 저장하면 같은 파일을 덮어쓴다: 이번에 연 파일 → 목록 DB의 기록 → Drive의 appProperties 순으로 찾는다
     let fileId = S.cloud && S.cloud.fileId || null;
     if (!fileId) { const d = await dfetch(`/files?q=${encodeURIComponent(`'${folder}' in parents and trashed=false and appProperties has { key='meetnoteId' and value='${meta.id}' }`)}&fields=${encodeURIComponent('files(id)')}&pageSize=1`); fileId = d && d.files && d.files[0] ? d.files[0].id : null; }
-    const name = `${safeName(S.title || '회의록')}_${stamp(S.createdAt)}.mnote`;
+    const name = base + '.mnote';
     const up = id => driveUpload(blob, name, meta, id, folder, f => progSet(10 + f * 82, `Google Drive에 올리는 중 ${Math.round(f * 100)}% (${(blob.size / 1048576).toFixed(1)}MB)`), ctl.signal);
     try { fileId = await up(fileId); } catch (e) { if (fileId && e.status === 404) fileId = await up(null); else throw e; }   // 지워진 파일이면 새로 만든다
-    S.cloud = { fileId };
+    S.cloud = { fileId }; S.fileName = base;
     let dbNote = '';
     if (FB) { progSet(95, '목록에 기록하는 중'); try { await dbUpsert({ ...meta, fileId, name }); } catch (e) { aiLog('warn', '목록 DB 기록 실패(Drive에는 저장됨)', errInfo(e)); dbNote = ' 목록에는 기록하지 못했어요. "회의록 불러오기"의 "Drive와 목록 맞추기"로 맞출 수 있어요.'; } }
     markClean();
@@ -6025,13 +6326,53 @@ async function cloudLoadList() {
   if (FB) { try { return { rows: await dbList(), src: 'db' }; } catch (e) { aiLog('warn', '목록 DB 읽기 실패 → Drive 목록 사용', errInfo(e)); } }
   return { rows: await driveList(), src: 'drive' };
 }
+/* 불러오기 창: 카드 목록(검색·정렬) 또는 달력(날짜를 누르면 그날의 회의). 가로 스크롤이 생기지 않게 제목은 말줄임, 나머지는 줄바꿈 */
+const CLOUD_VIEW_KEY = 'meetnote.cloudView';
+const cloudUi = { view: 'list', ym: null, day: '', src: 'db' };
+try { if (localStorage.getItem(CLOUD_VIEW_KEY) === 'cal') cloudUi.view = 'cal'; } catch {}
+const dayKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const cloudWhen = m => { for (const v of [m.when, m.updatedAt]) { const d = v ? new Date(v) : null; if (d && !isNaN(d)) return d; } return new Date(0); };
+function cloudItemHtml(m) {
+  const d = cloudWhen(m), dt = v => { const t = v ? new Date(v) : null; return t && !isNaN(t) ? t.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : ''; };
+  const meta = [dt(m.when), m.duration ? '녹음 ' + fmt(m.duration) : '', m.bytes ? (m.bytes / 1048576).toFixed(1) + 'MB' : '', dt(m.updatedAt) ? '저장 ' + dt(m.updatedAt) : ''].filter(Boolean);
+  const i = cloudRows.indexOf(m), cur = m.id === safeId(S.id);
+  return `<div class="cl-item${cur ? ' cur' : ''}" role="button" tabindex="0" data-copen="${i}" title="눌러서 열기">
+    <span class="cl-date num"><b>${d.getTime() ? d.getDate() : '-'}</b><small>${d.getTime() ? `${d.getFullYear() % 100}.${String(d.getMonth() + 1).padStart(2, '0')}` : ''}</small></span>
+    <span class="cl-main"><span class="cl-title">${esc(m.title || '제목 없는 회의')}${cur ? '<em>열려 있음</em>' : ''}</span><span class="cl-meta">${meta.map(esc).join(' · ')}</span></span>
+    <span class="cl-act"><button type="button" class="btn" data-copen="${i}">열기</button><button type="button" class="btn" data-cdel="${i}" style="color:var(--rec)">삭제</button></span></div>`;
+}
 function renderCloudList(src) {
-  const el = $('#cloudList');
-  $('#cloudInfo').textContent = `파일: 내 Google Drive의 ${DRIVE_FOLDER} 폴더 · 목록: ${src === 'db' ? '동기화됨' : 'Google Drive'}${cloudRows.length ? ` · ${cloudRows.length}건` : ''}`;
+  if (src) cloudUi.src = src;
+  const el = $('#cloudList'), cal = cloudUi.view === 'cal';
+  document.querySelectorAll('#cloudViewSeg [data-cview]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cview === cloudUi.view)));
+  $('#cloudCal').hidden = !cal || !cloudRows.length; $('#cloudSort').hidden = cal;
+  $('#cloudInfo').textContent = `파일: 내 Google Drive의 ${DRIVE_FOLDER} 폴더 · 목록: ${cloudUi.src === 'db' ? '동기화됨' : 'Google Drive'}${cloudRows.length ? ` · ${cloudRows.length}건` : ''}`;
   if (!cloudRows.length) { el.innerHTML = '<div class="cloud-empty">아직 클라우드에 저장한 회의록이 없어요. 위쪽 <b>☁ 클라우드 저장</b>을 눌러 저장하세요.</div>'; return; }
-  const d = v => { const t = v ? new Date(v) : null; return t && !isNaN(t) ? t.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '-'; };
-  el.innerHTML = '<table><thead><tr><th>제목</th><th>회의 일시</th><th>길이</th><th>크기</th><th>저장</th><th></th></tr></thead><tbody>' + cloudRows.map((m, i) =>
-    `<tr class="${m.id === safeId(S.id) ? 'cur' : ''}"><td class="t" title="${esc(m.title || '')}">${esc(m.title || '제목 없는 회의')}</td><td class="n">${esc(d(m.when))}</td><td class="n">${m.duration ? fmt(m.duration) : '-'}</td><td class="n">${m.bytes ? (m.bytes / 1048576).toFixed(1) + 'MB' : '-'}</td><td class="n">${esc(d(m.updatedAt))}</td><td class="a"><button class="btn" data-copen="${i}">열기</button><button class="btn" data-cdel="${i}" style="color:var(--rec)">삭제</button></td></tr>`).join('') + '</tbody></table>';
+  const q = $('#cloudSearch').value.trim().toLowerCase();
+  const rows = cloudRows.filter(m => !q || String(m.title || '').toLowerCase().includes(q) || String(m.name || '').toLowerCase().includes(q));
+  if (!cal) {
+    const by = $('#cloudSort').value;
+    rows.sort((a, b) => by === 'title' ? String(a.title || '').localeCompare(String(b.title || ''), 'ko') : by === 'when' ? cloudWhen(b) - cloudWhen(a) : String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+    el.innerHTML = rows.map(cloudItemHtml).join('') || '<div class="cloud-empty">검색 결과가 없어요.</div>';
+    return;
+  }
+  if (!cloudUi.ym) { const latest = rows.map(cloudWhen).sort((a, b) => b - a)[0] || new Date(); cloudUi.ym = new Date(latest.getFullYear(), latest.getMonth(), 1); cloudUi.day = dayKey(latest); }
+  const ym = cloudUi.ym, first = new Date(ym.getFullYear(), ym.getMonth(), 1), days = new Date(ym.getFullYear(), ym.getMonth() + 1, 0).getDate();
+  const byDay = new Map(); rows.forEach(m => { const k = dayKey(cloudWhen(m)); byDay.set(k, [...(byDay.get(k) || []), m]); });
+  $('#calLabel').textContent = `${ym.getFullYear()}년 ${ym.getMonth() + 1}월`;
+  const today = dayKey(new Date()); let h = ['일', '월', '화', '수', '목', '금', '토'].map(w => `<span class="dow">${w}</span>`).join('') + '<span></span>'.repeat(first.getDay());
+  for (let d = 1; d <= days; d++) {
+    const k = dayKey(new Date(ym.getFullYear(), ym.getMonth(), d)), n = (byDay.get(k) || []).length;
+    h += `<button type="button" class="cal-cell num${n ? ' has' : ''}${k === today ? ' today' : ''}${k === cloudUi.day ? ' on' : ''}" data-day="${k}"${n ? '' : ' disabled'} aria-label="${d}일${n ? `, 회의 ${n}건` : ''}">${d}${n ? `<i>${n}</i>` : ''}</button>`;
+  }
+  $('#calGrid').innerHTML = h;
+  const dayRows = (byDay.get(cloudUi.day) || []).sort((a, b) => cloudWhen(a) - cloudWhen(b));
+  el.innerHTML = dayRows.map(cloudItemHtml).join('') || `<div class="cloud-empty">${[...byDay.keys()].some(k => k.startsWith(dayKey(first).slice(0, 7))) ? '숫자가 표시된 날짜를 누르면 그날의 회의가 나와요.' : '이 달에는 저장한 회의가 없어요. ‹ › 로 다른 달을 보세요.'}</div>`;
+}
+function cloudGoMonth(d) {
+  cloudUi.ym = new Date(d.getFullYear(), d.getMonth(), 1);
+  const inMonth = cloudRows.map(cloudWhen).filter(x => x.getFullYear() === d.getFullYear() && x.getMonth() === d.getMonth()).sort((a, b) => b - a);
+  cloudUi.day = inMonth.length ? dayKey(inMonth[0]) : ''; renderCloudList();
 }
 async function cloudOpenList({ connect = false } = {}) {
   try { if (!$('#cloudDlg').open) $('#cloudDlg').showModal(); } catch {}
@@ -6044,7 +6385,7 @@ async function cloudOpenList({ connect = false } = {}) {
     if (FB) { try { got = { rows: await dbList(), src: 'db' }; } catch (e) { aiLog('warn', '목록 DB 읽기 실패 → Drive 목록 사용', errInfo(e)); } }
     if (!got && hasDrive) got = { rows: await driveList(), src: 'drive' };
     if (!got) { $('#cloudInfo').textContent = '클라우드 목록을 보려면 Google Drive에 연결하세요.'; el.innerHTML = '<div class="cloud-empty"><button class="btn primary" id="cloudConnect">Google Drive 연결하고 목록 보기</button></div>'; return; }
-    cloudRows = got.rows; renderCloudList(got.src);
+    cloudRows = got.rows; cloudUi.ym = null; renderCloudList(got.src);
   } catch (e) { aiLog('error', '회의록 목록 실패', errInfo(e)); el.innerHTML = `<div class="cloud-empty">목록을 불러오지 못했어요: ${esc(cloudExplain(e))}<br><button class="btn" id="cloudConnect" style="margin-top:8px">다시 시도</button></div>`; }
 }
 async function cloudOpenItem(m) {
@@ -6143,8 +6484,16 @@ $('#cloudLocal').addEventListener('click', () => { $('#cloudDlg').close(); $('#f
 $('#cloudList').addEventListener('click', e => {
   if (e.target.closest('#cloudConnect')) { cloudOpenList({ connect: true }); return; }
   const o = e.target.closest('[data-copen]'), d = e.target.closest('[data-cdel]');
-  if (o) cloudOpenItem(cloudRows[+o.dataset.copen]); else if (d) cloudDeleteItem(cloudRows[+d.dataset.cdel]);
+  if (d) cloudDeleteItem(cloudRows[+d.dataset.cdel]); else if (o) cloudOpenItem(cloudRows[+o.dataset.copen]);
 });
+$('#cloudList').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.cl-item')) { e.preventDefault(); cloudOpenItem(cloudRows[+e.target.dataset.copen]); } });
+$('#cloudViewSeg').addEventListener('click', e => { const b = e.target.closest('[data-cview]'); if (!b) return; cloudUi.view = b.dataset.cview; try { localStorage.setItem(CLOUD_VIEW_KEY, cloudUi.view); } catch {} renderCloudList(); });
+$('#calGrid').addEventListener('click', e => { const b = e.target.closest('[data-day]'); if (b) { cloudUi.day = b.dataset.day; renderCloudList(); } });
+$('#calPrev').addEventListener('click', () => cloudGoMonth(new Date(cloudUi.ym.getFullYear(), cloudUi.ym.getMonth() - 1, 1)));
+$('#calNext').addEventListener('click', () => cloudGoMonth(new Date(cloudUi.ym.getFullYear(), cloudUi.ym.getMonth() + 1, 1)));
+$('#calToday').addEventListener('click', () => cloudGoMonth(new Date()));
+$('#cloudSearch').addEventListener('input', () => renderCloudList());
+$('#cloudSort').addEventListener('change', () => renderCloudList());
 $('#leaveBtn').addEventListener('click', leaveService);
 $('#driveConnect').addEventListener('click', async () => { try { await driveAuth({ force: true }); toast('Google Drive를 연결했어요.'); } catch (e) { toast(cloudExplain(e), 7000); } });
 $('#driveDisconnect').addEventListener('click', async () => {
@@ -6198,7 +6547,7 @@ if (FB && user && fbSess && fbSess.sub === user.sub) prefsPull();   // 이미 �
     '#attAdd': '참석자 행을 추가합니다. 입력 중 Enter를 누르면 다음 칸으로, 마지막 칸에서는 새 행이 생깁니다.',
     '#recBtn': '녹음 시작/일시정지 — 마이크가 막혀 있으면 "시계만 켜고 기록" 방식을 안내합니다.',
     '#attachBtn': '휴대폰 녹음 앱 등으로 따로 녹음한 파일(m4a·mp3·wav)을 이 회의에 붙입니다.',
-    '#saveBtn': '녹음·메모·본문·전사·AI 초안을 .mnote 파일 하나로 저장합니다 (Ctrl+S).',
+    '#saveBtn': '녹음·메모·본문·전사·AI 초안을 .mnote 파일 하나로 저장합니다 (Ctrl+S). 저장하기 전에 파일 이름을 한 번 물어봐요.',
     '#openBtn': '저장해 둔 .mnote 파일을 불러옵니다.',
     '#hwpxBtn': 'PDF · 한글(HWPX) · Word로 내보냅니다. 양식과 부록을 고를 수 있어요.',
     '#splitter': '드래그해서 좌우 너비를 조절합니다. 더블클릭하면 6:4로 돌아갑니다.'
@@ -6358,7 +6707,8 @@ if (FB && user && fbSess && fbSess.sub === user.sub) prefsPull();   // 이미 �
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, draftOpt, renderCloudList, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
+applyAuthorDefault(false);
 renderAll();
 selectTab(curTab);
 if (!['auto', 'lmstudio', 'ollama', 'openai', 'anthropic'].includes(ai.provider)) ai.provider = 'auto';
