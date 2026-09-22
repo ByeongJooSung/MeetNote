@@ -172,6 +172,16 @@ async def run():
         r = await pg.evaluate("(() => { const d = JSON.parse(localStorage.getItem('meetnote.diar')); return { tier: d.tier, n: d.n, note: document.querySelector('#diarBrowserNote').textContent }; })()")
         expect(r['tier'] == 'accurate' and r['n'] == 3 and '목소리 특징' in r['note'], f'브라우저 내장 옵션 저장·안내 {r["tier"]} {r["n"]}')
         await pg.click('#diarCancel'); await pg.evaluate("(() => { const m = __meetnote; m.S.audioBlob = null; Object.assign(m.diarState(), { tier: 'auto', n: 0 }); })()")
+        # 프로젝트: 만들기 → 회의에 지정 → 참고 문서(요약 없이 md) 통합 → 프롬프트 반영
+        await pg.select_option('#projSel', '__new'); await pg.fill('#textDlgInput', '스모크 프로젝트'); await pg.click('#textDlgYes'); await pg.wait_for_timeout(200)
+        pid = await pg.evaluate("__meetnote.S.meta.project")
+        expect(bool(pid) and await pg.evaluate("__meetnote.projects().length") == 1, '프로젝트 생성·회의에 지정')
+        pmd = os.path.join(tempfile.gettempdir(), '프로젝트 규칙.md'); open(pmd, 'w', encoding='utf-8').write('## 용어' + chr(10) + '- K-CHESAR: 위해성 평가 모델')
+        await pg.click('#projManage'); await pg.set_input_files('#projRefInput', pmd); await pg.wait_for_timeout(800); await pg.click('#projClose')
+        pr = await pg.evaluate("__meetnote.projects()[0]")
+        expect(len(pr['refs']) == 1 and 'K-CHESAR' in pr['merged'], '프로젝트 참고 문서(md) → 통합 참조 문서')
+        prompt = await pg.evaluate("__meetnote.buildPrompt()")
+        expect('<프로젝트 참고 "스모크 프로젝트"' in prompt and 'K-CHESAR' in prompt and '<참고 자료>가 <프로젝트 참고>보다 우선' not in prompt, '프롬프트에 프로젝트 참고 반영')
         # 참고 자료: 파일 → 글 변환(원본은 보관하지 않음), 프롬프트에는 참고용으로만, 출처 표시
         docx = os.path.join(tempfile.gettempdir(), '스모크 제안서.docx')
         with zipfile.ZipFile(docx, 'w') as z:
@@ -185,6 +195,7 @@ async def run():
         blk = prompt[prompt.rindex('<참고 자료'):]
         expect('K-CHESAR' in blk and blk.count('부록 ') < 30 and '[자료 1: 스모크 제안서]' in blk, '참고 자료: 회의와 겹치는 대목만 골라 보냄')
         expect('회의에서 언급되지 않은 내용은 회의록에 넣지 마세요' in prompt and '하나도 빠뜨리지 말고' in prompt and '(자료: 자료 이름)' in prompt, '참고 자료 규칙(참고만 · 회의 내용 누락 금지 · 출처 표시)')
+        expect('<참고 자료>가 <프로젝트 참고>보다 우선' in prompt, '회의 참고 자료가 프로젝트 문서보다 우선')
         await pg.evaluate("(() => { const m = __meetnote; m.appendToDoc(m.mdToDocNodes('- K-CHESAR 2.0 사용 (자료: 스모크 제안서) [00:05]', true)); })()")
         expect(await pg.evaluate("(() => { const s = document.querySelector('#docEditor li span[style*=\"--tc-blue\"]'); return !!s && s.textContent === '(자료: 스모크 제안서)'; })()"), '출처 표시가 회의록에서 구분됨')
         await pg.click('#saveBtn'); await pg.fill('#textDlgInput', '스모크_자료')
@@ -196,6 +207,7 @@ async def run():
         if await pg.locator('#confirmDlg').is_visible(): await pg.click('#confirmYes')
         await pg.set_input_files('#fileInput', mn2); await pg.wait_for_timeout(800)
         expect(await pg.locator('#refList .ref-item').count() == 1, '참고 자료 .mnote 왕복')
+        expect(await pg.evaluate("__meetnote.S.meta.project") == pid, '프로젝트 지정 .mnote 왕복')
         expect(not errs, f'JS 오류 없음 {errs[:2]}')
         await b.close()
     srv.shutdown()

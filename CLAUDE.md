@@ -35,6 +35,7 @@ JS 문법은 `node --check`로 확인 가능: `python tests/smoke.py --check-onl
 - 타임라인 시각은 녹음 시작 기준 초. 메모·본문 문단마다 최초 입력 시점 `t`와 편집 이력 `hist`를 보관해 "따라 쓰기" 재생을 만든다.
 - AI 초안의 시각은 문단 **끝**(표는 행의 마지막 칸)에만 칩으로 표시(본문 중간에는 넣지 않음). 작성 옵션에서 끌 수 있다.
 - AI 초안은 마크다운으로 받아 `mdToHtml`(미리보기) → `mdToDocNodes`(편집기 블록·표)로 바꿔 넣는다. 본문에 마크다운 기호가 그대로 들어가면 안 된다. 지시문(`buildPrompt`)은 전역 AI 작성 설정(설정 → AI 작성: 분량·문체·발언자·표 정리·항목·공통 지시) + 회의별 추가 지시(작성 화면의 작성 옵션) 순.
+- 프로젝트(`projects`, `S.meta.project`)는 localStorage + Firestore `projects` 동기화. 프로젝트 참고 문서는 요약(`SUM_PROMPT`)→통합(`MERGE_PROMPT`) 구조이며 회의 참고 자료(S.refs)가 우선(`projRule`).
 - 참고 자료(`S.refs`)는 변환된 글만 보관하고 원본 파일·Blob을 저장하지 않는다. AI에는 참고용으로만 보낸다(`refsRule`/`refsBlock`): 회의록 내용은 전사·메모에서, 자료에 없는 논의도 빠뜨리지 않게, 자료로 확인한 곳은 `(자료: 이름)` 표시. 새 파일 형식은 `extractRef`에 추가.
 - 전사 목록은 `renderTranscript`가 그린다(검색 필터·수정 중에는 다시 그리지 않음 `segEdit`). 전사 행의 시각 버튼은 `data-segplay`(문단만 재생)이고 전역 `[data-seek]` 처리와 겹치지 않게 할 것.
 - 녹음이 없는 회의는 전사 파일(.txt, 클로바노트 음성 기록·AI 요약)을 가져올 수 있다(`parseTranscriptText`/`importTranscriptFile`, 상태 `S.trImport`). 시간 기록이 없는 파일은 `segTimed()`가 false → 전사 시각을 화면·프롬프트·내보내기에 쓰지 말 것. 가져온 회의는 녹음·녹음 파일 붙이기를 막는다.
