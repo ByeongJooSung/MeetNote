@@ -33,11 +33,14 @@ async def run():
     async with async_playwright() as p:
         b = await p.chromium.launch(); ctx = await b.new_context(accept_downloads=True, viewport={'width': 1400, 'height': 900}, service_workers='block'); pg = await ctx.new_page()
         await ctx.add_init_script(NO_LOGIN)
+        # 저장된 프로젝트가 있는 브라우저로 시작(시작 시점 초기화 오류 회귀 점검)
+        await ctx.add_init_script("try { localStorage.setItem('meetnote.projects', JSON.stringify([{ id: 'p-old', name: '이전 프로젝트', refs: [{ id: 'r1', name: '문서', kind: 'md', chars: 10, summary: '요약', addedAt: '' }], merged: '## 요약', updatedAt: '2026-09-22T00:00:00.000Z' }])); } catch {}")
         errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
         jz = os.environ.get('MEETNOTE_JSZIP')  # 오프라인 환경: 로컬 jszip.min.js 경로를 주면 CDN 대신 사용
         if jz: await pg.route('https://cdnjs.cloudflare.com/**', lambda r: r.fulfill(path=jz, content_type='application/javascript'))
         await pg.goto(url); await pg.wait_for_timeout(1800)
         if await pg.locator('#gateSkip').is_visible(): await pg.click('#gateSkip')
+        expect(await pg.evaluate("!!window.__meetnote && __meetnote.projects().length === 1") and not errs, f'저장된 프로젝트가 있어도 정상 시작 {errs[:1]}')
         await pg.fill('#title', '스모크 회의'); await pg.fill('#mPlace', '테스트실')
         await pg.click('#attAdd'); await pg.fill('input[data-att="name"][data-i="0"]', '홍길동')
         # 본문: 제목 + 표 + 마크다운 목록
@@ -175,10 +178,10 @@ async def run():
         # 프로젝트: 만들기 → 회의에 지정 → 참고 문서(요약 없이 md) 통합 → 프롬프트 반영
         await pg.select_option('#projSel', '__new'); await pg.fill('#textDlgInput', '스모크 프로젝트'); await pg.click('#textDlgYes'); await pg.wait_for_timeout(200)
         pid = await pg.evaluate("__meetnote.S.meta.project")
-        expect(bool(pid) and await pg.evaluate("__meetnote.projects().length") == 1, '프로젝트 생성·회의에 지정')
+        expect(bool(pid) and await pg.evaluate("__meetnote.projects().length") == 2, '프로젝트 생성·회의에 지정')
         pmd = os.path.join(tempfile.gettempdir(), '프로젝트 규칙.md'); open(pmd, 'w', encoding='utf-8').write('## 용어' + chr(10) + '- K-CHESAR: 위해성 평가 모델')
         await pg.click('#projManage'); await pg.set_input_files('#projRefInput', pmd); await pg.wait_for_timeout(800); await pg.click('#projClose')
-        pr = await pg.evaluate("__meetnote.projects()[0]")
+        pr = await pg.evaluate("__meetnote.projects().find(p => p.name === '스모크 프로젝트')")
         expect(len(pr['refs']) == 1 and 'K-CHESAR' in pr['merged'], '프로젝트 참고 문서(md) → 통합 참조 문서')
         prompt = await pg.evaluate("__meetnote.buildPrompt()")
         expect('<프로젝트 참고 "스모크 프로젝트"' in prompt and 'K-CHESAR' in prompt and '<참고 자료>가 <프로젝트 참고>보다 우선' not in prompt, '프롬프트에 프로젝트 참고 반영')
