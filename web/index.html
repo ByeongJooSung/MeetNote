@@ -466,7 +466,9 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 .cl-title,.cl-meta{display:block}
 .cl-title{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cl-title em{font-style:normal;margin-left:6px;font-size:11px;font-weight:500;color:var(--tape);background:var(--tape-soft);padding:1px 6px;border-radius:8px}
-.cl-meta{font-size:12.5px;color:var(--ink2);overflow-wrap:anywhere;line-height:1.45}
+.cl-meta{font-size:12.5px;color:var(--ink2);line-height:1.5}
+.cl-meta>span{white-space:nowrap}   /* 날짜·시간 같은 항목은 중간에서 끊지 않고 항목 사이(·)에서만 줄바꿈 */
+.cl-meta>i{font-style:normal;margin:0 5px}
 .cl-act{display:flex;gap:4px;white-space:nowrap}
 .cl-act .btn{padding:3px 9px;font-size:12.5px}
 @media (max-width:560px){.cl-item{grid-template-columns:44px minmax(0,1fr)}.cl-act{grid-column:1/-1;justify-content:flex-end}}
@@ -1253,8 +1255,9 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.14.1';
+const APP_VERSION = '0.14.2';
 const PATCH_NOTES = [
+  { v: '0.14.2', date: '2026-09-22', items: ['회의록 불러오기 목록의 날짜·시간이 중간에서 끊기지 않고 항목 단위로 줄바꿈해요.'] },
   { v: '0.14.1', date: '2026-09-22', items: ['"AI로 발언자 추정" 방식을 뺐어요(목소리를 듣지 않아 쓸모가 적었어요).', '회의록 불러오기는 달력 보기가 기본이고, 달력 아래 목록은 5개 높이만 보이고 안에서 스크롤해요.'] },
   { v: '0.14.0', date: '2026-09-22', items: [
     '클라우드 API에 "음성 인식 서버(OpenAI 호환)"를 더했어요. PC에 띄운 Whisper 서버(whisper.cpp·speaches·LocalAI)나 OpenAI whisper-1로 녹음을 글로 바꾸고, 그 글에 브라우저 내장 발언자 구분을 얹어요. 회의 용어 사전도 보냅니다.'
@@ -7398,7 +7401,7 @@ function cloudItemHtml(m) {
   const i = cloudRows.indexOf(m), cur = m.id === safeId(S.id);
   return `<div class="cl-item${cur ? ' cur' : ''}" role="button" tabindex="0" data-copen="${i}" title="눌러서 열기">
     <span class="cl-date num"><b>${d.getTime() ? d.getDate() : '-'}</b><small>${d.getTime() ? `${d.getFullYear() % 100}.${String(d.getMonth() + 1).padStart(2, '0')}` : ''}</small></span>
-    <span class="cl-main"><span class="cl-title">${esc(m.title || '제목 없는 회의')}${cur ? '<em>열려 있음</em>' : ''}</span><span class="cl-meta">${meta.map(esc).join(' · ')}</span></span>
+    <span class="cl-main"><span class="cl-title">${esc(m.title || '제목 없는 회의')}${cur ? '<em>열려 있음</em>' : ''}</span><span class="cl-meta">${meta.map(x => `<span>${esc(x)}</span>`).join('<i>·</i>')}</span></span>
     <span class="cl-act"><button type="button" class="btn" data-copen="${i}">열기</button><button type="button" class="btn" data-cdel="${i}" style="color:var(--rec)">삭제</button></span></div>`;
 }
 function renderCloudList(src) {
