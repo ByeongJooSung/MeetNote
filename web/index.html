@@ -337,6 +337,8 @@ select{border:1px solid var(--line);background:var(--surface);border-radius:8px;
 .seg-menu[hidden]{display:none}
 .seg-menu button{border:0;background:none;text-align:left;padding:8px 12px;border-radius:7px;font-size:14px;color:var(--ink);cursor:pointer}
 .seg-menu button:hover,.seg-menu button:focus-visible{background:var(--sunk)}
+.browser-opt{border:1px solid var(--line);border-radius:10px;padding:2px 12px 8px;margin:8px 0}
+.browser-opt .field{margin:8px 0 4px}
 .cloud-panel{border:1px solid var(--line);border-radius:10px;padding:4px 12px 10px;margin:8px 0}
 .cloud-panel .field{margin:8px 0 4px}
 .cloud-panel .chk,#diarPy .chk,#anaPy .chk{margin:6px 0;display:block;font-size:13.5px;line-height:1.5}
@@ -1045,6 +1047,15 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <label class="opt"><input type="radio" name="anaMode" value="cloud"><div><b>클라우드 API (빠르고 정확)</b><span>클로바 스피치·OpenAI 등 유료 API로 몇 분 안에 인식하고 발언자를 나눠요. API 키가 필요해요.</span></div></label>
   </div>
   <div id="anaCloud" class="cloud-panel" hidden></div>
+  <div id="anaBrowserOpt" class="browser-opt" hidden>
+    <label class="field">인식 모델<select id="anaTier">
+      <option value="auto">자동 (이 기기에 맞게)</option>
+      <option value="accurate">정확 — large-v3-turbo (WebGPU 필요 · 약 1.5GB, 처음 한 번)</option>
+      <option value="balanced">균형 — small (약 560MB)</option>
+      <option value="fast">빠름 — base (약 90MB)</option>
+    </select></label>
+    <label class="field">발언자 수 (비우면 자동)<input id="anaBN" type="number" min="1" max="10" inputmode="numeric"></label>
+  </div>
   <p class="hint" id="anaBrowserNote" hidden></p>
   <div id="anaPy" hidden>
     <label class="field">서비스 주소<input id="anaBase" placeholder="http://localhost:8765" inputmode="url"></label>
@@ -1072,6 +1083,15 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <label class="opt"><input type="radio" name="diarMode" value="cloud"><div><b>클라우드 API (빠르고 정확)</b><span>클로바 스피치·OpenAI 등 유료 API로 몇 분 안에 인식하고 발언자를 나눠요. API 키가 필요해요.</span></div></label>
   </div>
   <div id="diarCloud" class="cloud-panel" hidden></div>
+  <div id="diarBrowserOpt" class="browser-opt" hidden>
+    <label class="field">인식 모델<select id="diarTier">
+      <option value="auto">자동 (이 기기에 맞게)</option>
+      <option value="accurate">정확 — large-v3-turbo (WebGPU 필요 · 약 1.5GB, 처음 한 번)</option>
+      <option value="balanced">균형 — small (약 560MB)</option>
+      <option value="fast">빠름 — base (약 90MB)</option>
+    </select></label>
+    <label class="field">발언자 수 (비우면 자동)<input id="diarBN" type="number" min="1" max="10" inputmode="numeric"></label>
+  </div>
   <p class="hint" id="diarBrowserNote" hidden></p>
   <div id="diarPy" hidden>
     <label class="field">서비스 주소<input id="diarBase" placeholder="http://localhost:8765" inputmode="url"></label>
@@ -1233,8 +1253,12 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.10.0';
+const APP_VERSION = '0.11.0';
 const PATCH_NOTES = [
+  { v: '0.11.0', date: '2026-09-22', items: [
+    '브라우저 내장 분석: 인식 모델을 고를 수 있어요 — 정확(large-v3-turbo, WebGPU) · 균형(small) · 빠름(base). 자동은 기기에 맞춰 골라요(WebGPU PC는 정확).',
+    '브라우저 내장 분석: 목소리 특징(WeSpeaker 임베딩)을 비교해 녹음 전체에서 같은 사람을 같은 화자 번호로 맞춰요. 10분마다 화자가 바뀌던 문제가 없어져요. 발언자 수도 지정할 수 있어요.'
+  ] },
   { v: '0.10.0', date: '2026-09-22', items: [
     '발언자 구분·전사에 세 번째 방식 "클라우드 API"를 더했어요: 네이버 클로바 스피치(클로바노트와 같은 엔진, PC 서비스를 거쳐 호출), OpenAI gpt-4o-transcribe-diarize, AssemblyAI, Deepgram Nova-3. 기존 브라우저 내장·PC 서비스는 그대로예요.',
     '회의 용어 사전: 참석자 이름과 참고 자료의 용어를 음성 인식 엔진에 알려 줘 고유명사·약어 인식이 좋아져요(PC 서비스·클로바·AssemblyAI). PC 서비스는 서버를 최신으로 바꿔야 해요.',
@@ -5645,20 +5669,33 @@ if (!diar.mode) diar.mode = 'browser';
 if (!['browser', 'py', 'cloud'].includes(diar.mode)) diar.mode = 'browser';
 diar.cloud = Object.assign({ prov: 'clova', url: '', keep: false, vocab: true }, diar.cloud || {});
 if (diar.vocab == null) diar.vocab = true;
+if (!['auto', 'fast', 'balanced', 'accurate'].includes(diar.tier)) diar.tier = 'auto';
 const saveDiar = () => { try { localStorage.setItem(DIAR_KEY, JSON.stringify(diar)); } catch {} prefsTouch(); };
 const cleanBase = v => String(v || '').trim().replace(/\/+$/, '');
 for (const pre of ['diar', 'ana']) {
   $(`#${pre}Base`).addEventListener('change', e => { const v = cleanBase(e.target.value); if (!v || /^https?:\/\//i.test(v)) { diar.base = v || 'http://localhost:8765'; diar.embedded = false; saveDiar(); } });
   $(`#${pre}N`).addEventListener('change', e => { const n = parseInt(e.target.value, 10); diar.n = n >= 1 && n <= 10 ? n : 0; saveDiar(); });
   $(`#${pre}Vocab`).addEventListener('change', e => { diar.vocab = e.target.checked; saveDiar(); });
+  $(`#${pre}Tier`).addEventListener('change', e => { diar.tier = e.target.value; saveDiar(); $(`#${pre}BrowserNote`).textContent = browserDiarNote(); });
+  $(`#${pre}BN`).addEventListener('change', e => { const n = parseInt(e.target.value, 10); diar.n = n >= 1 && n <= 10 ? n : 0; saveDiar(); });
+}
+/* 인식 모델 등급: 자동은 기기에 맞춰 고른다(WebGPU PC → 정확, WebGPU 휴대폰 → 균형, CPU → 균형(휴대폰은 빠름)). '정확'은 WebGPU가 없으면 균형으로 내린다 */
+const TIER_INFO = { fast: { label: '빠름(base)', mb: 90, spd: [1.2, 2.5], gspd: [0.3, 0.6] }, balanced: { label: '균형(small)', mb: 560, spd: [3, 6], gspd: [0.5, 1] }, accurate: { label: '정확(large-v3-turbo)', mb: 1500, spd: [10, 20], gspd: [0.8, 1.6] } };
+function resolveTier(device) {
+  const t = diar.tier || 'auto';
+  if (t === 'auto') return device === 'webgpu' ? (env.mobile ? 'balanced' : 'accurate') : (env.mobile ? 'fast' : 'balanced');
+  if (t === 'accurate' && device !== 'webgpu') return 'balanced';
+  return t;
 }
 function browserDiarNote() {
   if (inClaude) return 'Claude 화면 안에서는 모델을 내려받을 수 없어 배포한 웹이나 앱에서만 쓸 수 있어요.';
   if (!window.Worker || !window.WebAssembly) return '이 브라우저는 내장 분석을 지원하지 않아요.';
   const gpu = !!navigator.gpu, dur = S.duration || (isFinite(audio.duration) ? audio.duration : 0);
-  const est = dur ? `예상 ${Math.max(1, Math.round(dur / 60 * (gpu ? 0.3 : 1.2)))}~${Math.max(2, Math.round(dur / 60 * (gpu ? 0.6 : 2.5)))}분` : '';
+  const tier = resolveTier(gpu ? 'webgpu' : 'wasm'), ti = TIER_INFO[tier], sp = gpu ? ti.gspd : ti.spd;
+  const est = dur ? `예상 ${Math.max(1, Math.round(dur / 60 * sp[0]))}~${Math.max(2, Math.round(dur / 60 * sp[1]))}분` : '';
+  const down = diar.tier === 'accurate' && !gpu ? ' "정확" 모델은 WebGPU가 있어야 해서 이 기기에서는 균형(small)으로 돌아가요.' : '';
   const warn = env.mobile && dur > 20 * 60 ? ` ⚠ 휴대폰에서 ${Math.round(dur / 60)}분짜리 녹음은 시간이 오래 걸리고 메모리 부족으로 중단될 수 있어요. PC에서 분석하는 것을 권해요.` : '';
-  return (gpu ? 'WebGPU 가속을 사용해요.' : 'WebGPU가 없어 CPU로 돌아가 느릴 수 있어요(최신 Chrome·Edge 권장).') + (est ? ` ${est} 걸려요.` : '') + warn + ' 10분 단위로 나눠 분석하므로 긴 녹음은 구간마다 화자 번호가 달라질 수 있어요. 참석자 매핑에서 같은 사람으로 합치면 됩니다.';
+  return `${ti.label} 모델(처음 한 번 약 ${ti.mb}MB)을 ${gpu ? 'WebGPU 가속으로' : 'CPU로(WebGPU가 없어 느릴 수 있어요, 최신 Chrome·Edge 권장)'} 돌려요.${est ? ` ${est} 걸려요.` : ''}${down}${warn} 발언자는 목소리 특징을 비교해 녹음 전체에서 같은 사람을 같은 번호로 맞춰요.`;
 }
 function setupEngine(prefix) {
   const radios = document.querySelectorAll(`input[name="${prefix}Mode"]`);
@@ -5666,6 +5703,7 @@ function setupEngine(prefix) {
     const m = document.querySelector(`input[name="${prefix}Mode"]:checked`)?.value || 'browser';
     $(`#${prefix}Py`).hidden = m !== 'py'; $(`#${prefix}Vocab`).checked = diar.vocab !== false;
     const cp = $(`#${prefix}Cloud`); cp.hidden = m !== 'cloud'; if (m === 'cloud') renderCloudPanel(prefix);
+    const bo = $(`#${prefix}BrowserOpt`); bo.hidden = m !== 'browser'; if (m === 'browser') { $(`#${prefix}Tier`).value = diar.tier || 'auto'; $(`#${prefix}BN`).value = diar.n || ''; }
     const note = $(`#${prefix}BrowserNote`); note.hidden = m !== 'browser'; if (m === 'browser') note.textContent = browserDiarNote();
     if (diar.mode !== m) { diar.mode = m; saveDiar(); }
   };
@@ -6047,28 +6085,87 @@ async function diarizeCloud({ title }) {
 
 /* ---------- in-browser diarization (transformers.js in a Web Worker) ---------- */
 const TJS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js';   // 버전 고정(떠 있는 @3은 배포 없이 코드가 바뀔 수 있음)
-const WHISPER_ID = 'onnx-community/whisper-base_timestamped', SEG_ID = 'onnx-community/pyannote-segmentation-3.0';
+const WHISPER_ID = 'onnx-community/whisper-base_timestamped', SEG_ID = 'onnx-community/pyannote-segmentation-3.0', EMB_ID = 'onnx-community/wespeaker-voxceleb-resnet34-LM';
+// 인식 모델 등급별 모델·자료형(WebGPU: 공식 데모와 같은 조합, CPU: 8비트 양자화). 정확 등급은 WebGPU 전용
+const WHISPER_TIERS = { fast: { id: WHISPER_ID, gpu: { encoder_model: 'fp32', decoder_model_merged: 'q4' }, cpu: 'q8' }, balanced: { id: 'onnx-community/whisper-small_timestamped', gpu: { encoder_model: 'fp32', decoder_model_merged: 'q4' }, cpu: 'q8' }, accurate: { id: 'onnx-community/whisper-large-v3-turbo_timestamped', gpu: { encoder_model: 'fp16', decoder_model_merged: 'q4' }, cpu: 'q8' } };
 const DIAR_WORKER_SRC = `
-let T, asr, segProc, segModel, loadedFor = null;
+const TIERS = ${JSON.stringify(WHISPER_TIERS)};
+let T, asr, segProc, segModel, embProc, embModel, loadedFor = null;
 const post = m => self.postMessage(m);
-async function load(device) {
-  if (loadedFor === device) return;
+async function load(device, tier = 'fast') {
+  if (loadedFor === device + '|' + tier) return;
+  const tdef = TIERS[tier] || TIERS.fast;
   T = T || await import(${JSON.stringify(TJS_URL)});
   T.env.allowLocalModels = false;
   // 모델은 브라우저 Cache Storage에 저장돼 다음부터는 내려받지 않고 읽기만 한다. 저장본이 있으면 진행 문구를 '불러오는 중'으로
   let cached = false;
-  try { const c = await caches.open(T.env.cacheKey || 'transformers-cache'); cached = (await c.keys()).some(r => r.url.includes(${JSON.stringify(WHISPER_ID)})); } catch {}
+  try { const c = await caches.open(T.env.cacheKey || 'transformers-cache'); cached = (await c.keys()).some(r => r.url.includes(tdef.id)); } catch {}
   const files = {};
   const pc = name => p => {
     if (p.status === 'progress' && p.file) { files[name + '/' + p.file] = [p.loaded || 0, p.total || 0]; let l = 0, t = 0; for (const k in files) { l += files[k][0]; t += files[k][1]; } post({ type: 'dl', loaded: l, total: t, file: p.file, cached }); }
     else if (p.status === 'ready') post({ type: 'stage', msg: name + ' 준비됨' });
   };
-  post({ type: 'stage', msg: '음성 인식 모델을 불러오는 중' });
-  asr = await T.pipeline('automatic-speech-recognition', ${JSON.stringify(WHISPER_ID)}, { device, dtype: device === 'webgpu' ? { encoder_model: 'fp32', decoder_model_merged: 'q4' } : 'q8', progress_callback: pc('whisper') });
-  post({ type: 'stage', msg: '발언자 구분 모델을 불러오는 중' });
-  segProc = await T.AutoProcessor.from_pretrained(${JSON.stringify(SEG_ID)}, { progress_callback: pc('segmentation') });
-  segModel = await T.AutoModelForAudioFrameClassification.from_pretrained(${JSON.stringify(SEG_ID)}, { device, dtype: 'fp32', progress_callback: pc('segmentation') });
-  loadedFor = device;
+  post({ type: 'stage', msg: '음성 인식 모델(' + tier + ')을 불러오는 중' });
+  if (asr && asr.model) { try { await asr.dispose(); } catch {} asr = null; }
+  asr = await T.pipeline('automatic-speech-recognition', tdef.id, { device, dtype: device === 'webgpu' ? tdef.gpu : tdef.cpu, progress_callback: pc('whisper') });
+  if (!segModel) {
+    post({ type: 'stage', msg: '발언자 구분 모델을 불러오는 중' });
+    segProc = await T.AutoProcessor.from_pretrained(${JSON.stringify(SEG_ID)}, { progress_callback: pc('segmentation') });
+    segModel = await T.AutoModelForAudioFrameClassification.from_pretrained(${JSON.stringify(SEG_ID)}, { device, dtype: 'fp32', progress_callback: pc('segmentation') });
+  }
+  if (!embModel) {   // 목소리 특징(임베딩) 모델은 작고(25MB) CPU로도 빨라서 GPU 호환 문제를 피해 wasm으로 돌린다
+    post({ type: 'stage', msg: '목소리 특징 모델을 불러오는 중' });
+    embProc = await T.AutoProcessor.from_pretrained(${JSON.stringify(EMB_ID)}, { progress_callback: pc('embedding') });
+    embModel = await T.AutoModel.from_pretrained(${JSON.stringify(EMB_ID)}, { device: 'wasm', dtype: 'fp32', progress_callback: pc('embedding') });
+  }
+  loadedFor = device + '|' + tier;
+}
+/* 화자 통일: 발언 구간마다 목소리 특징(256차원, 단위 벡터)을 뽑아 pyannote 3.1 파이프라인과 같은 방식으로 묶는다
+   (centroid 연결, 유클리드 거리 기준 0.7046 ≈ 코사인 거리 0.25, 작은 무리는 가까운 큰 무리에 흡수).
+   10분 창마다 따로 나온 화자 번호를 녹음 전체에서 같은 사람은 같은 번호로 맞춘다. 발언자 수를 알면 그 수까지만 묶는다 */
+async function embed(audio) { const inp = await embProc(audio); const out = await embModel(inp); const v = Float32Array.from((out.embeddings || out.last_hidden_state).data); let n = 0; for (const x of v) n += x * x; n = Math.sqrt(n) || 1; for (let i = 0; i < v.length; i++) v[i] /= n; return v; }
+async function unifySpeakers(audio, sr, turns, numSpeakers) {
+  // 단위: 발언 구간을 최대 8초로 잘라 각각 특징을 뽑는다(너무 많으면 같은 창·같은 번호끼리 이어 붙여 700개 이하로)
+  let units = [];
+  for (const t of turns) { const d = t.t1 - t.t0; if (d < 0.6) { units.push({ t0: t.t0, t1: t.t1, spk: t.spk, skip: true }); continue; } const k = Math.max(1, Math.round(d / 8)); for (let i = 0; i < k; i++) units.push({ t0: t.t0 + d * i / k, t1: t.t0 + d * (i + 1) / k, spk: t.spk }); }
+  let real = units.filter(u => !u.skip);
+  while (real.length > 700) { const m = []; for (let i = 0; i < real.length; i++) { const p = m[m.length - 1]; if (p && p.spk === real[i].spk && real[i].t0 - p.t1 < 30 && p.t1 - p.t0 < 40) p.t1 = real[i].t1; else m.push({ ...real[i] }); } if (m.length === real.length) break; real = m; }
+  const vecs = [], w = [];
+  for (let i = 0; i < real.length; i++) {
+    const u = real[i], a = Math.floor(u.t0 * sr), b = Math.min(audio.length, Math.floor(Math.min(u.t1, u.t0 + 20) * sr));
+    try { vecs.push(await embed(audio.subarray(a, b))); w.push(Math.max(0.5, u.t1 - u.t0)); } catch (e) { vecs.push(null); w.push(0); }
+    if (i % 5 === 0 || i === real.length - 1) post({ type: 'stage', msg: '목소리 특징을 비교하는 중 ' + Math.round((i + 1) / real.length * 100) + '%', pct: 86 + 8 * (i + 1) / real.length });
+  }
+  const idx = vecs.map((v, i) => v ? i : -1).filter(i => i >= 0);
+  if (idx.length < 2) return turns;
+  const D = 256, n = idx.length;
+  const cent = idx.map(i => ({ v: Float32Array.from(vecs[i]), w: w[i], members: [i] }));
+  const cos = (a, b) => { let d = 0; for (let k = 0; k < a.length; k++) d += a[k] * b[k]; return d; };
+  const dist = (A, B) => { let d = 0; for (let k = 0; k < A.v.length; k++) { const x = A.v[k] - B.v[k]; d += x * x; } return Math.sqrt(d); };   // 단위 벡터의 유클리드 거리(중심은 다시 정규화하지 않는다: pyannote와 동일)
+  const THR = 0.7046, target = numSpeakers > 0 ? numSpeakers : 1;
+  let active = cent.map(() => true), count = n;
+  const M = new Float32Array(n * n); for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) M[i * n + j] = M[j * n + i] = dist(cent[i], cent[j]);
+  { const ds = Array.from(M).filter((d, k) => (k % n) > Math.floor(k / n)).sort((a, b) => a - b); if (ds.length) post({ type: 'log', msg: '목소리 특징 ' + n + '개, 거리 최소 ' + ds[0].toFixed(2) + ' · 중간 ' + ds[ds.length >> 1].toFixed(2) + ' · 최대 ' + ds[ds.length - 1].toFixed(2) }); }
+  while (count > target) {
+    let bi = -1, bj = -1, bd = Infinity;
+    for (let i = 0; i < n; i++) { if (!active[i]) continue; for (let j = i + 1; j < n; j++) { if (!active[j]) continue; const d = M[i * n + j]; if (d < bd) { bd = d; bi = i; bj = j; } } }
+    if (bi < 0 || (!(numSpeakers > 0) && bd > THR)) break;
+    const A = cent[bi], B = cent[bj], na = A.members.length, nb = B.members.length; for (let k = 0; k < D; k++) A.v[k] = (A.v[k] * na + B.v[k] * nb) / (na + nb); A.w += B.w; A.members.push(...B.members); active[bj] = false; count--;
+    for (let j = 0; j < n; j++) if (active[j] && j !== bi) M[bi * n + j] = M[j * n + bi] = dist(A, cent[j]);
+  }
+  // 작은 무리(발언 10초 미만이고 단위 3개 미만)는 가장 가까운 무리에 붙인다(잡음·기침·한마디가 한 사람으로 서는 것 방지, pyannote의 min_cluster_size 역할)
+  if (!(numSpeakers > 0)) for (let i = 0; i < n; i++) { if (!active[i] || (cent[i].w >= 10 && cent[i].members.length >= 3) || count <= 1) continue; let bj = -1, bd = Infinity; for (let j = 0; j < n; j++) { if (!active[j] || j === i) continue; const d = M[i * n + j]; if (d < bd) { bd = d; bj = j; } } if (bj >= 0) { cent[bj].members.push(...cent[i].members); cent[bj].w += cent[i].w; active[i] = false; count--; } }
+  const label = new Map(); let next = 0;
+  for (let i = 0; i < n; i++) if (active[i]) { const id = String(next++); for (const m of cent[i].members) label.set(idx[m], id); }
+  const byT = real.map((u, i) => ({ t0: u.t0, t1: u.t1, spk: label.get(i) }));
+  const out = [];
+  for (const t of turns) {   // 원래 구간에 가장 많이 겹치는 단위의 새 번호를 준다. 특징을 못 뽑은 짧은 구간은 앞뒤 시간이 가까운 단위를 따른다
+    let best = null, bo = 0; for (const u of byT) { if (u.spk == null) continue; const o = Math.max(0, Math.min(t.t1, u.t1) - Math.max(t.t0, u.t0)); if (o > bo) { bo = o; best = u.spk; } }
+    if (best == null) { let bd = Infinity; for (const u of byT) { if (u.spk == null) continue; const d = Math.min(Math.abs(u.t0 - t.t0), Math.abs(u.t1 - t.t1)); if (d < bd) { bd = d; best = u.spk; } } }
+    out.push({ ...t, spk: best == null ? t.spk : 'u' + best });
+  }
+  post({ type: 'log', msg: '화자 통일: 단위 ' + n + '개 → 화자 ' + count + '명' + (numSpeakers > 0 ? ' (지정 ' + numSpeakers + '명)' : '') });
+  return out;
 }
 function overlap(a0, a1, b0, b1) { return Math.max(0, Math.min(a1, b1) - Math.max(a0, b0)); }
 /* len초마다 자르되, 경계 앞 5초 안에서 가장 조용한 20ms 지점을 골라 말이 중간에 잘리지 않게 */
@@ -6115,7 +6212,7 @@ function hasSpeech(a, sr) {
 const GEN = { no_repeat_ngram_size: 6 };   // 같은 6토큰 구절을 다시 만들지 못하게(반복 고리 차단)
 async function liveChunk(d) {
   try {
-    await load(d.device);
+    await load(d.device, 'fast');   // 녹음 중 실시간 전사는 늘 빠른 모델로
     if (!hasSpeech(d.audio, 16000)) { post({ type: 'liveDone', id: d.id, segs: [], skipped: true }); return; }
     const res = await asr(d.audio, { language: d.language, task: 'transcribe', return_timestamps: true, ...GEN });
     const segs = (res.chunks || []).map(c => ({ t0: (c.timestamp[0] ?? 0) + d.offset, t1: (c.timestamp[1] ?? (c.timestamp[0] ?? 0) + 2) + d.offset, text: (c.text || '').replace(/\\s+/g, ' ').trim() })).filter(x => x.text);
@@ -6124,9 +6221,9 @@ async function liveChunk(d) {
 }
 self.onmessage = async e => {
   if (e.data && e.data.type === 'live') return liveChunk(e.data);
-  const { audio, sr, language, device, startChunk = 0, prevWords = [] } = e.data;
+  const { audio, sr, language, device, tier = 'fast', numSpeakers = 0, startChunk = 0, prevWords = [] } = e.data;
   try {
-    await load(device);
+    await load(device, tier);
     post({ type: 'loaded' });
     const dur = audio.length / sr;
     /* 전사: 녹음을 30초 이하 구간으로 직접 나눠 구간마다 진행률을 보낸다(v3 파이프라인은 chunk_callback이 없어 긴 전사 동안 진행 표시가 멈췄음) */
@@ -6169,6 +6266,7 @@ self.onmessage = async e => {
       turns.push(...t);
       post({ type: 'stage', msg: '발언자를 나누는 중 ' + Math.min(100, Math.round((off + WIN) / audio.length * 100)) + '%', pct: 76 + Math.min(18, 18 * (off + WIN) / audio.length) });
     }
+    try { turns = await unifySpeakers(audio, sr, turns, numSpeakers); } catch (err) { post({ type: 'log', msg: '화자 통일 실패(구간별 번호 유지): ' + (err && err.message) }); }
     post({ type: 'stage', msg: '정리 중', pct: 95 });
     let last = null;
     const assigned = words.map(w => {
@@ -6187,7 +6285,7 @@ self.onmessage = async e => {
     segs.forEach(s => { s.text = s.text.replace(/\\s+/g, ' ').trim(); });
     const labels = [...new Set(segs.map(s => s.spk))]; const remap = new Map(labels.map((l, i) => [l, String(i)]));
     segs.forEach(s => { s.spk = remap.get(s.spk); });
-    post({ type: 'done', result: { segments: segs, duration: dur, diarizer: 'browser:' + device } });
+    post({ type: 'done', result: { segments: segs, duration: dur, diarizer: 'browser:' + device + ':' + tier } });
   } catch (err) { post({ type: 'error', message: String(err && err.message || err), stack: err && err.stack }); }
 };`;
 /* GPU 무응답 판정(ms): 모델 준비 중 신호 없음 / 구간 시작 후 첫 토큰 없음 / 토큰 사이 끊김. 한 번 멈춘 기기는 7일 동안 바로 CPU 사용 */
@@ -6229,7 +6327,9 @@ async function diarizeBrowser({ title }) {
     if (ad) { device = 'webgpu'; const i = ad.info || {}; gpuInfo = [i.vendor, i.architecture, i.description].filter(Boolean).join(' ') || undefined; }
   } catch {}
   try { if (device === 'webgpu' && Date.now() - (+localStorage.getItem(DIAR_CPU_KEY) || 0) < 7 * 864e5) { device = 'wasm'; aiLog('info', '지난번 GPU 무응답 기록이 있어 CPU로 분석'); } } catch {}
-  aiLog('info', '내장 발언자 구분 시작', { device, gpu: gpuInfo, bytes: S.audioBlob.size, lang: $('#lang').value });
+  let tier = resolveTier(device);
+  if (diar.tier === 'accurate' && device !== 'webgpu') toast('"정확" 모델은 WebGPU가 있어야 해서 이 기기에서는 균형(small) 모델로 분석해요.', 7000);
+  aiLog('info', '내장 발언자 구분 시작', { device, tier, gpu: gpuInfo, bytes: S.audioBlob.size, lang: $('#lang').value, n: diar.n || 'auto' });
   // 저장 공간이 부족해도 브라우저가 모델 캐시를 임의로 지우지 않도록 영구 저장 요청
   try { navigator.storage?.persist?.().then(ok => aiLog('info', '영구 저장소', { granted: ok })); } catch {}
   const t0 = performance.now();
@@ -6254,14 +6354,15 @@ async function diarizeBrowser({ title }) {
         result = await Promise.race([cancelP, new Promise((res, rej) => {
           const w = getDiarWorker();
           let lastBeat = performance.now(), phase = 'load', chunk = startChunk;
-          const limit = () => phase === 'load' ? DIAR_STALL.load : phase === 'first' ? DIAR_STALL.first : DIAR_STALL.token;
+          const big = tier === 'accurate' ? 3 : tier === 'balanced' ? 1.6 : 1;   // 큰 모델은 GPU에 올리는 데도, 첫 토큰까지도 더 오래 걸린다
+          const limit = () => (phase === 'load' ? DIAR_STALL.load : phase === 'first' ? DIAR_STALL.first : DIAR_STALL.token) * big;
           if (device === 'webgpu') watch = setInterval(() => {
             const idle = performance.now() - lastBeat;
             if (idle > limit()) rej(Object.assign(new Error('GPU 응답 없음'), { code: 'gpu_stall', chunk, phase, idleMs: Math.round(idle) }));
           }, 1000);
           w.onmessage = e => {
             const m = e.data; lastBeat = performance.now();
-            if (m.type === 'dl') { const pct = m.total ? m.loaded / m.total : 0; progSet(4 + pct * 24, `${m.cached ? '저장된 모델 불러오는 중' : '모델 내려받는 중 (처음 한 번만)'} ${Math.round(pct * 100)}% (${Math.round(m.loaded / 1048576)}/${Math.round(m.total / 1048576)}MB)`); }
+            if (m.type === 'dl') { const pct = m.total ? m.loaded / m.total : 0; progSet(4 + pct * 24, `${m.cached ? '저장된 모델 불러오는 중' : '모델 내려받는 중 (처음 한 번만' + (m.total > 300e6 ? ' · ' + Math.round(m.total / 1048576) + 'MB' : '') + ')'} ${Math.round(pct * 100)}% (${Math.round(m.loaded / 1048576)}/${Math.round(m.total / 1048576)}MB)`); }
             else if (m.type === 'loaded') aiLog('info', '모델 준비 완료', { device, ms: Math.round(performance.now() - t0) });
             else if (m.type === 'chunkStart') { chunk = m.chunk; phase = 'first'; progSet(m.pct, m.msg); }
             else if (m.type === 'tok') { phase = 'token'; progSet(m.pct, m.msg); }
@@ -6272,13 +6373,13 @@ async function diarizeBrowser({ title }) {
             else if (m.type === 'error') { aiLog('error', '워커 오류', { message: m.message, stack: (m.stack || '').split('\n').slice(0, 3).join(' | ') }); rej(new Error(m.message)); }
           };
           w.onerror = ev => { aiLog('error', '워커 로드 실패', { message: ev.message, file: ev.filename, line: ev.lineno }); rej(new Error(ev.message || '내장 분석 모듈을 불러오지 못했어요.')); };
-          w.postMessage({ audio: pcm, sr, language: whisperLang($('#lang').value), device, startChunk, prevWords: words }, [pcm.buffer]);
+          w.postMessage({ audio: pcm, sr, language: whisperLang($('#lang').value), device, tier, numSpeakers: diar.n || 0, startChunk, prevWords: words }, [pcm.buffer]);
         })]);
       } catch (e) {
         if (!(e && e.code === 'gpu_stall') || device !== 'webgpu' || cancelled) throw e;
         aiLog('warn', 'GPU(WebGPU) 응답 없음 → CPU로 전환해 이어서 분석', { phase: e.phase, chunk: e.chunk + 1, idleMs: e.idleMs, gpu: gpuInfo, doneChunks: startChunk });
         if (diarWorker) { diarWorker.terminate(); diarWorker = null; }
-        device = 'wasm';
+        device = 'wasm'; tier = resolveTier(device);
         try { localStorage.setItem(DIAR_CPU_KEY, String(Date.now())); } catch {}
         toast('그래픽 장치(GPU)가 응답하지 않아 CPU로 바꿔 이어서 분석해요. 조금 더 걸릴 수 있어요.', 8000);
       } finally { clearInterval(watch); }
@@ -7013,7 +7114,7 @@ async function dbUpsert(m) {
 /* 내 설정 동기화: 발언자 분석(방식·PC 서비스 주소·발언자 수), AI 엔진(종류·주소·모델), 다듬기 옵션, AI 작성 설정(시간 표시·표 정리 포함)·추가 지시 템플릿·작성자를 계정에 저장해 다른 기기·브라우저에서도 이어 쓴다.
    보안 토큰·API 키는 넣지 않는다. 규칙에 settings 경로가 없으면(403) 이 브라우저에만 기억한다 */
 const prefsDoc = a => `${EP.fs}/projects/${encodeURIComponent(FB.projectId)}/databases/(default)/documents/users/${encodeURIComponent(a.uid)}/settings/prefs`;
-const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0, vocab: diar.vocab !== false, cloudProv: diar.cloud.prov }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, tables: draftOpt.tables, times: draftOpt.times, sections: draftOpt.sections, extra: draftOpt.extra }, tpls: draftTpls, author: { org: authorPref.org, name: authorPref.name, title: authorPref.title } });
+const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0, vocab: diar.vocab !== false, cloudProv: diar.cloud.prov, tier: diar.tier }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, tables: draftOpt.tables, times: draftOpt.times, sections: draftOpt.sections, extra: draftOpt.extra }, tpls: draftTpls, author: { org: authorPref.org, name: authorPref.name, title: authorPref.title } });
 const prefs403 = e => { if (e && e.status === 403) { prefsOff = true; aiLog('warn', '설정 동기화 꺼짐: 목록 DB 규칙에 settings 경로가 없어요(이 브라우저에만 기억)'); renderCloudState(); return true; } return false; };
 async function prefsPush() {
   if (!FB || !user || prefsOff) return;
@@ -7036,6 +7137,7 @@ async function prefsPull() {
         if (['browser', 'py', 'cloud'].includes(o.diar.mode)) diar.mode = o.diar.mode;
         if (typeof o.diar.vocab === 'boolean') diar.vocab = o.diar.vocab;
         if (CLOUD_PROV[o.diar.cloudProv]) diar.cloud.prov = o.diar.cloudProv;
+        if (['auto', 'fast', 'balanced', 'accurate'].includes(o.diar.tier)) diar.tier = o.diar.tier;
         if (url(o.diar.base) && o.diar.base) diar.base = o.diar.base.replace(/\/+$/, '');
         diar.n = Number.isInteger(o.diar.n) && o.diar.n >= 1 && o.diar.n <= 10 ? o.diar.n : 0;
         try { localStorage.setItem(DIAR_KEY, JSON.stringify(diar)); } catch {}
@@ -7549,7 +7651,7 @@ if (FB && user && fbSess && fbSess.sub === user.sub) prefsPull();   // 이미 �
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
 applyAuthorDefault(false);
 renderAll();
 selectTab(curTab);

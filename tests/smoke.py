@@ -164,6 +164,14 @@ async def run():
         expect(r['segs'] == [['0', '안녕하세요'], ['1', '예산 이야기']] and '홍길동' in r['vocab'] and not r['keyLocal'], f'클라우드 STT(Deepgram 모의) 결과·화자 번호·용어 사전 {r}')
         if await pg.locator('#mapDlg').is_visible(): await pg.click('#mapCancel')
         await pg.evaluate("(() => { const m = __meetnote; m.S.audioBlob = null; m.S.segments = []; Object.assign(m.diarState(), { mode: 'browser' }); m.renderTranscript(); })()")
+        # 브라우저 내장 분석 옵션: 모델 등급·발언자 수 UI와 등급 결정
+        await pg.evaluate("(() => { const m = __meetnote; m.S.audioBlob = new Blob([new Uint8Array(1000)], { type: 'audio/webm' }); Object.assign(m.diarState(), { mode: 'browser', tier: 'auto', n: 0 }); })()")
+        await pg.click('#tabTr'); await pg.click('#diarBtn'); await pg.wait_for_timeout(200)
+        expect(await pg.is_visible('#diarTier') and await pg.input_value('#diarTier') == 'auto', '브라우저 내장: 인식 모델 선택 UI')
+        await pg.select_option('#diarTier', 'accurate'); await pg.fill('#diarBN', '3'); await pg.press('#diarBN', 'Tab'); await pg.wait_for_timeout(100)
+        r = await pg.evaluate("(() => { const d = JSON.parse(localStorage.getItem('meetnote.diar')); return { tier: d.tier, n: d.n, note: document.querySelector('#diarBrowserNote').textContent }; })()")
+        expect(r['tier'] == 'accurate' and r['n'] == 3 and '목소리 특징' in r['note'], f'브라우저 내장 옵션 저장·안내 {r["tier"]} {r["n"]}')
+        await pg.click('#diarCancel'); await pg.evaluate("(() => { const m = __meetnote; m.S.audioBlob = null; Object.assign(m.diarState(), { tier: 'auto', n: 0 }); })()")
         # 참고 자료: 파일 → 글 변환(원본은 보관하지 않음), 프롬프트에는 참고용으로만, 출처 표시
         docx = os.path.join(tempfile.gettempdir(), '스모크 제안서.docx')
         with zipfile.ZipFile(docx, 'w') as z:
