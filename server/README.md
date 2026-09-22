@@ -24,6 +24,9 @@ MeetNote → 전사 탭 → **발언자 구분** → "음성 분석 서비스" �
 | faster-whisper `small` + resemblyzer 군집 (기본) | 보통 | 없음 | CPU 가능 |
 | faster-whisper `small` + **pyannote 3.1** | 높음 | HF 토큰 + 모델 약관 동의 | CPU 느림, GPU 권장 |
 | faster-whisper `medium`/`large-v3` | 전사 정확도 ↑ | `WHISPER_MODEL=medium` | GPU 권장 |
+| faster-whisper `large-v3-turbo` | large-v3에 가까운 정확도, 훨씬 빠름 | `WHISPER_MODEL=large-v3-turbo` | GPU 권장(약 1.6GB) |
+| 회의 용어 사전 | 참석자 이름·참고 자료 용어를 힌트로 받아 고유명사 인식 ↑ | 앱의 분석 창에서 체크(기본 켜짐) | 서버가 `vocab`을 받아 `hotwords`로 사용 |
+| 클로바 스피치 프록시 | 앱의 클라우드 API → 네이버 클로바 스피치를 이 서버가 대신 호출(브라우저 CORS 제한) | 앱에서 Invoke URL·Secret Key 입력, 또는 `CLOVA_SPEECH_URL`/`CLOVA_SPEECH_KEY` | 키는 저장하지 않음 |
 
 pyannote 사용: https://huggingface.co/pyannote/speaker-diarization-3.1 과 `pyannote/segmentation-3.0` 약관 동의 → 토큰 발급 →
 ```bash
@@ -32,7 +35,7 @@ HF_TOKEN=hf_xxx python diarize.py       # Windows PowerShell: $env:HF_TOKEN="hf_
 ```
 
 ## 옵션(환경변수)
-`WHISPER_MODEL`(tiny/base/small/medium/large-v3), `DEVICE`(auto/cpu/cuda), `COMPUTE`(int8/float16), `PORT`(8765)
+`WHISPER_MODEL`(tiny/base/small/medium/large-v3/large-v3-turbo), `DEVICE`(auto/cpu/cuda), `COMPUTE`(int8/float16), `PORT`(8765)
 
 ## API
 - `POST /jobs` (multipart: audio, lang=ko, num_speakers?) → `{job_id}` — 진행률 보고 방식(앱 기본)

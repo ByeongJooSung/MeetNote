@@ -38,7 +38,8 @@ JS 문법은 `node --check`로 확인 가능: `python tests/smoke.py --check-onl
 - 참고 자료(`S.refs`)는 변환된 글만 보관하고 원본 파일·Blob을 저장하지 않는다. AI에는 참고용으로만 보낸다(`refsRule`/`refsBlock`): 회의록 내용은 전사·메모에서, 자료에 없는 논의도 빠뜨리지 않게, 자료로 확인한 곳은 `(자료: 이름)` 표시. 새 파일 형식은 `extractRef`에 추가.
 - 전사 목록은 `renderTranscript`가 그린다(검색 필터·수정 중에는 다시 그리지 않음 `segEdit`). 전사 행의 시각 버튼은 `data-segplay`(문단만 재생)이고 전역 `[data-seek]` 처리와 겹치지 않게 할 것.
 - 녹음이 없는 회의는 전사 파일(.txt, 클로바노트 음성 기록·AI 요약)을 가져올 수 있다(`parseTranscriptText`/`importTranscriptFile`, 상태 `S.trImport`). 시간 기록이 없는 파일은 `segTimed()`가 false → 전사 시각을 화면·프롬프트·내보내기에 쓰지 말 것. 가져온 회의는 녹음·녹음 파일 붙이기를 막는다.
-- 발언자 구분은 브라우저 내장(transformers.js, 경량)과 PC 서비스(정확) 두 경로. 새 회의에 녹음 파일만 붙이면 분석 여부를 먼저 묻는다.
+- 발언자 구분은 브라우저 내장(transformers.js, 경량)·PC 서비스(정확)·클라우드 API(클로바 스피치는 PC 서비스 프록시 `/cloud/clova` 경유, OpenAI·AssemblyAI·Deepgram은 브라우저 직접) 세 경로. 새 클라우드 서비스는 `CLOUD_PROV`+`CLOUD_RUN`에 추가하고 결과는 `{segments:[{t0,t1,text,spk}]}`로 돌려준다. API 키는 `cloudKeys()`에만 두고 prefs 동기화·로그에 넣지 말 것.
+- 음성 인식에는 `meetingVocab()`(참석자·참고 자료 용어)을 힌트로 보낸다. 새 회의에 녹음 파일만 붙이면 분석 여부를 먼저 묻는다.
 - 서버 작업은 한 번에 하나(`RUN_LOCK`), 취소는 문장 경계에서 반영, 진행률은 `progress(pct, stage, msg)`.
 - exe에서는 OpenMP 충돌 방지 환경변수(`KMP_DUPLICATE_LIB_OK` 등)를 서버가 스스로 설정한다.
 

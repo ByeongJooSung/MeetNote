@@ -68,7 +68,7 @@ meetnote/
 ### 2.2 서버 (server/diarize.py)
 FastAPI + uvicorn. 역할은 두 가지.
 1. **전사 + 발언자 구분 API**
-   - `POST /jobs` (multipart: audio, lang, num_speakers) → `{job_id}`; `GET /jobs/{id}` → `{state, pct, stage, message, result}`; `DELETE /jobs/{id}` 취소
+   - `POST /jobs` (multipart: audio, lang, num_speakers, vocab) → `{job_id}`; `POST /cloud/clova` (multipart: audio, invoke_url, key, lang, num_speakers, vocab) → 클로바 스피치 응답 그대로; `GET /jobs/{id}` → `{state, pct, stage, message, result}`; `DELETE /jobs/{id}` 취소
    - `POST /diarize` 동기 버전(구버전 호환), `GET /health`
    - 파이프라인: ffmpeg → 16kHz wav → faster-whisper(small, VAD) → 발언자 분리(pyannote 3.1 또는 resemblyzer 임베딩+군집) → 문장에 화자 배정
    - 작업은 한 번에 하나만 실행(작업 잠금), 취소는 문장 경계에서 즉시 반영
@@ -115,6 +115,8 @@ ffmpeg는 PATH → exe 옆 `ffmpeg` 폴더 → `imageio-ffmpeg` 동봉본 순으
 - **발언자 구분**(전사 탭): 브라우저 내장(transformers.js, 첫 실행 모델 약 90MB) 또는 PC 서비스(정확). 새 회의에 녹음 파일만 붙이면 분석 여부를 먼저 묻고 진행률 창(백그라운드 가능, 취소 가능)으로 진행한다.
 - **전사 듣기·고치기·검색**(전사 탭): 글자를 누르면(끌어 고르면) 그 자리부터 재생하고(문단 안 위치는 글자 수 비율로 어림, `segTimeAt`), 행·시각을 누르면 그 문단만 처음부터 끝까지 재생한다(`playSegment`, `segStopAt`). 시각 표시는 발언자 이름과 같은 색. 마우스 우클릭 메뉴(`#segMenu`: 문단 수정·여기서 나누기·듣기·삭제), 터치·펜은 길게 누르면 바로 수정(`startSegEdit`; Enter 저장·Esc 취소). 검색창은 낱말(또는 발언자 이름)이 든 문단만 보여 주고 찾은 곳을 표시한다. 녹음 중 실시간 전사(발언자 모름)는 문단을 짧게 끊는다(0.7초·문장 중간 1.8초, 120자·18초: `canMergeSeg`).
 - **전사 파일 가져오기**(전사 탭, 또는 .txt를 화면에 끌어다 놓기): 녹음이 없는 회의에 다른 도구의 전사(.txt)를 올린다. 클로바노트 내보내기를 알아본다 — 음성 기록(참석자+발언)과 AI 요약(주요 주제·다음 할 일·시간대별 요약), 각각 시간 기록 포함/미포함(`parseTranscriptText`). 시간이 없으면 순서만 지키는 가짜 시각을 매기고 `S.trImport.timed=false`로 표시해 화면·프롬프트·내보내기에서 시각을 감춘다(`segTimed()`). 가져온 회의는 녹음·녹음 파일 붙이기가 잠기고 "가져온 전사 지우기"로 되돌린다. 머리말의 제목·일시·길이·참석자는 비어 있는 칸에만 채운다.
+- **클라우드 API**(세 번째 방식, 선택): 네이버 클로바 스피치(클로바노트와 같은 엔진, 발언자 구분·용어 사전 내장. 브라우저에서 직접 부를 수 없어 PC 서비스의 `/cloud/clova`를 거쳐 보냄), OpenAI `gpt-4o-transcribe-diarize`(브라우저 직접. 25MB 초과 시 12분 WAV 구간으로 나누고 앞 구간의 화자 목소리 샘플을 `known_speaker_references`로 넘겨 같은 사람을 이어 줌), AssemblyAI(올리기→작업→상태 조회, `word_boost`), Deepgram Nova-3(`diarize`+`utterances`). 코드는 `CLOUD_PROV`/`CLOUD_RUN`/`diarizeCloud`. 키는 세션 저장소(또는 '기억' 체크 시 localStorage `meetnote.cloudKeys`)에만 두고 계정에 동기화하지 않는다. 화자 표시는 서비스마다 달라 나온 순서대로 0,1,2…로 맞춘다.
+- **회의 용어 사전**(`meetingVocab`): 참석자·발언자 이름, 참고 자료 이름과 자주 나오는 낱말(영문 약어·고유명사 위주, 최대 40개)을 음성 인식 엔진에 힌트로 준다. PC 서비스는 `vocab` 폼 필드 → faster-whisper `hotwords`/`initial_prompt`, 클로바는 `boostings`, AssemblyAI는 `word_boost`, Deepgram은 영어일 때만 `keyterm`. 분석 창의 체크박스로 끌 수 있다.
 - 결과는 시간순으로 정렬되고 화자 라벨이 붙는다. **참석자 매핑**에서 화자마다 참석자를 고르거나 이름을 입력하면 전사·AI 초안·내보내기에 반영된다.
 
 ### 3.6 AI 회의록
@@ -151,13 +153,15 @@ window.MEETNOTE_CONFIG = {
 | 변수 | 기본 | 설명 |
 |---|---|---|
 | `PORT` | 8765 | 서비스 포트 |
-| `WHISPER_MODEL` | small | tiny·base·small·medium·large-v3 |
+| `WHISPER_MODEL` | small | tiny·base·small·medium·large-v3·**large-v3-turbo**(GPU 권장, 빠르고 정확) |
 | `DEVICE` | cpu | `cuda`(NVIDIA GPU) |
 | `HF_TOKEN` | 없음 | 있으면 pyannote 3.1 사용(정확도 향상) |
 | `DIARIZER` | auto | `none`이면 전사만 |
 | `BEAM_SIZE` | 5 | 낮추면 빠름 |
 | `PRELOAD` | 1 | 시작 시 모델 미리 받기 |
 | `OPEN_BROWSER` | 1 | 웹 앱 자동 열기 |
+| `CLOVA_SPEECH_URL` / `CLOVA_SPEECH_KEY` | 없음 | 클로바 스피치 프록시 기본값(브라우저에서 보낸 값이 우선) |
+| `CLOUD_TIMEOUT` | 1800 | 클로바 스피치 동기 인식 대기(초) |
 
 ### 4.3 설정 저장(localStorage + 계정 DB 동기화)
 설정은 브라우저 localStorage에 두고, 로그인 상태면 `prefsTouch()` → `prefsPush()`로 Firestore `users/{uid}/settings/prefs`에 올려 다른 기기에서도 이어 쓴다(`prefsLocal`/`prefsPull`). 동기화 대상: 발언자 분석·AI 엔진·다듬기 옵션, AI 작성 설정(`meetnote.draftOpt`: 분량·문체·표 정리·시간 표시·공통 지시), 추가 지시 템플릿(`meetnote.draftTpls`), 작성자(`meetnote.author`). 보안 토큰·API 키는 올리지 않는다.
