@@ -1045,7 +1045,9 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <label class="opt"><input type="radio" name="anaMode" value="browser"><div><b>브라우저 내장</b><span>설치 없이 이 기기에서 분석. 처음 한 번 모델(약 90MB)을 받아요.</span></div></label>
     <label class="opt"><input type="radio" name="anaMode" value="py"><div><b>PC 서비스 (정확)</b><span>파이썬 서비스로 보내 분석. 화자 수가 많거나 긴 회의에 유리해요.</span></div></label>
     <label class="opt"><input type="radio" name="anaMode" value="cloud"><div><b>클라우드 API (빠르고 정확)</b><span>클로바 스피치·OpenAI 등 유료 API로 몇 분 안에 인식하고 발언자를 나눠요. API 키가 필요해요.</span></div></label>
+    <label class="opt"><input type="radio" name="anaMode" value="llm"><div><b>AI로 발언자 추정 (텍스트만 · 실험)</b><span>이미 있는 전사 글을 AI(LM Studio·Ollama·API)에 보내 말의 내용으로 누가 말했는지 추정해요. 목소리는 듣지 않아 정확도가 낮고, 전사가 먼저 있어야 해요.</span></div></label>
   </div>
+  <div id="anaLlm" class="cloud-panel" hidden></div>
   <div id="anaCloud" class="cloud-panel" hidden></div>
   <div id="anaBrowserOpt" class="browser-opt" hidden>
     <label class="field">인식 모델<select id="anaTier">
@@ -1081,7 +1083,9 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <label class="opt"><input type="radio" name="diarMode" value="browser"><div><b>브라우저 내장</b><span>설치 없이 이 기기에서 분석. 처음 한 번 모델(약 90MB)을 받아요.</span></div></label>
     <label class="opt"><input type="radio" name="diarMode" value="py"><div><b>PC 서비스 (정확)</b><span>파이썬 서비스로 보내 분석. 화자 수가 많거나 긴 회의에 유리해요.</span></div></label>
     <label class="opt"><input type="radio" name="diarMode" value="cloud"><div><b>클라우드 API (빠르고 정확)</b><span>클로바 스피치·OpenAI 등 유료 API로 몇 분 안에 인식하고 발언자를 나눠요. API 키가 필요해요.</span></div></label>
+    <label class="opt"><input type="radio" name="diarMode" value="llm"><div><b>AI로 발언자 추정 (텍스트만 · 실험)</b><span>이미 있는 전사 글을 AI(LM Studio·Ollama·API)에 보내 말의 내용으로 누가 말했는지 추정해요. 목소리는 듣지 않아 정확도가 낮고, 전사가 먼저 있어야 해요.</span></div></label>
   </div>
+  <div id="diarLlm" class="cloud-panel" hidden></div>
   <div id="diarCloud" class="cloud-panel" hidden></div>
   <div id="diarBrowserOpt" class="browser-opt" hidden>
     <label class="field">인식 모델<select id="diarTier">
@@ -1253,8 +1257,12 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.12.0';
+const APP_VERSION = '0.13.0';
 const PATCH_NOTES = [
+  { v: '0.13.0', date: '2026-09-22', items: [
+    '휴대폰에서는 1.5GB "정확" 모델이 메모리 부족으로 멈춰서 균형(small)까지만 쓰도록 막았어요.',
+    '발언자 구분에 "AI로 발언자 추정(텍스트만 · 실험)"을 더했어요. 전사 글을 AI(LM Studio·Ollama·API)에 보내 내용으로 화자를 추정하고 참석자 이름을 붙여요. 목소리는 듣지 않아 정확도가 낮으니 확인용으로 쓰세요.'
+  ] },
   { v: '0.12.0', date: '2026-09-22', items: [
     '브라우저 내장 분석: 발언자 구분 모델로 말소리 구간을 먼저 찾아 그 부분만 인식해요. 무음·잡음에서 없는 말을 지어내던 환청이 줄고, 구간을 침묵에서만 나눠 문장이 덜 잘려요. 추가 다운로드는 없어요.'
   ] },
@@ -5669,7 +5677,7 @@ if (/^https?:$/.test(location.protocol) && !inClaude) {
 }
 try { Object.assign(diar, JSON.parse(localStorage.getItem(DIAR_KEY) || '{}')); } catch {}
 if (!diar.mode) diar.mode = 'browser';
-if (!['browser', 'py', 'cloud'].includes(diar.mode)) diar.mode = 'browser';
+if (!['browser', 'py', 'cloud', 'llm'].includes(diar.mode)) diar.mode = 'browser';
 diar.cloud = Object.assign({ prov: 'clova', url: '', keep: false, vocab: true }, diar.cloud || {});
 if (diar.vocab == null) diar.vocab = true;
 if (!['auto', 'fast', 'balanced', 'accurate'].includes(diar.tier)) diar.tier = 'auto';
@@ -5687,7 +5695,7 @@ const TIER_INFO = { fast: { label: '빠름(base)', mb: 90, spd: [1.2, 2.5], gspd
 function resolveTier(device) {
   const t = diar.tier || 'auto';
   if (t === 'auto') return device === 'webgpu' ? (env.mobile ? 'balanced' : 'accurate') : (env.mobile ? 'fast' : 'balanced');
-  if (t === 'accurate' && device !== 'webgpu') return 'balanced';
+  if (t === 'accurate' && (device !== 'webgpu' || env.mobile)) return 'balanced';   // 휴대폰은 메모리 때문에 1.5GB 모델을 올리다 멈춘다
   return t;
 }
 function browserDiarNote() {
@@ -5696,7 +5704,7 @@ function browserDiarNote() {
   const gpu = !!navigator.gpu, dur = S.duration || (isFinite(audio.duration) ? audio.duration : 0);
   const tier = resolveTier(gpu ? 'webgpu' : 'wasm'), ti = TIER_INFO[tier], sp = gpu ? ti.gspd : ti.spd;
   const est = dur ? `예상 ${Math.max(1, Math.round(dur / 60 * sp[0]))}~${Math.max(2, Math.round(dur / 60 * sp[1]))}분` : '';
-  const down = diar.tier === 'accurate' && !gpu ? ' "정확" 모델은 WebGPU가 있어야 해서 이 기기에서는 균형(small)으로 돌아가요.' : '';
+  const down = diar.tier === 'accurate' && (!gpu || env.mobile) ? (env.mobile ? ' 휴대폰에서는 메모리 부족으로 멈춰서 "정확" 모델 대신 균형(small)으로 돌아가요. 더 정확한 결과가 필요하면 PC 서비스나 클라우드 API를 쓰세요.' : ' "정확" 모델은 WebGPU가 있어야 해서 이 기기에서는 균형(small)으로 돌아가요.') : '';
   const warn = env.mobile && dur > 20 * 60 ? ` ⚠ 휴대폰에서 ${Math.round(dur / 60)}분짜리 녹음은 시간이 오래 걸리고 메모리 부족으로 중단될 수 있어요. PC에서 분석하는 것을 권해요.` : '';
   return `${ti.label} 모델(처음 한 번 약 ${ti.mb}MB)을 ${gpu ? 'WebGPU 가속으로' : 'CPU로(WebGPU가 없어 느릴 수 있어요, 최신 Chrome·Edge 권장)'} 돌려요.${est ? ` ${est} 걸려요.` : ''}${down}${warn} 말소리 구간만 골라 인식하고(환청·잘림 감소), 발언자는 목소리 특징을 비교해 녹음 전체에서 같은 사람을 같은 번호로 맞춰요.`;
 }
@@ -5706,6 +5714,7 @@ function setupEngine(prefix) {
     const m = document.querySelector(`input[name="${prefix}Mode"]:checked`)?.value || 'browser';
     $(`#${prefix}Py`).hidden = m !== 'py'; $(`#${prefix}Vocab`).checked = diar.vocab !== false;
     const cp = $(`#${prefix}Cloud`); cp.hidden = m !== 'cloud'; if (m === 'cloud') renderCloudPanel(prefix);
+    const lp = $(`#${prefix}Llm`); lp.hidden = m !== 'llm'; if (m === 'llm') renderLlmPanel(prefix);
     const bo = $(`#${prefix}BrowserOpt`); bo.hidden = m !== 'browser'; if (m === 'browser') { $(`#${prefix}Tier`).value = diar.tier || 'auto'; $(`#${prefix}BN`).value = diar.n || ''; }
     const note = $(`#${prefix}BrowserNote`); note.hidden = m !== 'browser'; if (m === 'browser') note.textContent = browserDiarNote();
     if (diar.mode !== m) { diar.mode = m; saveDiar(); }
@@ -5715,7 +5724,7 @@ function setupEngine(prefix) {
 }
 $('#diarBtn').addEventListener('click', () => {
   if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 실행하세요.'); return; }
-  if (!S.audioBlob) { toast('녹음 파일이 없어요. 녹음하거나 파일을 붙인 뒤 실행하세요.'); return; }
+  if (!S.audioBlob && !S.segments.length) { toast('녹음 파일이 없어요. 녹음하거나 파일을 붙인 뒤 실행하세요. (전사 글만 있으면 "AI로 발언자 추정"은 쓸 수 있어요)'); return; }
   $('#diarBase').value = diar.base; $('#diarN').value = diar.n || ''; $('#diarConn').hidden = true; setupEngine('diar');
   if (diar.embedded) { const c = $('#diarConn'); c.hidden = false; c.dataset.tone = 'ok'; $('#diarConnText').textContent = '이 앱에 내장된 분석 서버를 사용해요.'; }
   try { $('#diarDlg').showModal(); } catch {}
@@ -5725,7 +5734,7 @@ $('#diarGo').addEventListener('click', async () => {
   const go = $('#diarGo'); go.disabled = true;
   try {
     $('#diarDlg').close();
-    const ok = diar.mode === 'browser' ? await diarizeBrowser({ title: '발언자 구분 중' }) : diar.mode === 'cloud' ? await diarizeCloud({ title: '발언자 구분 중' }) : await diarizePython();
+    const ok = diar.mode === 'browser' ? await diarizeBrowser({ title: '발언자 구분 중' }) : diar.mode === 'cloud' ? await diarizeCloud({ title: '발언자 구분 중' }) : diar.mode === 'llm' ? await diarizeByLLM({ title: '발언자 추정 중' }) : await diarizePython();
     if (ok && (speakerIds().length > 1 || S.attendees.some(a => a.name))) openMapDlg();
   } catch (e) {
     aiLog(e && e.name === 'AbortError' ? 'info' : 'error', e && e.name === 'AbortError' ? '발언자 구분 취소됨' : '발언자 구분 실패', errInfo(e));
@@ -6086,6 +6095,80 @@ async function diarizeCloud({ title }) {
   finally { progAbort = null; progClose(); }
 }
 
+/* ---------- AI(LLM)로 발언자 추정: 텍스트만 보고 누가 말했는지 추정(실험) ----------
+   LLM은 목소리를 듣지 못한다. 전사 글의 내용·말투·호칭(“공단에서는…”, “저희 팀은…”)으로 화자를 추정할 뿐이라 정확도가 낮다.
+   쓸모: ① 녹음 없이 글만 있는 전사(가져온 파일)에 대략의 화자를 붙일 때 ② 이미 나뉜 화자에 참석자 이름을 붙일 때(내용 근거) */
+function renderLlmPanel(pre) {
+  const p = $(`#${pre}Llm`), eng = ai.provider === 'auto' ? 'Claude(화면 안)' : ai.provider === 'anthropic' ? 'Anthropic API' : `${(PROVIDER_DEF[ai.provider] || {}).label || ai.provider} · ${curModel() || '모델 미선택'}`;
+  const has = S.segments.length, spk = speakerIds().length;
+  p.innerHTML = `<p class="hint prov-note"><b>지금 엔진:</b> ${esc(eng)} <button type="button" class="link" data-llm="settings">바꾸기</button><br>전사 ${has}문단${spk ? ` · 이미 화자 ${spk}명으로 나뉨(참석자 이름만 추정)` : ' · 화자 구분 없음(문단마다 화자를 추정)'}${has ? '' : ' — <b>전사가 없어요.</b> 먼저 녹음을 전사하거나 전사 파일을 가져오세요.'}</p>
+    <label class="chk"><input type="checkbox" data-llm="names"${diar.llmNames !== false ? ' checked' : ''}> 참석자 이름으로 붙이기 <span class="hint">(참석자 표의 소속·이름·직급을 근거로. 확신이 없으면 "화자 N"으로 둠)</span></label>
+    <p class="hint">전사 내용이 AI 엔진으로 전송돼요(로컬 LLM이면 PC 안에서만). 결과는 참석자 매핑에서 바로 고칠 수 있어요.</p>`;
+  if (!p.dataset.wired) { p.dataset.wired = '1'; p.addEventListener('click', e => { if (e.target.dataset.llm === 'settings') { $(`#${pre === 'ana' ? 'analyzeDlg' : 'diarDlg'}`).close(); openAIDlg('ai'); } }); p.addEventListener('change', e => { if (e.target.dataset.llm === 'names') { diar.llmNames = e.target.checked; saveDiar(); } }); }
+}
+const LLM_SPK_PROMPT = (lines, atts, known, prev) => `아래는 회의 전사입니다. 각 줄이 누구의 말인지 추정해 JSON 배열로만 답하세요(설명·마크다운 없이).
+형식: [{"i":줄번호,"s":"화자 이름 또는 화자 N"}] — 모든 줄을 빠짐없이 넣으세요.
+- 말의 내용, 말투, 호칭(“저희 팀은”, “공단에서는”, “OO님 의견은”)과 질문-답변 흐름으로 판단하세요. 같은 사람은 같은 이름을 쓰세요.
+- 참석자 목록에 있는 사람이 확실할 때만 그 이름을 쓰고, 확신이 없으면 "화자 1", "화자 2"처럼 번호로 두세요. 목록에 없는 이름을 지어내지 마세요.
+- 목소리 정보는 없으니 내용상 화자가 바뀌는 자리에서만 화자를 바꾸세요.
+참석자: ${atts.length ? atts.join(', ') : '(미입력)'}
+${known.length ? `지금까지 나온 화자: ${known.join(', ')}` : ''}
+${prev.length ? `<앞 문맥 이미 추정한 직전 줄들>\n${prev.join('\n')}\n</앞 문맥>` : ''}
+<전사>
+${lines.join('\n')}
+</전사>`;
+const LLM_NAME_PROMPT = (bySpk, atts) => `아래는 발언자별로 모은 회의 발언입니다. 각 화자가 참석자 목록의 누구인지 내용(소속·역할·호칭·자기소개)을 근거로 추정해 JSON 객체로만 답하세요(설명 없이).
+형식: {"화자 1":"이름 또는 null", ...} — 확신이 없으면 null. 목록에 없는 이름은 쓰지 마세요. 한 사람을 두 화자에 붙이지 마세요.
+참석자: ${atts.join(', ')}
+${bySpk.map(b => `<${b.label} 발언 ${b.n}회>\n${b.text}\n</${b.label}>`).join('\n')}`;
+function parseJsonLoose(t, want) { t = String(t || '').replace(/<think>[\s\S]*?<\/think>/g, ''); const a = t.indexOf(want === '[' ? '[' : '{'), b = t.lastIndexOf(want === '[' ? ']' : '}'); if (a < 0 || b <= a) throw Object.assign(new Error('AI가 정해진 형식(JSON)으로 답하지 않았어요.'), { body: t.slice(0, 300) }); return JSON.parse(t.slice(a, b + 1)); }
+async function diarizeByLLM({ title }) {
+  if (!S.segments.length) throw new Error('전사가 없어요. 먼저 녹음을 전사하거나 전사 파일을 가져오세요.');
+  if (ai.provider === 'auto' && !(await sampleP)) throw Object.assign(new Error('이 페이지는 Claude 화면 밖에 있어요.'), { code: 'no_sample' });
+  const ctl = new AbortController(); progAbort = () => ctl.abort(); progOpen(title, { local: isLocal(ai.provider) });
+  const t0 = performance.now(), atts = S.attendees.filter(a => a.name).map(a => [a.org, a.name, a.title].filter(Boolean).join(' '));
+  const nameOf = v => { v = String(v || '').trim(); if (!v || /^null$/i.test(v)) return ''; const hit = S.attendees.find(a => a.name && (v === a.name || v.includes(a.name) || a.name.includes(v))); return hit ? hit.name : ''; };
+  try {
+    const segs = S.segments.map(g => ({ ...g })), had = speakerIds().length > 0;
+    let changed = 0;
+    if (!had) {   // 문단마다 화자 추정: 60줄씩, 앞 문맥 6줄과 지금까지 나온 화자 목록을 같이 보낸다
+      const B = 60, labels = new Map(); let known = [], prevLines = [];
+      for (let k = 0; k < segs.length; k += B) {
+        if (ctl.signal.aborted) throw Object.assign(new Error('취소됨'), { name: 'AbortError' });
+        progSet(5 + 85 * k / segs.length, `AI가 발언자를 추정하는 중 (${Math.min(segs.length, k + B)}/${segs.length}줄)`);
+        const part = segs.slice(k, k + B), lines = part.map((g, i) => `${k + i + 1}. ${g.text.slice(0, 300)}`);
+        const ans = parseJsonLoose(await aiComplete(LLM_SPK_PROMPT(lines, atts, known, prevLines), ctl.signal), '[');
+        for (const r of Array.isArray(ans) ? ans : []) {
+          const i = (+r.i | 0) - 1; if (i < k || i >= k + part.length) continue;
+          let lab = nameOf(r.s) || String(r.s || '').trim().replace(/^speaker\s*/i, '화자 ') || '화자 1';
+          if (!labels.has(lab)) labels.set(lab, String(labels.size));
+          segs[i].spk = labels.get(lab); if (!known.includes(lab)) known.push(lab);
+        }
+        for (let i = k; i < k + part.length; i++) if (segs[i].spk == null) segs[i].spk = i > 0 && segs[i - 1].spk != null ? segs[i - 1].spk : '0';
+        prevLines = segs.slice(Math.max(0, k + part.length - 6), k + part.length).map((g, j) => `${k + part.length - 6 + j + 1 > 0 ? '' : ''}${[...labels].find(([, id]) => id === g.spk)?.[0] || '화자'}: ${g.text.slice(0, 120)}`);
+      }
+      const names = {}; for (const [lab, id] of labels) if (nameOf(lab)) names[id] = nameOf(lab);
+      S.segments = mergeSegments(segs); S.speakers = names; changed = S.segments.length;
+    }
+    if (diar.llmNames !== false && atts.length) {   // 화자 → 참석자 이름
+      progSet(had ? 10 : 92, 'AI가 화자에 참석자 이름을 붙이는 중');
+      const ids = speakerIds().filter(id => !(S.speakers || {})[id]);
+      if (ids.length) {
+        const bySpk = ids.map(id => { const gs = S.segments.filter(g => g.spk === id); return { id, label: speakerName(id), n: gs.length, text: gs.map(g => g.text).join(' ').slice(0, 1500) }; });
+        const ans = parseJsonLoose(await aiComplete(LLM_NAME_PROMPT(bySpk, atts), ctl.signal), '{');
+        S.speakers = S.speakers || {}; const used = new Set(Object.values(S.speakers));
+        for (const b of bySpk) { const nm = nameOf(ans[b.label] ?? ans[b.id]); if (nm && !used.has(nm)) { S.speakers[b.id] = nm; used.add(nm); changed++; } }
+      }
+    }
+    progSet(100, '완료');
+    markDirty(); renderTranscript(); renderTimeline(); selectTab('tr');
+    aiLog('info', 'AI 발언자 추정 완료', { ms: Math.round(performance.now() - t0), had, speakers: speakerIds().length, named: Object.keys(S.speakers || {}).length, engine: ai.provider });
+    toast(`AI가 ${had ? '화자에 이름을' : `문단마다 발언자를(${speakerIds().length}명)`} 추정했어요. 목소리가 아니라 내용으로 추정한 것이니 참석자 매핑에서 확인해 주세요.`, 8000);
+    return true;
+  } catch (e) { if (ctl.signal.aborted) throw Object.assign(new Error('취소됨'), { name: 'AbortError' }); throw e; }
+  finally { progAbort = null; progClose(); }
+}
+
 /* ---------- in-browser diarization (transformers.js in a Web Worker) ---------- */
 const TJS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js';   // 버전 고정(떠 있는 @3은 배포 없이 코드가 바뀔 수 있음)
 const WHISPER_ID = 'onnx-community/whisper-base_timestamped', SEG_ID = 'onnx-community/pyannote-segmentation-3.0', EMB_ID = 'onnx-community/wespeaker-voxceleb-resnet34-LM';
@@ -6370,7 +6453,7 @@ async function diarizeBrowser({ title }) {
   } catch {}
   try { if (device === 'webgpu' && Date.now() - (+localStorage.getItem(DIAR_CPU_KEY) || 0) < 7 * 864e5) { device = 'wasm'; aiLog('info', '지난번 GPU 무응답 기록이 있어 CPU로 분석'); } } catch {}
   let tier = resolveTier(device);
-  if (diar.tier === 'accurate' && device !== 'webgpu') toast('"정확" 모델은 WebGPU가 있어야 해서 이 기기에서는 균형(small) 모델로 분석해요.', 7000);
+  if (diar.tier === 'accurate' && tier !== 'accurate') toast(env.mobile ? '휴대폰에서는 1.5GB "정확" 모델이 메모리 부족으로 멈춰서 균형(small) 모델로 분석해요.' : '"정확" 모델은 WebGPU가 있어야 해서 이 기기에서는 균형(small) 모델로 분석해요.', 7000);
   aiLog('info', '내장 발언자 구분 시작', { device, tier, gpu: gpuInfo, bytes: S.audioBlob.size, lang: $('#lang').value, n: diar.n || 'auto' });
   // 저장 공간이 부족해도 브라우저가 모델 캐시를 임의로 지우지 않도록 영구 저장 요청
   try { navigator.storage?.persist?.().then(ok => aiLog('info', '영구 저장소', { granted: ok })); } catch {}
@@ -6441,6 +6524,7 @@ async function diarizePython() {
 /* ---------- ask on fresh audio attach ---------- */
 function diarErrText(e) {
   const m = String(e && e.message || e);
+  if (diar.mode === 'llm') return `AI 발언자 추정: ${explainAIError(e).msg} ${explainAIError(e).hint || ''}`;
   if (diar.mode === 'cloud') {
     const st = e && e.status, lab = (CLOUD_PROV[diar.cloud.prov] || {}).label || '클라우드 API';
     if (e && e.code === 'no_key') return m;
@@ -6464,7 +6548,7 @@ $('#anaGo').addEventListener('click', async () => {
   const go = $('#anaGo'); go.disabled = true;
   try {
     $('#analyzeDlg').close();
-    const ok = diar.mode === 'browser' ? await diarizeBrowser({ title: '발언자별 타임라인 분석 중' }) : diar.mode === 'cloud' ? await diarizeCloud({ title: '발언자별 타임라인 분석 중' }) : await runDiarization({ base: $('#anaBase').value.trim(), n: parseInt($('#anaN').value, 10), title: '발언자별 타임라인 분석 중' });
+    const ok = diar.mode === 'browser' ? await diarizeBrowser({ title: '발언자별 타임라인 분석 중' }) : diar.mode === 'cloud' ? await diarizeCloud({ title: '발언자별 타임라인 분석 중' }) : diar.mode === 'llm' ? await diarizeByLLM({ title: '발언자 추정 중' }) : await runDiarization({ base: $('#anaBase').value.trim(), n: parseInt($('#anaN').value, 10), title: '발언자별 타임라인 분석 중' });
     if (ok && (speakerIds().length > 1 || S.attendees.some(a => a.name))) openMapDlg();
   } catch (e) {
     aiLog(e && e.name === 'AbortError' ? 'info' : 'error', e && e.name === 'AbortError' ? '타임라인 분석 취소됨' : '타임라인 분석 실패', errInfo(e));
@@ -7176,7 +7260,7 @@ async function prefsPull() {
     prefsApplying = true;
     try {
       if (o.diar && typeof o.diar === 'object' && !diar.embedded) {
-        if (['browser', 'py', 'cloud'].includes(o.diar.mode)) diar.mode = o.diar.mode;
+        if (['browser', 'py', 'cloud', 'llm'].includes(o.diar.mode)) diar.mode = o.diar.mode;
         if (typeof o.diar.vocab === 'boolean') diar.vocab = o.diar.vocab;
         if (CLOUD_PROV[o.diar.cloudProv]) diar.cloud.prov = o.diar.cloudProv;
         if (['auto', 'fast', 'balanced', 'accurate'].includes(o.diar.tier)) diar.tier = o.diar.tier;
@@ -7693,7 +7777,7 @@ if (FB && user && fbSess && fbSess.sub === user.sub) prefsPull();   // 이미 �
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, diarizeCloud, diarizeByLLM, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
 applyAuthorDefault(false);
 renderAll();
 selectTab(curTab);
