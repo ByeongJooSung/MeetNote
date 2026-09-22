@@ -1253,8 +1253,11 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.11.0';
+const APP_VERSION = '0.12.0';
 const PATCH_NOTES = [
+  { v: '0.12.0', date: '2026-09-22', items: [
+    '브라우저 내장 분석: 발언자 구분 모델로 말소리 구간을 먼저 찾아 그 부분만 인식해요. 무음·잡음에서 없는 말을 지어내던 환청이 줄고, 구간을 침묵에서만 나눠 문장이 덜 잘려요. 추가 다운로드는 없어요.'
+  ] },
   { v: '0.11.0', date: '2026-09-22', items: [
     '브라우저 내장 분석: 인식 모델을 고를 수 있어요 — 정확(large-v3-turbo, WebGPU) · 균형(small) · 빠름(base). 자동은 기기에 맞춰 골라요(WebGPU PC는 정확).',
     '브라우저 내장 분석: 목소리 특징(WeSpeaker 임베딩)을 비교해 녹음 전체에서 같은 사람을 같은 화자 번호로 맞춰요. 10분마다 화자가 바뀌던 문제가 없어져요. 발언자 수도 지정할 수 있어요.'
@@ -5695,7 +5698,7 @@ function browserDiarNote() {
   const est = dur ? `예상 ${Math.max(1, Math.round(dur / 60 * sp[0]))}~${Math.max(2, Math.round(dur / 60 * sp[1]))}분` : '';
   const down = diar.tier === 'accurate' && !gpu ? ' "정확" 모델은 WebGPU가 있어야 해서 이 기기에서는 균형(small)으로 돌아가요.' : '';
   const warn = env.mobile && dur > 20 * 60 ? ` ⚠ 휴대폰에서 ${Math.round(dur / 60)}분짜리 녹음은 시간이 오래 걸리고 메모리 부족으로 중단될 수 있어요. PC에서 분석하는 것을 권해요.` : '';
-  return `${ti.label} 모델(처음 한 번 약 ${ti.mb}MB)을 ${gpu ? 'WebGPU 가속으로' : 'CPU로(WebGPU가 없어 느릴 수 있어요, 최신 Chrome·Edge 권장)'} 돌려요.${est ? ` ${est} 걸려요.` : ''}${down}${warn} 발언자는 목소리 특징을 비교해 녹음 전체에서 같은 사람을 같은 번호로 맞춰요.`;
+  return `${ti.label} 모델(처음 한 번 약 ${ti.mb}MB)을 ${gpu ? 'WebGPU 가속으로' : 'CPU로(WebGPU가 없어 느릴 수 있어요, 최신 Chrome·Edge 권장)'} 돌려요.${est ? ` ${est} 걸려요.` : ''}${down}${warn} 말소리 구간만 골라 인식하고(환청·잘림 감소), 발언자는 목소리 특징을 비교해 녹음 전체에서 같은 사람을 같은 번호로 맞춰요.`;
 }
 function setupEngine(prefix) {
   const radios = document.querySelectorAll(`input[name="${prefix}Mode"]`);
@@ -6221,51 +6224,90 @@ async function liveChunk(d) {
 }
 self.onmessage = async e => {
   if (e.data && e.data.type === 'live') return liveChunk(e.data);
-  const { audio, sr, language, device, tier = 'fast', numSpeakers = 0, startChunk = 0, prevWords = [] } = e.data;
+  const { audio, sr, language, device, tier = 'fast', numSpeakers = 0, doneUntil = 0, prevWords = [] } = e.data;
   try {
     await load(device, tier);
     post({ type: 'loaded' });
     const dur = audio.length / sr;
-    /* 전사: 녹음을 30초 이하 구간으로 직접 나눠 구간마다 진행률을 보낸다(v3 파이프라인은 chunk_callback이 없어 긴 전사 동안 진행 표시가 멈췄음) */
-    const pts = splitPoints(audio, sr, 28), n = pts.length - 1;
     const mm = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+    /* ① 말소리 구간 찾기(VAD)를 먼저: 발언자 구분 모델(pyannote-segmentation)이 프레임마다 '누가 말하는지'를 내므로 그 합집합이 곧 말소리 구간이다.
+       Whisper는 무음·잡음에 없는 말을 지어내므로(환청) 말소리 구간만 이어 붙여 인식하고, 나눌 때도 침묵에서만 나눈다. 분할 결과(turns)는 뒤의 화자 배정에 그대로 쓴다 */
+    post({ type: 'stage', msg: '말소리 구간을 찾는 중', pct: 8 });
+    const WIN = 600 * sr; let turns = [], base = 0, segOk = true;
+    try {
+      for (let off = 0; off < audio.length; off += WIN) {
+        const part = audio.subarray(off, Math.min(audio.length, off + WIN));
+        if (part.length < sr * 0.5) break;
+        const t = await segmentSpeakers(part, off / sr, base);
+        const ids = new Set(t.map(x => +x.spk)); base += ids.size ? Math.max(...ids) + 1 - base : 0;
+        turns.push(...t);
+        post({ type: 'stage', msg: '말소리 구간을 찾는 중 ' + Math.min(100, Math.round((off + WIN) / audio.length * 100)) + '%', pct: 8 + Math.min(6, 6 * (off + WIN) / audio.length) });
+      }
+    } catch (err) { segOk = false; post({ type: 'log', msg: '말소리 구간 찾기 실패(에너지 기준으로 대신): ' + (err && err.message) }); }
+    // 말소리 구간: turns의 합집합에 앞뒤 0.25초 여유, 0.6초보다 짧은 틈은 이어 붙인다. 아무것도 못 찾았으면 옛 방식(에너지 기준)으로
+    let regions = [];
+    if (segOk && turns.length) {
+      const iv = turns.map(t => [Math.max(0, t.t0 - 0.25), Math.min(dur, t.t1 + 0.25)]).sort((a, b) => a[0] - b[0]);
+      for (const [a, b] of iv) { const p = regions[regions.length - 1]; if (p && a - p[1] < 0.6) p[1] = Math.max(p[1], b); else regions.push([a, b]); }
+      regions = regions.filter(r => r[1] - r[0] >= 0.3);
+    }
+    const legacy = !regions.length;
+    if (legacy) { post({ type: 'log', msg: segOk ? '말소리 구간을 찾지 못해 에너지 기준으로 나눔' : '' }); const pts = splitPoints(audio, sr, 28); for (let k = 0; k + 1 < pts.length; k++) if (hasSpeech(audio.subarray(pts[k], pts[k + 1]), sr)) regions.push([pts[k] / sr, pts[k + 1] / sr]); }
+    /* ② 인식 단위(구간) 계획: 말소리 구간을 모아 26초 안팎으로. 26초보다 긴 구간은 안에서 가장 조용한 지점에서 나눈다.
+       구간 안의 말소리 조각들은 0.4초 무음을 사이에 두고 이어 붙이고, 시각은 map으로 원래 위치로 되돌린다 */
+    const MAXS = 26, GAP = 0.4;
+    const pieces = [];
+    for (const [a, b] of regions) {
+      let x = a;
+      while (b - x > MAXS) {   // 긴 구간: 목표 지점 앞 5초 안에서 가장 조용한 20ms
+        const target = x + MAXS, from = Math.max(x + 8, target - 5), frame = Math.round(sr * 0.02); let best = target, bestE = Infinity;
+        for (let i = Math.floor(from * sr); i + frame <= Math.floor(target * sr); i += frame) { let e = 0; for (let k = i; k < i + frame; k++) e += audio[k] * audio[k]; if (e < bestE) { bestE = e; best = (i + (frame >> 1)) / sr; } }
+        pieces.push([x, best]); x = best;
+      }
+      pieces.push([x, b]);
+    }
+    const chunks = []; let cur = null;
+    for (const p of pieces) { const len = p[1] - p[0]; if (cur && cur.len + GAP + len <= MAXS) { cur.parts.push(p); cur.len += GAP + len; } else { cur = { parts: [p], len }; chunks.push(cur); } }
+    const n = chunks.length;
+    post({ type: 'log', msg: '말소리 ' + mm(regions.reduce((t, r) => t + r[1] - r[0], 0)) + ' / 녹음 ' + mm(dur) + ' → 인식 구간 ' + n + '개' + (legacy ? ' (에너지 기준)' : '') });
     let words = prevWords.slice(), wordMode = true;
     /* 토큰이 하나 나올 때마다 신호를 보낸다: 구간 안에서도 진행이 보이고, 메인 쪽이 GPU 무응답(신호 끊김)을 알아챌 수 있다 */
     const Base = T.BaseStreamer || Object;
     class Beat extends Base {
       constructor(i, label) { super(); this.i = i; this.label = label; this.n = 0; this.last = 0; }
-      put() { this.n++; const now = Date.now(); if (now - this.last > 400) { this.last = now; post({ type: 'tok', chunk: this.i, n: this.n, msg: this.label + ' · 인식 중(' + this.n + ')', pct: 30 + 45 * (this.i + Math.min(0.95, this.n / 160)) / n }); } }
+      put() { this.n++; const now = Date.now(); if (now - this.last > 400) { this.last = now; post({ type: 'tok', chunk: this.i, n: this.n, msg: this.label + ' · 인식 중(' + this.n + ')', pct: 16 + 60 * (this.i + Math.min(0.95, this.n / 160)) / n }); } }
       end() {}
     }
-    for (let i = startChunk; i < n; i++) {
-      const part = audio.subarray(pts[i], pts[i + 1]), off = pts[i] / sr;
-      const label = '전사 중 ' + (i + 1) + '/' + n + ' 구간 (' + mm(off) + ' / ' + mm(dur) + ')';
-      post({ type: 'chunkStart', chunk: i, msg: label + (i === startChunk ? ' · 첫 구간은 준비 때문에 조금 더 걸려요' : ''), pct: 30 + 45 * i / n });
+    let first = true;
+    for (let i = 0; i < n; i++) {
+      const ch = chunks[i], srcEnd = ch.parts[ch.parts.length - 1][1];
+      if (srcEnd <= doneUntil + 0.01) continue;   // CPU로 이어서 할 때 이미 끝난 구간은 건너뛴다
+      // 조각들을 붙여 하나의 오디오로. map: [원래 시작, 원래 끝, 붙인 오디오에서의 시작]
+      const total = Math.round(ch.len * sr) + 1, buf = new Float32Array(total), map = []; let pos = 0;
+      for (const [a, b] of ch.parts) { const s0 = Math.floor(a * sr), s1 = Math.min(audio.length, Math.floor(b * sr)); buf.set(audio.subarray(s0, s1), Math.min(pos, total - (s1 - s0))); map.push([a, b, pos / sr]); pos += (s1 - s0) + Math.round(GAP * sr); }
+      const toSrc = t => { let best = map[0]; for (const m of map) { if (t >= m[2]) best = m; else break; } return Math.min(best[1], best[0] + Math.max(0, t - best[2])); };
+      const label = '전사 중 ' + (i + 1) + '/' + n + ' 구간 (' + mm(ch.parts[0][0]) + ' / ' + mm(dur) + ')';
+      post({ type: 'chunkStart', chunk: i, msg: label + (first ? ' · 첫 구간은 준비 때문에 조금 더 걸려요' : ''), pct: 16 + 60 * i / n }); first = false;
       const c0 = Date.now(); let got = [];
-      if (part.length >= sr * 0.3 && !hasSpeech(part, sr)) post({ type: 'log', msg: '말소리가 없는 구간은 건너뜀: ' + mm(off) });
-      else if (part.length >= sr * 0.3) {
+      if (buf.length >= sr * 0.3) {
         let res = null;
         if (wordMode) {
-          try { res = await asr(part, { language, task: 'transcribe', return_timestamps: 'word', streamer: new Beat(i, label), ...GEN }); }
+          try { res = await asr(buf, { language, task: 'transcribe', return_timestamps: 'word', streamer: new Beat(i, label), ...GEN }); }
           catch (err) { post({ type: 'log', msg: '단어 단위 시간 실패, 문장 단위로 전환: ' + (err && err.message) }); wordMode = false; }
         }
-        if (!res) res = await asr(part, { language, task: 'transcribe', return_timestamps: true, streamer: new Beat(i, label), ...GEN });
-        for (const c of res.chunks || []) { const a = c.timestamp[0] ?? 0, b = c.timestamp[1] ?? a + (wordMode ? 0.5 : 2); got.push({ t0: a + off, t1: b + off, text: c.text }); }
+        if (!res) res = await asr(buf, { language, task: 'transcribe', return_timestamps: true, streamer: new Beat(i, label), ...GEN });
+        for (const c of res.chunks || []) { const a = c.timestamp[0] ?? 0, b = c.timestamp[1] ?? a + (wordMode ? 0.5 : 2); got.push({ t0: toSrc(a), t1: Math.max(toSrc(a), toSrc(b)), text: c.text }); }
       }
       words.push(...got);
-      post({ type: 'chunkDone', chunk: i, total: n, words: got, ms: Date.now() - c0 });
+      post({ type: 'chunkDone', chunk: i, total: n, words: got, ms: Date.now() - c0, until: srcEnd });
     }
     words = words.filter(w => w.text && w.text.trim());
-    post({ type: 'stage', msg: '발언자를 나누는 중', pct: 76 });
-    const WIN = 600 * sr; let turns = [], base = 0;
-    for (let off = 0; off < audio.length; off += WIN) {
-      const part = audio.subarray(off, Math.min(audio.length, off + WIN));
-      if (part.length < sr) break;
-      const t = await segmentSpeakers(part, off / sr, base);
-      const ids = new Set(t.map(x => +x.spk)); base += ids.size ? Math.max(...ids) + 1 - base : 0;
-      turns.push(...t);
-      post({ type: 'stage', msg: '발언자를 나누는 중 ' + Math.min(100, Math.round((off + WIN) / audio.length * 100)) + '%', pct: 76 + Math.min(18, 18 * (off + WIN) / audio.length) });
+    if (legacy) {   // 옛 방식으로 나눴으면 화자 구간은 여기서 구한다
+      post({ type: 'stage', msg: '발언자를 나누는 중', pct: 78 });
+      turns = []; base = 0;
+      for (let off = 0; off < audio.length; off += WIN) { const part = audio.subarray(off, Math.min(audio.length, off + WIN)); if (part.length < sr) break; const t = await segmentSpeakers(part, off / sr, base); const ids = new Set(t.map(x => +x.spk)); base += ids.size ? Math.max(...ids) + 1 - base : 0; turns.push(...t); }
     }
+    post({ type: 'stage', msg: '목소리 특징을 비교하는 중', pct: 84 });
     try { turns = await unifySpeakers(audio, sr, turns, numSpeakers); } catch (err) { post({ type: 'log', msg: '화자 통일 실패(구간별 번호 유지): ' + (err && err.message) }); }
     post({ type: 'stage', msg: '정리 중', pct: 95 });
     let last = null;
@@ -6342,7 +6384,7 @@ async function diarizeBrowser({ title }) {
   try {
     /* GPU(WebGPU)가 응답을 멈추는 기기가 있다(전사 첫 구간에서 진행 없이 정지).
        워커가 보내는 신호(모델 진행·토큰·구간 완료)가 일정 시간 끊기면 워커를 끝내고 CPU(wasm)로 같은 구간부터 이어서 분석한다. */
-    const words = []; let startChunk = 0, result = null;
+    const words = []; let doneUntil = 0, result = null;
     for (let attempt = 0; !result; attempt++) {
       progSet(attempt ? null : 2, attempt ? 'CPU로 전환해 이어서 분석하는 중 (오디오 다시 읽기)' : '오디오를 읽는 중');
       const { audio: pcm, sr, duration } = await Promise.race([decodeTo16k(S.audioBlob), cancelP]);
@@ -6353,7 +6395,7 @@ async function diarizeBrowser({ title }) {
       try {
         result = await Promise.race([cancelP, new Promise((res, rej) => {
           const w = getDiarWorker();
-          let lastBeat = performance.now(), phase = 'load', chunk = startChunk;
+          let lastBeat = performance.now(), phase = 'load', chunk = 0;
           const big = tier === 'accurate' ? 3 : tier === 'balanced' ? 1.6 : 1;   // 큰 모델은 GPU에 올리는 데도, 첫 토큰까지도 더 오래 걸린다
           const limit = () => (phase === 'load' ? DIAR_STALL.load : phase === 'first' ? DIAR_STALL.first : DIAR_STALL.token) * big;
           if (device === 'webgpu') watch = setInterval(() => {
@@ -6362,22 +6404,22 @@ async function diarizeBrowser({ title }) {
           }, 1000);
           w.onmessage = e => {
             const m = e.data; lastBeat = performance.now();
-            if (m.type === 'dl') { const pct = m.total ? m.loaded / m.total : 0; progSet(4 + pct * 24, `${m.cached ? '저장된 모델 불러오는 중' : '모델 내려받는 중 (처음 한 번만' + (m.total > 300e6 ? ' · ' + Math.round(m.total / 1048576) + 'MB' : '') + ')'} ${Math.round(pct * 100)}% (${Math.round(m.loaded / 1048576)}/${Math.round(m.total / 1048576)}MB)`); }
+            if (m.type === 'dl') { const pct = m.total ? m.loaded / m.total : 0; progSet(1 + pct * 6, `${m.cached ? '저장된 모델 불러오는 중' : '모델 내려받는 중 (처음 한 번만' + (m.total > 300e6 ? ' · ' + Math.round(m.total / 1048576) + 'MB' : '') + ')'} ${Math.round(pct * 100)}% (${Math.round(m.loaded / 1048576)}/${Math.round(m.total / 1048576)}MB)`); }
             else if (m.type === 'loaded') aiLog('info', '모델 준비 완료', { device, ms: Math.round(performance.now() - t0) });
             else if (m.type === 'chunkStart') { chunk = m.chunk; phase = 'first'; progSet(m.pct, m.msg); }
             else if (m.type === 'tok') { phase = 'token'; progSet(m.pct, m.msg); }
-            else if (m.type === 'chunkDone') { phase = 'first'; words.push(...m.words); startChunk = m.chunk + 1; aiLog('info', `전사 구간 ${m.chunk + 1}/${m.total}`, { ms: m.ms, words: m.words.length, device }); }
+            else if (m.type === 'chunkDone') { phase = 'first'; words.push(...m.words); doneUntil = Math.max(doneUntil, m.until || 0); aiLog('info', `전사 구간 ${m.chunk + 1}/${m.total}`, { ms: m.ms, words: m.words.length, device }); }
             else if (m.type === 'stage') { phase = 'load'; progSet(m.pct != null ? m.pct : null, m.msg); }
             else if (m.type === 'log') aiLog('warn', m.msg);
             else if (m.type === 'done') res(m.result);
             else if (m.type === 'error') { aiLog('error', '워커 오류', { message: m.message, stack: (m.stack || '').split('\n').slice(0, 3).join(' | ') }); rej(new Error(m.message)); }
           };
           w.onerror = ev => { aiLog('error', '워커 로드 실패', { message: ev.message, file: ev.filename, line: ev.lineno }); rej(new Error(ev.message || '내장 분석 모듈을 불러오지 못했어요.')); };
-          w.postMessage({ audio: pcm, sr, language: whisperLang($('#lang').value), device, tier, numSpeakers: diar.n || 0, startChunk, prevWords: words }, [pcm.buffer]);
+          w.postMessage({ audio: pcm, sr, language: whisperLang($('#lang').value), device, tier, numSpeakers: diar.n || 0, doneUntil, prevWords: words }, [pcm.buffer]);
         })]);
       } catch (e) {
         if (!(e && e.code === 'gpu_stall') || device !== 'webgpu' || cancelled) throw e;
-        aiLog('warn', 'GPU(WebGPU) 응답 없음 → CPU로 전환해 이어서 분석', { phase: e.phase, chunk: e.chunk + 1, idleMs: e.idleMs, gpu: gpuInfo, doneChunks: startChunk });
+        aiLog('warn', 'GPU(WebGPU) 응답 없음 → CPU로 전환해 이어서 분석', { phase: e.phase, chunk: e.chunk + 1, idleMs: e.idleMs, gpu: gpuInfo, doneUntil: Math.round(doneUntil) });
         if (diarWorker) { diarWorker.terminate(); diarWorker = null; }
         device = 'wasm'; tier = resolveTier(device);
         try { localStorage.setItem(DIAR_CPU_KEY, String(Date.now())); } catch {}

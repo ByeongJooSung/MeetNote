@@ -50,7 +50,7 @@ async def run():
         res = await pg.evaluate("__meetnote.diarizeBrowser({ title: 't' }).then(ok => ({ ok, segs: __meetnote.S.segments.map(g => [g.spk, Math.round(g.t0), Math.round(g.t1), g.text.slice(0, 40)]) })).catch(e => ({ err: String(e && e.message || e) }))")
         print(f'{TIER}: {round(time.time() - t0)}s'); print(res)
         for l in logs:
-            if '화자 통일' in l or '거리' in l or '실패' in l or '오류' in l: print(l)
+            if '화자 통일' in l or '거리' in l or '실패' in l or '오류' in l or '인식 구간' in l: print(l)
         n = len({g[0] for g in res.get('segs', [])})
         print('RESULT:', 'OK' if n == 2 and not errs else f'FAIL (speakers={n}, errors={errs[:2]})')
         await b.close()
