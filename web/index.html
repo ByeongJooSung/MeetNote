@@ -920,6 +920,12 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
       <button id="micTest" class="btn">소리 테스트</button>
     </div>
     <p class="hint" id="micTestHint">소리 테스트를 누르고 말해 보세요. 막대가 움직이면 녹음할 준비가 끝난 거예요. 고른 장치는 다음 녹음부터 쓰입니다.</p>
+    <label class="field">음량 보정 (녹음할 때 적용)<select id="micBoost">
+      <option value="off">끄기 — 마이크 소리 그대로</option>
+      <option value="normal">보통 — 작은 목소리를 키우고 큰 소리는 눌러 고르게 (권장)</option>
+      <option value="strong">강하게 — 멀리서 작게 들리는 회의(회의실 뒤편·스피커폰)</option>
+    </select></label>
+    <p class="hint" id="micBoostHint">Web Audio API로 마이크 소리를 압축·증폭해요. 멀리 있는 사람의 작은 목소리도 가까운 사람과 비슷한 크기로 맞춰지고, 너무 커서 깨지는 소리(클리핑)는 막아요. 소리 테스트 막대도 보정을 거친 크기로 움직여요.</p>
   </div>
   <div id="micHelp" class="mic-help"></div>
   <div id="micAlt" class="mic-alt" hidden>
@@ -1300,8 +1306,11 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.16.0';
+const APP_VERSION = '0.17.0';
 const PATCH_NOTES = [
+  { v: '0.17.0', date: '2026-09-23', items: [
+    '녹음 음량 보정: Web Audio API로 마이크 소리를 압축·증폭해 멀리서 작게 들리는 목소리도 가까운 사람과 비슷한 크기로 맞추고, 너무 큰 소리는 깨지지 않게 눌러요. 마이크 설정에서 끄기·보통·강하게를 고를 수 있어요(기본 보통).'
+  ] },
   { v: '0.16.0', date: '2026-09-23', items: [
     '휴대폰(iPhone·Android)에서도 PC의 LM Studio·Ollama를 쓸 수 있어요. PC 서비스가 LLM을 대신 부르고(/llm), server\\tunnel.ps1로 만든 https 주소를 넣으면 돼요. 설정 → AI 엔진의 "휴대폰·다른 기기에서 PC의 LM Studio·Ollama 쓰기"를 보세요.'
   ] },
@@ -1416,7 +1425,7 @@ const audio = new Audio();
 audio.preload = 'auto';
 let audioURL = null;
 
-const rec = { mr: null, stream: null, chunks: [], state: 'idle', startPerf: 0, accum: 0, mime: '', mode: 'mic' };
+const rec = { mr: null, stream: null, rawStream: null, boostCtx: null, chunks: [], state: 'idle', startPerf: 0, accum: 0, mime: '', mode: 'mic' };
 const elapsed = () => rec.state === 'recording' ? rec.accum + (performance.now() - rec.startPerf) / 1000 : rec.accum;
 const clock = () => rec.state !== 'idle' ? elapsed() : (S.audioBlob ? (audio.currentTime || 0) : 0);
 function maxContentT() {
@@ -2723,6 +2732,36 @@ const MIC_KEY = 'meetnote.micDevice';
 const mic = { state: 'checking', deviceId: '', testStream: null, ctx: null, raf: null, permStatus: null, testTimer: null };
 try { mic.deviceId = localStorage.getItem(MIC_KEY) || ''; } catch {}
 const saveDevicePref = () => { try { localStorage.setItem(MIC_KEY, mic.deviceId); } catch {} };
+/* 음량 보정(Web Audio API): 마이크 → 저역 제거(80Hz) → 압축기(작은 소리는 키우고 큰 소리는 눌러 고르게) → 증폭 → 소프트 리미터(깨짐 방지) → MediaRecorder
+   브라우저 자체 자동 이득(autoGainControl)도 함께 켠다. 실패하면 원래 소리로 녹음한다 */
+const MIC_BOOST_KEY = 'meetnote.micBoost';
+const BOOST_PRESET = { off: null, normal: { threshold: -30, ratio: 4, gain: 1.6 }, strong: { threshold: -40, ratio: 8, gain: 2.4 } };
+try { mic.boost = localStorage.getItem(MIC_BOOST_KEY) || 'normal'; } catch { mic.boost = 'normal'; }
+if (!BOOST_PRESET.hasOwnProperty(mic.boost)) mic.boost = 'normal';
+function buildBoostGraph(ctx, raw, preset) {
+  const src = ctx.createMediaStreamSource(raw);
+  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 80;   // 에어컨·책상 진동 같은 낮은 웅웅거림 제거
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = preset.threshold; comp.knee.value = 24; comp.ratio.value = preset.ratio; comp.attack.value = 0.004; comp.release.value = 0.25;
+  const gain = ctx.createGain(); gain.gain.value = preset.gain;
+  const lim = ctx.createWaveShaper();   // 소프트 리미터: 1을 넘는 신호를 부드럽게 눌러 클리핑을 막는다
+  const curve = new Float32Array(2048); for (let i = 0; i < curve.length; i++) { const x = (i / (curve.length - 1)) * 2 - 1; curve[i] = 0.95 * Math.tanh(x * 1.5) / Math.tanh(1.5); }   // 최대 0.95: 압축 코덱(opus)을 거쳐도 깨지지 않게 여유
+  lim.curve = curve; lim.oversample = '2x';
+  src.connect(hp); hp.connect(comp); comp.connect(gain); gain.connect(lim);
+  return { src, hp, comp, gain, lim };
+}
+function boostedStream(raw) {
+  const preset = BOOST_PRESET[mic.boost];
+  if (!preset) return { stream: raw };
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return { stream: raw };
+    const ctx = new AC(); const g = buildBoostGraph(ctx, raw, preset); const dest = ctx.createMediaStreamDestination(); g.lim.connect(dest);
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    aiLog('info', '녹음 음량 보정 켬', { level: mic.boost, sampleRate: ctx.sampleRate });
+    return { stream: dest.stream, ctx };
+  } catch (e) { aiLog('warn', '음량 보정 그래프 실패 → 원래 소리로 녹음', errInfo(e)); return { stream: raw }; }
+}
+$('#micBoost').addEventListener('change', e => { mic.boost = e.target.value; try { localStorage.setItem(MIC_BOOST_KEY, mic.boost); } catch {} if (mic.testStream) { stopTest(); startTest(); } toast(mic.boost === 'off' ? '음량 보정을 껐어요. 다음 녹음부터 적용돼요.' : `음량 보정: ${mic.boost === 'strong' ? '강하게' : '보통'} · 다음 녹음부터 적용돼요.`); });
 const env = (() => {
   const ua = navigator.userAgent;
   const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -2845,7 +2884,7 @@ function micErrState(err) {
   return 'denied';
 }
 async function getMicStream() {
-  const base = { echoCancellation: true, noiseSuppression: true };
+  const base = { echoCancellation: true, noiseSuppression: true, autoGainControl: mic.boost !== 'off' };
   try {
     return await navigator.mediaDevices.getUserMedia({ audio: mic.deviceId ? { ...base, deviceId: { exact: mic.deviceId } } : base });
   } catch (err) {
@@ -2896,7 +2935,8 @@ async function startTest() {
   mic.ctx = new AC();
   const an = mic.ctx.createAnalyser();
   an.fftSize = 1024;
-  mic.ctx.createMediaStreamSource(mic.testStream).connect(an);
+  const preset = BOOST_PRESET[mic.boost];
+  if (preset) { try { buildBoostGraph(mic.ctx, mic.testStream, preset).lim.connect(an); } catch { mic.ctx.createMediaStreamSource(mic.testStream).connect(an); } } else mic.ctx.createMediaStreamSource(mic.testStream).connect(an);
   const buf = new Uint8Array(an.fftSize);
   let peak = 0;
   $('#micTest').textContent = '테스트 멈추기';
@@ -2928,6 +2968,7 @@ function stopTest() {
   const tb = $('#micTest'); if (tb) tb.textContent = '소리 테스트';
 }
 function openMicDlg() {
+  try { $('#micBoost').value = mic.boost; } catch {}
   renderMic();
   const d = $('#micDlg');
   try { if (!d.open) d.showModal(); } catch {}
@@ -3009,6 +3050,8 @@ async function startRec() {
     openMicDlg();
     return;
   }
+  rec.rawStream = rec.stream;
+  { const b = boostedStream(rec.rawStream); rec.stream = b.stream; rec.boostCtx = b.ctx || null; }   // 압축·증폭을 거친 소리로 녹음(실시간 전사도 같은 소리를 듣는다)
   const cands = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
   rec.mime = cands.find(m => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) || '';
   try {
@@ -3024,8 +3067,10 @@ async function startRec() {
     S.audioMime = type;
     S.duration = +rec.accum.toFixed(2);
     rec.stream.getTracks().forEach(t => t.stop());
+    if (rec.rawStream) rec.rawStream.getTracks().forEach(t => t.stop());
+    if (rec.boostCtx) { try { rec.boostCtx.close(); } catch {} }
     const wasAuto = auto.on && autoEngineOk();
-    rec.state = 'idle'; rec.mr = null; rec.stream = null;
+    rec.state = 'idle'; rec.mr = null; rec.stream = null; rec.rawStream = null; rec.boostCtx = null;
     setAudio(blob);
     markDirty(); renderTimeline(); syncButtons(); tick();
     if (wasAuto) runAutoDraft();
@@ -7914,6 +7959,7 @@ if (FB && user && fbSess && fbSess.sub === user.sub) { prefsPull(); projPull(); 
     '#projSel': '이 회의록이 속한 프로젝트. 없어도 되고 나중에 바꿀 수 있어요. 프로젝트의 통합 참고 문서가 있으면 AI가 회의록을 쓸 때 참고해요(회의에 올린 참고 자료가 우선).',
     '#tplSel': '회의록 양식 — 내보내기(PDF·HWPX·Word)와 입력칸 구성이 이 양식에 맞춰집니다.',
     '#attAdd': '참석자 행을 추가합니다. 입력 중 Enter를 누르면 다음 칸으로, 마지막 칸에서는 새 행이 생깁니다.',
+    '#micBoost': '녹음할 때 마이크 소리를 압축·증폭해 작은 목소리와 큰 목소리를 고르게 맞춰요(Web Audio API). 녹음 파일에 그대로 반영되고 실시간 전사도 보정된 소리를 들어요. 다음 녹음부터 적용.',
     '#recBtn': '녹음 시작/일시정지 — 마이크가 막혀 있으면 "시계만 켜고 기록" 방식을 안내합니다.',
     '#attachBtn': '휴대폰 녹음 앱 등으로 따로 녹음한 파일(m4a·mp3·wav)을 이 회의에 붙입니다.',
     '#saveBtn': '녹음·메모·본문·전사·AI 초안을 .mnote 파일 하나로 저장합니다 (Ctrl+S). 저장하기 전에 파일 이름을 한 번 물어봐요.',
