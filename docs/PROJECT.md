@@ -68,7 +68,7 @@ meetnote/
 ### 2.2 서버 (server/diarize.py)
 FastAPI + uvicorn. 역할은 두 가지.
 1. **전사 + 발언자 구분 API**
-   - `POST /jobs` (multipart: audio, lang, num_speakers, vocab) → `{job_id}`; `POST /cloud/clova` (multipart: audio, invoke_url, key, lang, num_speakers, vocab) → 클로바 스피치 응답 그대로; `GET /jobs/{id}` → `{state, pct, stage, message, result}`; `DELETE /jobs/{id}` 취소
+   - `POST /jobs` (multipart: audio, lang, num_speakers, vocab) → `{job_id}`; `POST /cloud/clova` (multipart: audio, invoke_url, key, lang, num_speakers, vocab) → 클로바 스피치 응답 그대로; `GET/POST /llm/{path}` → `LLM_BASE/{path}`로 전달(스트리밍 포함, Authorization 통과); `GET /jobs/{id}` → `{state, pct, stage, message, result}`; `DELETE /jobs/{id}` 취소
    - `POST /diarize` 동기 버전(구버전 호환), `GET /health`
    - 파이프라인: ffmpeg → 16kHz wav → faster-whisper(small, VAD) → 발언자 분리(pyannote 3.1 또는 resemblyzer 임베딩+군집) → 문장에 화자 배정
    - 작업은 한 번에 하나만 실행(작업 잠금), 취소는 문장 경계에서 즉시 반영
@@ -167,6 +167,7 @@ window.MEETNOTE_CONFIG = {
 | `OPEN_BROWSER` | 1 | 웹 앱 자동 열기 |
 | `CLOVA_SPEECH_URL` / `CLOVA_SPEECH_KEY` | 없음 | 클로바 스피치 프록시 기본값(브라우저에서 보낸 값이 우선) |
 | `CLOUD_TIMEOUT` | 1800 | 클로바 스피치 동기 인식 대기(초) |
+| `LLM_BASE` | http://localhost:1234 | `/llm/*` 프록시가 대신 부를 로컬 LLM 서버(Ollama면 http://localhost:11434) |
 
 ### 4.3 설정 저장(localStorage + 계정 DB 동기화)
 설정은 브라우저 localStorage에 두고, 로그인 상태면 `prefsTouch()` → `prefsPush()`로 Firestore `users/{uid}/settings/prefs`에 올려 다른 기기에서도 이어 쓴다(`prefsLocal`/`prefsPull`). 동기화 대상: 발언자 분석·AI 엔진·다듬기 옵션, AI 작성 설정(`meetnote.draftOpt`: 분량·문체·표 정리·시간 표시·공통 지시), 추가 지시 템플릿(`meetnote.draftTpls`), 작성자(`meetnote.author`). 보안 토큰·API 키는 올리지 않는다.
@@ -205,6 +206,9 @@ myform: {
 
 ### 5.3.1 버전 올리기
 출시 전에는 `0.x.y`로 관리한다(기능 추가 = x, 수정 = y). `web/index.html`의 `APP_VERSION`을 올리고 `PATCH_NOTES` 맨 위에 항목을 추가한다(설정 → 버전 정보에 표시). 서비스 워커 캐시 이름은 Pages 배포 워크플로가 커밋마다 자동으로 바꾼다.
+
+### 5.3.2 휴대폰에서 PC의 LM Studio·Ollama 쓰기
+배포 앱은 https라 브라우저가 http LAN 주소를 부르지 못한다(혼합 콘텐츠, iPhone·Android 공통). 해법: PC 서비스가 LLM을 대신 부르는 `/llm` 프록시 + `server/tunnel.ps1`(`tunnel.sh`)로 만든 Cloudflare 빠른 터널(https). 앱에서는 PC 서비스 주소 = 터널 주소, AI 서버 주소 = `터널 주소/llm`. 설정 → AI 엔진의 "휴대폰·다른 기기에서…" 상자가 이 순서를 안내하고 PC 서비스 주소가 https면 한 번에 채워 준다(`renderPhoneHelp`). 인터넷에 열리므로 LM Studio API 키(보안 토큰)를 켜 둘 것.
 
 ### 5.4 AI 엔진 추가
 `PROVIDER_DEF`에 항목을 추가하고 `/v1/chat/completions` 호환이면 그대로 동작한다. 다른 API는 `callOpenAI`와 같은 형태(prompt, signal, onText) → 텍스트 반환 함수를 만들어 `runAI`·`runAutoDraft`에서 분기한다.

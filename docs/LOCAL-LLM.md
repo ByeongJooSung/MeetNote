@@ -29,7 +29,7 @@ OLLAMA_ORIGINS="https://byeongjoosung.github.io" ollama serve   # 내 배포 주
    APK로 설치한 앱은 `allowMixedContent`가 켜져 있어 `http://PC-IP:11434` 주소를 바로 쓸 수 있습니다.
 
 ## 외부에서 접속할 때: 보안 토큰 (선택)
-서버를 터널(cloudflared 등)이나 포트 개방으로 인터넷에 열면 주소를 아는 누구나 모델을 쓸 수 있습니다. 서버에 API 키(토큰)를 걸고,
+서버를 터널(cloudflared 등)이나 포트 개방으로 인터넷에 열면 주소를 아는 누구나 모델을 쓸 수 있습니다. 휴대폰에서 쓰려면 `server/tunnel.ps1`(PC 서비스 `/llm` 프록시 + https 터널)을 쓰고 LM Studio API 키를 켜 두세요. 서버에 API 키(토큰)를 걸고,
 MeetNote **⚙ 설정 → AI 엔진 → 보안 토큰**에 같은 값을 넣으세요. 요청마다 `Authorization: Bearer 토큰`으로 보냅니다.
 - LM Studio: Developer → Server Settings에서 인증(API 키) 사용 · vLLM / llama.cpp 서버: `--api-key 값`
 - Ollama는 자체 인증이 없어 앞단 프록시(Caddy·nginx)에서 `Authorization` 헤더를 검사하게 합니다.

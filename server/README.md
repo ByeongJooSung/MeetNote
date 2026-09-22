@@ -26,6 +26,7 @@ MeetNote → 전사 탭 → **발언자 구분** → "음성 분석 서비스" �
 | faster-whisper `medium`/`large-v3` | 전사 정확도 ↑ | `WHISPER_MODEL=medium` | GPU 권장 |
 | faster-whisper `large-v3-turbo` | large-v3에 가까운 정확도, 훨씬 빠름 | `WHISPER_MODEL=large-v3-turbo` | GPU 권장(약 1.6GB) |
 | 회의 용어 사전 | 참석자 이름·참고 자료 용어를 힌트로 받아 고유명사 인식 ↑ | 앱의 분석 창에서 체크(기본 켜짐) | 서버가 `vocab`을 받아 `hotwords`로 사용 |
+| 휴대폰에서 LM Studio 쓰기 | `/llm/*`가 LM Studio·Ollama를 대신 호출(`LLM_BASE`). `tunnel.ps1`로 https 터널을 만들어 앱의 AI 서버 주소에 `터널주소/llm` | `powershell -ExecutionPolicy Bypass -File server	unnel.ps1` | 인터넷에 열리니 LM Studio API 키 권장 |
 | 클로바 스피치 프록시 | 앱의 클라우드 API → 네이버 클로바 스피치를 이 서버가 대신 호출(브라우저 CORS 제한) | 앱에서 Invoke URL·Secret Key 입력, 또는 `CLOVA_SPEECH_URL`/`CLOVA_SPEECH_KEY` | 키는 저장하지 않음 |
 
 pyannote 사용: https://huggingface.co/pyannote/speaker-diarization-3.1 과 `pyannote/segmentation-3.0` 약관 동의 → 토큰 발급 →

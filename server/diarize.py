@@ -3,6 +3,7 @@ MeetNote 발언자 구분 서비스 (로컬 파이썬)
 - 전사: faster-whisper (기본 small, 환경변수 WHISPER_MODEL로 변경. GPU면 large-v3-turbo 권장)
 - 회의 용어 사전(vocab): 클라이언트가 보낸 참석자 이름·참고 자료 용어를 hotwords/initial_prompt로 넣어 고유명사 인식 향상
 - 클라우드 프록시: /cloud/clova — 네이버 클로바 스피치(브라우저에서 직접 호출 불가)를 대신 호출
+- LLM 프록시: /llm/* — 휴대폰(https 앱)이 PC의 LM Studio·Ollama를 쓸 수 있게 대신 호출(LLM_BASE, 기본 http://localhost:1234)
 - 발언자 구분: 1) pyannote.audio 3.1 (HF_TOKEN 있을 때, 가장 정확)
               2) resemblyzer 임베딩 + 군집 (토큰 없이, CPU)
               3) 둘 다 없으면 화자 1명으로 반환
@@ -16,7 +17,8 @@ os.environ.setdefault("MKL_NUM_THREADS", os.environ["OMP_NUM_THREADS"])
 os.environ.setdefault("NUMBA_CACHE_DIR", os.path.join(tempfile.gettempdir(), "meetnote-numba"))
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 from typing import Optional
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
+from fastapi.responses import StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 
@@ -30,6 +32,7 @@ PORT = int(os.environ.get("PORT", "8765"))
 PRELOAD = os.environ.get("PRELOAD", "1") != "0"   # 시작 시 모델을 미리 내려받아 첫 분석을 빠르게
 MODEL_SIZE = {"tiny": "75", "base": "145", "small": "460", "medium": "1500", "large-v3": "3000", "large-v3-turbo": "1600", "turbo": "1600", "distil-large-v3": "1500"}
 CLOUD_TIMEOUT = int(os.environ.get("CLOUD_TIMEOUT", "1800"))   # 클로바 스피치 동기 인식 대기(초)
+LLM_BASE = os.environ.get("LLM_BASE", "http://localhost:1234").rstrip("/")   # /llm 프록시가 대신 부를 로컬 LLM 서버(LM Studio 1234, Ollama 11434)
 
 def _base_dir():
     """실행 위치: 소스 실행이면 server/, PyInstaller exe면 압축이 풀린 임시 폴더."""
@@ -364,6 +367,25 @@ async def cloud_clova(audio: UploadFile = File(...), invoke_url: Optional[str] =
     except ValueError:
         raise HTTPException(502, "클로바 스피치 응답을 해석하지 못했어요: " + r.text[:200])
 
+# ---- 로컬 LLM 프록시: 휴대폰(https 앱)은 http LAN 주소를 부를 수 없어(혼합 콘텐츠) 이 서버가 LM Studio·Ollama를 대신 부른다 ----
+# 앱의 AI 서버 주소를 "<이 서버의 https 터널>/llm"으로 두면 /llm/v1/chat/completions 등이 LLM_BASE로 그대로 전달된다(스트리밍 포함)
+@app.api_route("/llm/{path:path}", methods=["GET", "POST"])
+async def llm_proxy(path: str, request: Request):
+    import requests
+    from starlette.concurrency import run_in_threadpool
+    url = f"{LLM_BASE}/{path}" + (f"?{request.url.query}" if request.url.query else "")
+    headers = {k: v for k, v in request.headers.items() if k.lower() in ("content-type", "authorization", "accept")}
+    body = await request.body()
+    try:
+        r = await run_in_threadpool(lambda: requests.request(request.method, url, headers=headers, data=body or None, stream=True, timeout=(10, 3600)))
+    except requests.RequestException as e:
+        raise HTTPException(502, f"LLM 서버({LLM_BASE})에 연결하지 못했어요: {e}. LM Studio 서버가 켜져 있는지, LLM_BASE 환경변수가 맞는지 확인하세요.")
+    ct = r.headers.get("content-type", "application/json")
+    if "text/event-stream" in ct:
+        return StreamingResponse(r.iter_content(chunk_size=None), status_code=r.status_code, media_type=ct, headers={"cache-control": "no-cache", "x-accel-buffering": "no"})
+    content = r.content; r.close()
+    return Response(content=content, status_code=r.status_code, media_type=ct)
+
 def _preload():
     try:
         print(f"[preload] 음성 인식 모델({WHISPER_MODEL}) 준비 중… 처음이면 약 {MODEL_SIZE.get(WHISPER_MODEL, '수백')}MB를 내려받아요.")
@@ -375,7 +397,7 @@ def _preload():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "whisper": WHISPER_MODEL, "ready": _whisper is not None, "cloud": ["clova"], "vocab": True,
+    return {"ok": True, "whisper": WHISPER_MODEL, "ready": _whisper is not None, "cloud": ["clova"], "vocab": True, "llm": LLM_BASE,
             "diarizer": "pyannote" if HF_TOKEN else ("resemblyzer" if _encoder else "none"), "ffmpeg": bool(shutil.which("ffmpeg"))}
 
 # ---- 웹 앱을 같은 주소에서 제공 (exe/도커 배포용) ----

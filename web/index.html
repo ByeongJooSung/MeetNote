@@ -349,6 +349,12 @@ select{border:1px solid var(--line);background:var(--surface);border-radius:8px;
 .seg-menu[hidden]{display:none}
 .seg-menu button{border:0;background:none;text-align:left;padding:8px 12px;border-radius:7px;font-size:14px;color:var(--ink);cursor:pointer}
 .seg-menu button:hover,.seg-menu button:focus-visible{background:var(--sunk)}
+.phone-help{border:1px solid var(--line);border-radius:10px;padding:4px 12px;margin:2px 0 10px;font-size:13px}
+.phone-help summary{cursor:pointer;padding:6px 0;font-weight:600}
+.phone-help p,.phone-help li{color:var(--ink2);line-height:1.55;margin:4px 0}
+.phone-help ol{padding-left:18px;margin:4px 0}
+.phone-help code{background:var(--sunk);padding:0 4px;border-radius:4px}
+.phone-help .btn{padding:2px 8px;font-size:12px;margin-left:4px}
 .browser-opt{border:1px solid var(--line);border-radius:10px;padding:2px 12px 8px;margin:8px 0}
 .browser-opt .field{margin:8px 0 4px}
 .cloud-panel{border:1px solid var(--line);border-radius:10px;padding:4px 12px 10px;margin:8px 0}
@@ -985,6 +991,17 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <p class="hint" style="margin:0 0 10px">서버를 인터넷(터널·포트 개방)으로 열었다면 토큰을 걸어 두세요. 요청마다 <code>Authorization: Bearer 토큰</code>으로 보냅니다. LM Studio: Developer → Server Settings의 인증(API 키), vLLM·llama.cpp: <code>--api-key</code>, Ollama: 앞단 프록시(Caddy·nginx)에서 검사.</p>
     <div class="row"><button id="aiModels" class="btn primary">연결 확인 · 모델 불러오기</button></div>
     <div class="conn" id="aiConn" hidden><span class="sdot"></span><span id="aiConnText"></span></div>
+    <details class="phone-help" id="aiPhoneHelp">
+      <summary>휴대폰·다른 기기에서 PC의 LM Studio·Ollama 쓰기</summary>
+      <p>이 앱이 https(배포 주소)로 열려 있으면 브라우저가 http 주소(PC의 LAN IP)를 부르지 못해요(혼합 콘텐츠 차단 · iPhone·Android 모두). 그래서 <b>PC 서비스에 https 터널</b>을 씌우고, PC 서비스가 LM Studio를 대신 불러 줍니다.</p>
+      <ol>
+        <li>PC에서 LM Studio 서버(포트 1234)와 PC 서비스(<code>python diarize.py</code>)를 켭니다. Ollama면 PC 서비스를 <code>LLM_BASE=http://localhost:11434</code>로 켭니다.</li>
+        <li>PC에서 <code>server\tunnel.ps1</code>(맥·리눅스는 <code>server/tunnel.sh</code>)을 실행하면 <code>https://….trycloudflare.com</code> 주소가 나와요. <button type="button" class="btn" id="aiTunnelCopy">명령 복사</button></li>
+        <li>그 주소를 휴대폰의 <b>발언자 구분 → PC 서비스 주소</b>에 넣고, 여기 <b>서버 주소</b>에는 <code>그 주소/llm</code>을 넣으세요. <button type="button" class="btn" id="aiUsePcTunnel">PC 서비스 주소로 채우기</button></li>
+        <li>인터넷에 열리는 주소이니 LM Studio의 API 키(보안 토큰)를 켜고 위 <b>보안 토큰</b>에 넣어 두세요. 터널 주소는 PC 서비스를 다시 켤 때마다 바뀝니다.</li>
+      </ol>
+      <p class="hint" id="aiPhoneState"></p>
+    </details>
     <label class="field">모델<select id="aiModelSel"><option value="">모델을 먼저 불러오세요</option></select></label>
     <label class="field" id="aiModelCustomRow" hidden>모델 이름 직접 입력<input id="aiModel" placeholder="예: qwen2.5:7b" autocomplete="off" spellcheck="false"></label>
   </div>
@@ -1283,8 +1300,11 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.15.2';
+const APP_VERSION = '0.16.0';
 const PATCH_NOTES = [
+  { v: '0.16.0', date: '2026-09-23', items: [
+    '휴대폰(iPhone·Android)에서도 PC의 LM Studio·Ollama를 쓸 수 있어요. PC 서비스가 LLM을 대신 부르고(/llm), server\\tunnel.ps1로 만든 https 주소를 넣으면 돼요. 설정 → AI 엔진의 "휴대폰·다른 기기에서 PC의 LM Studio·Ollama 쓰기"를 보세요.'
+  ] },
   { v: '0.15.2', date: '2026-09-23', items: ['프로젝트를 만든 뒤 앱을 다시 열면 시작 화면에서 멈추던 문제를 고쳤어요.'] },
   { v: '0.15.1', date: '2026-09-23', items: [
     '프로젝트 지정이 드라이브에서 불러올 때 초기화되던 문제를 고쳤어요(목록 DB 부분 갱신, Drive 파일에도 프로젝트 기록, 아직 받아오지 못한 프로젝트도 유지).',
@@ -4715,8 +4735,8 @@ function inClaudeSandbox() { return framed && !!window.claude; }
 function localHint() {
   const b = localBase();
   if (inClaudeSandbox()) return 'Claude 화면 안에 들어간 페이지는 보안 정책 때문에 로컬 서버를 부를 수 없어요. GitHub Pages 등에 배포한 주소나 PC의 localhost로 여세요.';
-  if (env.mobile && /localhost|127\.0\.0\.1/.test(b)) return `휴대폰에서 localhost는 휴대폰 자신을 가리켜서 PC의 서버에 닿지 않아요. ① PC 브라우저에서 쓰거나 ② PC에서 "npx cloudflared tunnel --url ${b}"로 https 주소를 만들어 서버 주소에 넣으세요(서버의 CORS 허용 필요). 휴대폰만 쓴다면 엔진을 Anthropic API 키로 바꾸는 것이 가장 간단해요.`;
-  if (/^https:/.test(location.protocol) && /^http:\/\//.test(b) && !/localhost|127\.0\.0\.1/.test(b)) return 'https 페이지에서는 http 주소의 서버(LAN IP)를 부를 수 없어요(혼합 콘텐츠). PC에서 localhost로 접속하거나 서버에 https를 붙이세요.';
+  if (env.mobile && /localhost|127\.0\.0\.1/.test(b)) return `휴대폰에서 localhost는 휴대폰 자신을 가리켜서 PC의 서버에 닿지 않아요. ① PC 브라우저에서 쓰거나 ② PC에서 "npx cloudflared tunnel --url ${b}"로 https 주소를 만들어 서버 주소에 넣으세요(서버의 CORS 허용 필요). 또는 PC에서 server\\tunnel.ps1을 실행해 나온 https 주소 + "/llm"을 넣으세요(설정의 "휴대폰·다른 기기에서 쓰기"). 휴대폰만 쓴다면 엔진을 Anthropic API 키로 바꾸는 것이 가장 간단해요.`;
+  if (/^https:/.test(location.protocol) && /^http:\/\//.test(b) && !/localhost|127\.0\.0\.1/.test(b)) return 'https 페이지에서는 http 주소의 서버(LAN IP)를 부를 수 없어요(혼합 콘텐츠 · iPhone·Android 모두). PC에서 server\\tunnel.ps1을 실행해 나온 https 주소에 "/llm"을 붙여 서버 주소로 넣으세요(설정의 "휴대폰·다른 기기에서 쓰기" 참고). PC 브라우저라면 localhost 주소를 쓰세요.';
   return '서버가 켜져 있는지, CORS가 허용됐는지(LM Studio: Enable CORS, Ollama: OLLAMA_ORIGINS=*) 확인하세요.';
 }
 function localErr(e) {
@@ -4739,6 +4759,21 @@ function renderModelSel() {
   $('#aiModelCustomRow').hidden = !custom;
   if (custom) $('#aiModel').value = ai.model;
 }
+const TUNNEL_CMD = 'powershell -ExecutionPolicy Bypass -File server\\tunnel.ps1';
+function renderPhoneHelp() {
+  const box = $('#aiPhoneHelp'); if (!box) return;
+  const local = isLocal(ai.provider), https = /^https:/.test(location.protocol);
+  box.hidden = !local;
+  const pcTunnel = /^https:\/\//i.test(diar.base || '') && !diar.embedded;
+  $('#aiUsePcTunnel').hidden = !pcTunnel;
+  const b = localBase();
+  $('#aiPhoneState').textContent = !https ? '이 페이지는 http로 열려 있어 LAN 주소(http://PC-IP:1234)도 바로 쓸 수 있어요.' : /\/llm$/.test(b) ? 'PC 서비스를 거쳐 LM Studio를 부르도록 설정돼 있어요.' : pcTunnel ? `PC 서비스 주소(${diar.base})가 https예요. "PC 서비스 주소로 채우기"를 누르면 그 주소를 거쳐 LM Studio를 불러요.` : (env.mobile ? '휴대폰에서 열려 있어요. 위 순서대로 PC 서비스 터널을 만들어 주세요.' : '');
+  if (!box.dataset.wired) {
+    box.dataset.wired = '1';
+    $('#aiTunnelCopy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(TUNNEL_CMD); toast('명령을 복사했어요. PC의 저장소 폴더(meetnote)에서 PowerShell로 실행하세요.'); } catch { toast(TUNNEL_CMD, 8000); } });
+    $('#aiUsePcTunnel').addEventListener('click', () => { ai.base = cleanBase(diar.base) + '/llm'; $('#aiBase').value = ai.base; ai.models = []; ai.model = ''; saveAI(); renderModelSel(); renderPhoneHelp(); toast('서버 주소를 PC 서비스 터널(/llm)로 바꿨어요. "연결 확인 · 모델 불러오기"를 누르세요.'); fetchModels(); });
+  }
+}
 function renderAIDlg() {
   const p = ai.provider, local = isLocal(p);
   $('#aiProvider').value = p;
@@ -4747,6 +4782,7 @@ function renderAIDlg() {
   if (local) { const b = $('#aiBase'); b.value = ai.base || PROVIDER_DEF[p].base; b.placeholder = PROVIDER_DEF[p].base || 'http://서버주소:포트'; renderModelSel(); $('#aiToken').value = llmToken(); $('#aiTokenKeep').checked = llmTokenKept(); }
   $('#apiKeyState').textContent = apiKey ? '키가 적용돼 있어요(이 화면에서만 유지).' : '';
   $('#aiProvHelp').innerHTML = local ? PROVIDER_DEF[p].help : p === 'anthropic' ? 'Anthropic API 키는 이 화면에서만 쓰고 파일이나 브라우저 저장소에 남기지 않아요. 새로고침하면 다시 넣어야 해요.' : (ai.hasSample ? 'Claude 화면 안에서 열려 있어 바로 쓸 수 있어요. 첫 호출 때 허용을 물어봐요.' : ai.hasSample === false ? '이 페이지가 Claude 화면 밖에서 열려 있어요. 로컬 LLM(LM Studio·Ollama)이나 Anthropic API 키를 고르세요.' : 'Claude 연결을 확인하는 중이에요…');
+  renderPhoneHelp();
   renderAILog();
 }
 function renderAIStatus() {
