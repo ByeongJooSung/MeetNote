@@ -120,7 +120,7 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .proj-row{margin-left:12px}
 .proj-row select{max-width:220px}
 #projManage{margin-left:4px}
-#projDlg{width:min(680px,calc((100vw - 32px) / var(--ui,1)))}
+#projDlg{width:min(820px,calc((100vw - 32px) / var(--ui,1)));max-width:none}
 .proj-top{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0 10px}
 .proj-top select{flex:1;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--ink)}
 #projDlg textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface);color:var(--ink);font-size:13px;line-height:1.55;resize:vertical;font-family:inherit}
@@ -146,7 +146,7 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .ref-item .x:hover{color:var(--rec);background:var(--sunk)}
 .ref-item.warn .k{color:var(--rec);background:color-mix(in srgb,var(--rec) 12%,var(--surface))}
 .src{color:var(--tc-blue);font-size:.92em}
-#refDlg{width:min(680px,calc((100vw - 32px) / var(--ui,1)))}
+#refDlg{width:min(800px,calc((100vw - 32px) / var(--ui,1)));max-width:none}
 #refDlg textarea,#refDlg input{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface);color:var(--ink);font-size:13px;line-height:1.55}
 #refDlg textarea{resize:vertical;font-family:inherit}
 .photo-sec .hint{margin:6px 0 0;font-size:12.5px;color:var(--ink2)}
@@ -193,14 +193,14 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .spk{border:0;border-radius:6px;padding:1px 7px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink);background:var(--sunk);margin-bottom:3px}
 .spk[data-k="0"]{background:#DCEFED;color:#0F7B78}.spk[data-k="1"]{background:#D6E8F5;color:#2B6CA3}.spk[data-k="2"]{background:#FADFC8;color:#C0650F}.spk[data-k="3"]{background:#E8DDF3;color:#8656AB}.spk[data-k="4"]{background:#D9EEDC;color:#3A7C55}.spk[data-k="5"]{background:#FBDADA;color:#D0443F}
 .pane-tools .btn{padding:4px 10px;font-size:13px}
-#diarDlg{width:min(600px,calc((100vw - 32px) / var(--ui,1)))}
+#diarDlg{width:min(680px,calc((100vw - 32px) / var(--ui,1)));max-width:none}
 #diarDlg .field{margin:8px 0}
 #diarDlg input:not([type=radio]):not([type=checkbox]),#diarDlg select,#spkDlg input,#spkDlg select{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface)}
 .opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:8px 0;cursor:pointer;transition:border-color .12s,background .12s}
 .opt:hover{border-color:var(--tape)}
 .opt input[type=radio]{flex:none;width:16px;height:16px;margin:2px 0 0;padding:0;border:0;accent-color:var(--tape);cursor:pointer}
 .opt > div{flex:1;min-width:0}
-#mapDlg{width:min(640px,calc((100vw - 32px) / var(--ui,1)))}
+#mapDlg{width:min(760px,calc((100vw - 32px) / var(--ui,1)));max-width:none}
 .map-table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
 .map-table th,.map-table td{border-bottom:1px solid var(--line);padding:6px 6px;text-align:left;vertical-align:middle;white-space:nowrap}
 .map-table td:nth-child(3){white-space:normal;min-width:180px}
@@ -388,7 +388,7 @@ select{border:1px solid var(--line);background:var(--surface);border-radius:8px;
 .ai-err b{color:var(--rec)}
 .ai-err p{margin:0 0 6px}
 .ai-err .row{display:flex;gap:6px;flex-wrap:wrap}
-#aiDlg{width:min(600px,calc((100vw - 32px) / var(--ui,1)))}
+#aiDlg{width:min(780px,calc((100vw - 32px) / var(--ui,1)));max-width:none}
 #aiDlg .field{margin:10px 0 6px}
 #aiDlg select,#aiDlg input:not([type=checkbox]):not([type=radio]){width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface)}
 #aiDlg .row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
@@ -408,7 +408,7 @@ select{border:1px solid var(--line);background:var(--surface);border-radius:8px;
 @keyframes indet{0%{margin-left:-35%}100%{margin-left:100%}}
 .prog-meta{display:flex;justify-content:space-between;font-size:13px;color:var(--ink2)}
 .prog-stage{font-size:14.5px;margin:4px 0 0;min-height:1.5em}
-#analyzeDlg,#progDlg,#diarDlg,#hwpxDlg{width:min(560px,calc((100vw - 32px) / var(--ui,1)))}
+#analyzeDlg,#progDlg,#diarDlg,#hwpxDlg{width:min(680px,calc((100vw - 32px) / var(--ui,1)));max-width:none}
 .fmt-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .fmt-row .opt{margin:0;flex-direction:column;align-items:flex-start}
 #printFrame{position:fixed;width:0;height:0;border:0;opacity:0;pointer-events:none}
@@ -460,7 +460,7 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 @keyframes busyDots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
 .tb[data-hist]:disabled{opacity:.35;cursor:default}
 /* 내 회의록(클라우드) */
-#cloudDlg{width:min(760px,calc((100vw - 32px) / var(--ui,1)))}
+#cloudDlg{width:min(900px,calc((100vw - 32px) / var(--ui,1)));max-width:none}
 .cloud-list{display:flex;flex-direction:column;gap:6px;max-height:min(50vh,440px);overflow-y:auto;overflow-x:hidden;margin-top:8px;padding:1px}
 #cloudDlg{overflow-x:hidden}
 .cl-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -525,10 +525,10 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 .set-kv{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13.5px;margin:8px 0 12px}
 .set-kv dt{color:var(--ink2)}.set-kv dd{margin:0}
 dialog textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--ink);font:inherit;font-size:13.5px;line-height:1.5;resize:vertical}
-#draftOptDlg,#refineDlg{width:min(600px,calc((100vw - 32px) / var(--ui,1)))}
+#draftOptDlg,#refineDlg{width:min(700px,calc((100vw - 32px) / var(--ui,1)));max-width:none}
 #draftSecs{gap:6px 14px}
 /* 설정 창 */
-#aiDlg{width:min(600px,calc((100vw - 32px) / var(--ui,1)))}
+#aiDlg{width:min(780px,calc((100vw - 32px) / var(--ui,1)));max-width:none}
 .set-tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);margin:6px 0 12px}
 .set-tabs button{border:0;background:none;padding:8px 12px;font-size:14px;color:var(--ink2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
 .set-tabs button[aria-selected="true"]{color:var(--tape);border-bottom-color:var(--tape);font-weight:600}
@@ -581,7 +581,7 @@ dialog textarea{width:100%;border:1px solid var(--line);border-radius:8px;paddin
 .user{display:flex;align-items:center;gap:8px;font-size:13.5px}
 .user img{width:28px;height:28px;border-radius:50%}
 .user .name{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-dialog{max-height:calc((100dvh - 32px) / var(--ui,1));overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:20px 22px;max-width:min(560px,calc((100vw - 32px) / var(--ui,1)))}
+dialog{max-height:calc((100dvh - 32px) / var(--ui,1));overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:20px 22px;max-width:min(680px,calc((100vw - 32px) / var(--ui,1)))}
 dialog::backdrop{background:rgba(10,14,20,.45)}
 dialog h2{font-size:17px;margin:0 0 8px}
 dialog p{margin:6px 0;color:var(--ink2);font-size:14px}
@@ -1283,8 +1283,13 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.15.0';
+const APP_VERSION = '0.15.1';
 const PATCH_NOTES = [
+  { v: '0.15.1', date: '2026-09-23', items: [
+    '프로젝트 지정이 드라이브에서 불러올 때 초기화되던 문제를 고쳤어요(목록 DB 부분 갱신, Drive 파일에도 프로젝트 기록, 아직 받아오지 못한 프로젝트도 유지).',
+    '목록 DB 규칙이 project 항목을 막으면 프로젝트만 빼고 저장하고 규칙 갱신을 안내해요(docs/CLOUD-SETUP.md).',
+    '설정·불러오기·프로젝트 등 창의 폭을 넉넉하게 넓혔어요.'
+  ] },
   { v: '0.15.0', date: '2026-09-23', items: [
     '프로젝트: 회의록을 프로젝트로 묶을 수 있어요(없어도 되고, 이미 만든 회의록도 회의 정보나 불러오기 목록에서 지정·변경). 불러오기에서 모든 프로젝트·프로젝트 없음·특정 프로젝트로 골라 봐요.',
     '프로젝트 참고 문서: 프로젝트 관리에서 사업계획서·요구사항·용어집 같은 공통 문서를 올리면 글로 바꿔 AI가 요약하고 통합 참조 문서에 합쳐요. 문서를 더 올리면 기존 통합본에 머지돼요(.md는 그대로). 직접 고칠 수도 있어요.',
@@ -6998,8 +7003,8 @@ function saveProjects(p) {
 const projOptions = (cur, extra = '') => `<option value=""${!cur ? ' selected' : ''}>(프로젝트 없음)</option>${projList().map(p => `<option value="${esc(p.id)}"${p.id === cur ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}${extra}`;
 function renderProjSel() {
   const sel = $('#projSel'), cur = S.meta.project || '';
-  if (cur && !projById(cur)) { S.meta.project = ''; }   // 지워진 프로젝트
-  sel.innerHTML = projOptions(S.meta.project || '', '<option value="__new">+ 새 프로젝트…</option>');
+  const unknown = cur && !projById(cur) ? `<option value="${esc(cur)}" selected>(다른 기기의 프로젝트 · 동기화 전)</option>` : '';   // 모르는 id라도 지우지 않는다
+  sel.innerHTML = projOptions(cur, unknown + '<option value="__new">+ 새 프로젝트…</option>');
   sel.value = S.meta.project || '';
 }
 function renderCloudProjSel() {
@@ -7460,9 +7465,22 @@ async function dbList() {
   } while (page && out.length < 3000);
   return out;
 }
+let dbProjOff = false;   // 목록 DB 규칙이 project 항목을 허용하지 않으면(403) 프로젝트는 빼고 저장한다
 async function dbUpsert(m) {
-  const a = await fbAuth(); const fields = {}; for (const [k, v] of Object.entries(m)) if (k !== 'id') fields[k] = fsVal(v);
-  await jfetch(`${fsBase(a)}/${encodeURIComponent(safeId(m.id))}`, { method: 'PATCH', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ fields }) });
+  const a = await fbAuth();
+  const send = async obj => {   // 준 항목만 바꾼다(updateMask). 없으면 문서 전체가 덮여 다른 항목(프로젝트 등)이 지워진다
+    const fields = {}, mask = []; for (const [k, v] of Object.entries(obj)) if (k !== 'id') { fields[k] = fsVal(v); mask.push('updateMask.fieldPaths=' + encodeURIComponent(k)); }
+    await jfetch(`${fsBase(a)}/${encodeURIComponent(safeId(obj.id))}?${mask.join('&')}`, { method: 'PATCH', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ fields }) });
+  };
+  const hasProj = 'project' in m || 'projectName' in m;
+  if (hasProj && dbProjOff) { const { project, projectName, ...rest } = m; if (Object.keys(rest).length > 1) await send(rest); return; }
+  try { await send(m); }
+  catch (e) {
+    if (!(hasProj && e && e.status === 403)) throw e;
+    dbProjOff = true; aiLog('warn', '목록 DB 규칙이 project 항목을 거부해 프로젝트 없이 저장 (docs/CLOUD-SETUP.md의 규칙으로 갱신하세요)', errInfo(e));
+    toast('목록 DB 규칙에 project 항목이 없어 프로젝트 지정이 계정에 저장되지 않아요. Firestore 규칙을 docs/CLOUD-SETUP.md대로 갱신해 주세요.', 9000);
+    const { project, projectName, ...rest } = m; if (Object.keys(rest).length > 1) await send(rest);
+  }
 }
 /* 내 설정 동기화: 발언자 분석(방식·PC 서비스 주소·발언자 수), AI 엔진(종류·주소·모델), 다듬기 옵션, AI 작성 설정(시간 표시·표 정리 포함)·추가 지시 템플릿·작성자를 계정에 저장해 다른 기기·브라우저에서도 이어 쓴다.
    보안 토큰·API 키는 넣지 않는다. 규칙에 settings 경로가 없으면(403) 이 브라우저에만 기억한다 */
@@ -7549,7 +7567,7 @@ async function driveFolder() {
   return id;
 }
 const cloudMeta = bytes => ({ id: safeId(S.id), title: (S.title || '제목 없는 회의').slice(0, 120), when: S.meta.when || S.createdAt, duration: Math.round(S.duration || 0), bytes, updatedAt: new Date().toISOString(), project: S.meta.project || '', projectName: projName(S.meta.project) });
-const metaProps = m => ({ meetnoteId: m.id, title: m.title.slice(0, 100), when: String(m.when || '').slice(0, 40), duration: String(m.duration || 0) });   // appProperties: 값마다 124바이트 제한
+const metaProps = m => ({ meetnoteId: m.id, title: m.title.slice(0, 100), when: String(m.when || '').slice(0, 40), duration: String(m.duration || 0), project: String(m.project || '').slice(0, 60), projectName: String(m.projectName || '').slice(0, 40) });   // appProperties: 값마다 124바이트 제한
 /* 이어 올리기(resumable): 녹음이 든 큰 파일도 진행률과 함께 올린다 */
 async function driveUpload(blob, name, meta, fileId, folder, onPct, signal) {
   const tok = await driveAuth();
@@ -7574,7 +7592,7 @@ async function driveList() {
   const folder = await driveFolder(); const out = []; let page = '';
   do {
     const d = await dfetch(`/files?q=${encodeURIComponent(`'${folder}' in parents and trashed=false`)}&spaces=drive&orderBy=${encodeURIComponent('modifiedTime desc')}&pageSize=200&fields=${encodeURIComponent('nextPageToken,files(id,name,size,modifiedTime,appProperties)')}${page ? '&pageToken=' + encodeURIComponent(page) : ''}`);
-    for (const f of (d && d.files) || []) { const ap = f.appProperties || {}; out.push({ id: ap.meetnoteId || f.id, fileId: f.id, title: ap.title || f.name.replace(/\.mnote$/i, ''), when: ap.when || '', duration: +ap.duration || 0, bytes: +f.size || 0, updatedAt: f.modifiedTime }); }
+    for (const f of (d && d.files) || []) { const ap = f.appProperties || {}; out.push({ id: ap.meetnoteId || f.id, fileId: f.id, project: ap.project || '', projectName: ap.projectName || '', title: ap.title || f.name.replace(/\.mnote$/i, ''), when: ap.when || '', duration: +ap.duration || 0, bytes: +f.size || 0, updatedAt: f.modifiedTime }); }
     page = (d && d.nextPageToken) || '';
   } while (page && out.length < 3000);
   return out;
@@ -7722,7 +7740,7 @@ async function cloudSync() {
     const files = await driveList(); let added = 0, removed = 0;
     if (FB) {
       const have = await dbList(); const byId = new Map(files.map(f => [f.id, f]));
-      for (const f of files) { const h = have.find(x => x.id === f.id); if (!h || h.fileId !== f.fileId || h.updatedAt !== f.updatedAt) { await dbUpsert(f); added++; } }
+      for (const f of files) { const h = have.find(x => x.id === f.id); if (h && !f.project && h.project) { f.project = h.project; f.projectName = h.projectName || projName(h.project); } if (!h || h.fileId !== f.fileId || h.updatedAt !== f.updatedAt || (h.project || '') !== (f.project || '')) { await dbUpsert(f); added++; } }
       for (const h of have) if (!byId.has(h.id)) { await dbDelete(h.id); removed++; }
     }
     cloudRows = files; renderCloudList(FB ? 'db' : 'drive');
@@ -7784,6 +7802,7 @@ $('#cloudList').addEventListener('change', async e => {   // 목록에서 바로
   const m = cloudRows[+sel.dataset.cproj]; if (!m) return; const pid = sel.value;
   m.project = pid; m.projectName = projName(pid);
   if (safeId(S.id) === m.id) { S.meta.project = pid; renderProjSel(); markDirty(); }
+  try { if (m.fileId && driveTok) await dfetch(`/files/${encodeURIComponent(m.fileId)}?fields=id`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ appProperties: { project: pid, projectName: projName(pid).slice(0, 40) } }) }); } catch (err) { aiLog('warn', 'Drive 프로젝트 표시 갱신 실패', errInfo(err)); }
   if (FB) { try { await dbUpsert({ id: m.id, project: pid, projectName: projName(pid) }); toast(pid ? `"${projName(pid)}" 프로젝트로 옮겼어요.` : '프로젝트 지정을 뺐어요.'); } catch (err) { aiLog('warn', '프로젝트 지정 저장 실패', errInfo(err)); toast('목록 DB에 저장하지 못했어요: ' + cloudExplain(err), 6000); } }
   else toast('로그인·목록 DB가 없어 이 화면에서만 바뀌어요. 회의를 열어 저장하면 파일에 남아요.', 6000);
   renderCloudList();
