@@ -158,6 +158,12 @@ async def run():
         expect(await pg.evaluate("__meetnote.S.segments[0].text") == '첫 문단 예산 이야기 수정됨', '전사 우클릭 → 문단 수정')
         n_par = await pg.evaluate("(() => { const m = __meetnote; m.S.segments = []; const put = (t0, t1, text) => m.pushSegment({ t0, t1, text }); put(0, 3, '회의를 시작하겠습니다.'); put(3.4, 6, '안건은 세 가지입니다.'); put(7.2, 10, '첫 번째는 예산입니다.'); put(21, 24, '다음 안건으로 가겠습니다.'); const n = m.S.segments.length; m.S.segments = []; m.renderTranscript(); return n; })()")
         expect(n_par == 3, f'실시간 전사 문단을 짧게 끊음 ({n_par}문단)')
+        # 클라우드 STT(모의 응답): 화자 표시를 0,1,…로 맞추고 용어 사전을 보냄
+        await pg.route('https://api.deepgram.com/**', lambda r: r.fulfill(status=200, content_type='application/json', body=json.dumps({'metadata': {'duration': 30}, 'results': {'utterances': [{'speaker': 3, 'start': 0.5, 'end': 3, 'transcript': '안녕하세요'}, {'speaker': 1, 'start': 3.2, 'end': 8, 'transcript': '예산 이야기'}]}})))
+        r = await pg.evaluate("(() => { const m = __meetnote; m.S.audioBlob = new Blob([new Uint8Array(1000)], { type: 'audio/webm' }); m.S.segments = []; m.setCloudKey('deepgram', 'dg-test'); Object.assign(m.diarState(), { mode: 'cloud', cloud: { prov: 'deepgram', url: '', keep: false, vocab: true } }); return m.diarizeCloud({ title: 't' }).then(() => ({ segs: m.S.segments.map(g => [g.spk, g.text]), vocab: m.meetingVocab().slice(0, 3), keyLocal: !!localStorage.getItem('meetnote.cloudKeys') })); })()")
+        expect(r['segs'] == [['0', '안녕하세요'], ['1', '예산 이야기']] and '홍길동' in r['vocab'] and not r['keyLocal'], f'클라우드 STT(Deepgram 모의) 결과·화자 번호·용어 사전 {r}')
+        if await pg.locator('#mapDlg').is_visible(): await pg.click('#mapCancel')
+        await pg.evaluate("(() => { const m = __meetnote; m.S.audioBlob = null; m.S.segments = []; Object.assign(m.diarState(), { mode: 'browser' }); m.renderTranscript(); })()")
         # 참고 자료: 파일 → 글 변환(원본은 보관하지 않음), 프롬프트에는 참고용으로만, 출처 표시
         docx = os.path.join(tempfile.gettempdir(), '스모크 제안서.docx')
         with zipfile.ZipFile(docx, 'w') as z:

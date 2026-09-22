@@ -7,6 +7,7 @@ numpy>=1.24
 scikit-learn>=1.3
 librosa>=0.10
 scipy>=1.10
+requests>=2.31          # 클라우드 STT 프록시(/cloud/clova)
 imageio-ffmpeg>=0.5     # ffmpeg 실행 파일 동봉 (PATH에 없을 때 사용)
 # webrtcvad는 Windows에서 C++ 컴파일러가 필요하므로 미리 빌드된 wheel 사용
 webrtcvad-wheels>=2.0.14

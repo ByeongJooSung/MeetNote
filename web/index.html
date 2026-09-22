@@ -183,7 +183,7 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .pane-tools .btn{padding:4px 10px;font-size:13px}
 #diarDlg{width:min(600px,calc((100vw - 32px) / var(--ui,1)))}
 #diarDlg .field{margin:8px 0}
-#diarDlg input:not([type=radio]),#diarDlg select,#spkDlg input,#spkDlg select{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface)}
+#diarDlg input:not([type=radio]):not([type=checkbox]),#diarDlg select,#spkDlg input,#spkDlg select{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface)}
 .opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:8px 0;cursor:pointer;transition:border-color .12s,background .12s}
 .opt:hover{border-color:var(--tape)}
 .opt input[type=radio]{flex:none;width:16px;height:16px;margin:2px 0 0;padding:0;border:0;accent-color:var(--tape);cursor:pointer}
@@ -337,6 +337,12 @@ select{border:1px solid var(--line);background:var(--surface);border-radius:8px;
 .seg-menu[hidden]{display:none}
 .seg-menu button{border:0;background:none;text-align:left;padding:8px 12px;border-radius:7px;font-size:14px;color:var(--ink);cursor:pointer}
 .seg-menu button:hover,.seg-menu button:focus-visible{background:var(--sunk)}
+.cloud-panel{border:1px solid var(--line);border-radius:10px;padding:4px 12px 10px;margin:8px 0}
+.cloud-panel .field{margin:8px 0 4px}
+.cloud-panel .chk,#diarPy .chk,#anaPy .chk{margin:6px 0;display:block;font-size:13.5px;line-height:1.5}
+.cloud-panel .chk input,#diarPy .chk input,#anaPy .chk input{width:auto;vertical-align:-2px;margin:0 6px 0 0}
+.cloud-panel .hint{font-size:12.5px}
+.cloud-panel .prov-note{margin:4px 0 6px;line-height:1.5}
 .seg-menu button:disabled{color:var(--ink2);opacity:.55;cursor:default;background:none}
 .seg .ts{margin-top:2px;align-self:start}
 .stext{font-size:14.5px}
@@ -397,7 +403,8 @@ select{border:1px solid var(--line);background:var(--surface);border-radius:8px;
 .opt span{display:block;font-size:12.5px;color:var(--ink2)}
 .opt input{margin-top:3px}
 #analyzeDlg .field{margin:8px 0}
-#analyzeDlg input:not([type=radio]){width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface)}
+#analyzeDlg select{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface)}
+#analyzeDlg input:not([type=radio]):not([type=checkbox]){width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface)}
 .conn .sdot{width:9px;height:9px}
 .ai-help{font-size:13px;color:var(--ink2);margin:6px 0 0}
 .ai-help code{background:var(--sunk);padding:0 4px;border-radius:4px}
@@ -1035,11 +1042,14 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div class="eng-row">
     <label class="opt"><input type="radio" name="anaMode" value="browser"><div><b>브라우저 내장</b><span>설치 없이 이 기기에서 분석. 처음 한 번 모델(약 90MB)을 받아요.</span></div></label>
     <label class="opt"><input type="radio" name="anaMode" value="py"><div><b>PC 서비스 (정확)</b><span>파이썬 서비스로 보내 분석. 화자 수가 많거나 긴 회의에 유리해요.</span></div></label>
+    <label class="opt"><input type="radio" name="anaMode" value="cloud"><div><b>클라우드 API (빠르고 정확)</b><span>클로바 스피치·OpenAI 등 유료 API로 몇 분 안에 인식하고 발언자를 나눠요. API 키가 필요해요.</span></div></label>
   </div>
+  <div id="anaCloud" class="cloud-panel" hidden></div>
   <p class="hint" id="anaBrowserNote" hidden></p>
   <div id="anaPy" hidden>
     <label class="field">서비스 주소<input id="anaBase" placeholder="http://localhost:8765" inputmode="url"></label>
     <label class="field">발언자 수 (비우면 자동)<input id="anaN" type="number" min="1" max="10" inputmode="numeric"></label>
+    <label class="chk"><input type="checkbox" id="anaVocab"> 회의 용어 사전 보내기 <span class="hint">(참석자 이름·참고 자료의 용어를 알려 줘 인식 정확도를 높여요)</span></label>
   </div>
   <div class="conn" id="anaConn" hidden><span class="sdot"></span><span id="anaConnText"></span></div>
   <div class="dlg-actions"><button class="btn" id="anaSkip">건너뛰기</button><button class="btn primary" id="anaGo">분석 시작</button></div>
@@ -1059,11 +1069,14 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div class="eng-row">
     <label class="opt"><input type="radio" name="diarMode" value="browser"><div><b>브라우저 내장</b><span>설치 없이 이 기기에서 분석. 처음 한 번 모델(약 90MB)을 받아요.</span></div></label>
     <label class="opt"><input type="radio" name="diarMode" value="py"><div><b>PC 서비스 (정확)</b><span>파이썬 서비스로 보내 분석. 화자 수가 많거나 긴 회의에 유리해요.</span></div></label>
+    <label class="opt"><input type="radio" name="diarMode" value="cloud"><div><b>클라우드 API (빠르고 정확)</b><span>클로바 스피치·OpenAI 등 유료 API로 몇 분 안에 인식하고 발언자를 나눠요. API 키가 필요해요.</span></div></label>
   </div>
+  <div id="diarCloud" class="cloud-panel" hidden></div>
   <p class="hint" id="diarBrowserNote" hidden></p>
   <div id="diarPy" hidden>
     <label class="field">서비스 주소<input id="diarBase" placeholder="http://localhost:8765" inputmode="url"></label>
     <label class="field">발언자 수 (비우면 자동)<input id="diarN" type="number" min="1" max="10" inputmode="numeric"></label>
+    <label class="chk"><input type="checkbox" id="diarVocab"> 회의 용어 사전 보내기 <span class="hint">(참석자 이름·참고 자료의 용어를 알려 줘 인식 정확도를 높여요)</span></label>
     <p class="hint">저장소의 <code>server/</code> 폴더에서 <code>pip install -r requirements.txt</code> → <code>python diarize.py</code></p>
   </div>
   <div class="conn" id="diarConn" hidden><span class="sdot"></span><span id="diarConnText"></span></div>
@@ -1220,8 +1233,13 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.9.1';
+const APP_VERSION = '0.10.0';
 const PATCH_NOTES = [
+  { v: '0.10.0', date: '2026-09-22', items: [
+    '발언자 구분·전사에 세 번째 방식 "클라우드 API"를 더했어요: 네이버 클로바 스피치(클로바노트와 같은 엔진, PC 서비스를 거쳐 호출), OpenAI gpt-4o-transcribe-diarize, AssemblyAI, Deepgram Nova-3. 기존 브라우저 내장·PC 서비스는 그대로예요.',
+    '회의 용어 사전: 참석자 이름과 참고 자료의 용어를 음성 인식 엔진에 알려 줘 고유명사·약어 인식이 좋아져요(PC 서비스·클로바·AssemblyAI). PC 서비스는 서버를 최신으로 바꿔야 해요.',
+    'PC 서비스: WHISPER_MODEL=large-v3-turbo(빠르고 정확, GPU 권장)를 지원해요.'
+  ] },
   { v: '0.9.1', date: '2026-09-19', items: ['참고 자료에 올릴 수 있는 파일 형식(지원·미지원·제한)을 화면에서 바로 볼 수 있게 안내를 더했어요.'] },
   { v: '0.9.0', date: '2026-09-19', items: [
     '전사 듣기: 글자를 누르면 그 자리부터, 행(시각)을 누르면 그 문단을 처음부터 끝까지 들려줘요.',
@@ -5624,11 +5642,15 @@ if (/^https?:$/.test(location.protocol) && !inClaude) {
 }
 try { Object.assign(diar, JSON.parse(localStorage.getItem(DIAR_KEY) || '{}')); } catch {}
 if (!diar.mode) diar.mode = 'browser';
+if (!['browser', 'py', 'cloud'].includes(diar.mode)) diar.mode = 'browser';
+diar.cloud = Object.assign({ prov: 'clova', url: '', keep: false, vocab: true }, diar.cloud || {});
+if (diar.vocab == null) diar.vocab = true;
 const saveDiar = () => { try { localStorage.setItem(DIAR_KEY, JSON.stringify(diar)); } catch {} prefsTouch(); };
 const cleanBase = v => String(v || '').trim().replace(/\/+$/, '');
 for (const pre of ['diar', 'ana']) {
   $(`#${pre}Base`).addEventListener('change', e => { const v = cleanBase(e.target.value); if (!v || /^https?:\/\//i.test(v)) { diar.base = v || 'http://localhost:8765'; diar.embedded = false; saveDiar(); } });
   $(`#${pre}N`).addEventListener('change', e => { const n = parseInt(e.target.value, 10); diar.n = n >= 1 && n <= 10 ? n : 0; saveDiar(); });
+  $(`#${pre}Vocab`).addEventListener('change', e => { diar.vocab = e.target.checked; saveDiar(); });
 }
 function browserDiarNote() {
   if (inClaude) return 'Claude 화면 안에서는 모델을 내려받을 수 없어 배포한 웹이나 앱에서만 쓸 수 있어요.';
@@ -5642,7 +5664,8 @@ function setupEngine(prefix) {
   const radios = document.querySelectorAll(`input[name="${prefix}Mode"]`);
   const apply = () => {
     const m = document.querySelector(`input[name="${prefix}Mode"]:checked`)?.value || 'browser';
-    $(`#${prefix}Py`).hidden = m !== 'py';
+    $(`#${prefix}Py`).hidden = m !== 'py'; $(`#${prefix}Vocab`).checked = diar.vocab !== false;
+    const cp = $(`#${prefix}Cloud`); cp.hidden = m !== 'cloud'; if (m === 'cloud') renderCloudPanel(prefix);
     const note = $(`#${prefix}BrowserNote`); note.hidden = m !== 'browser'; if (m === 'browser') note.textContent = browserDiarNote();
     if (diar.mode !== m) { diar.mode = m; saveDiar(); }
   };
@@ -5661,7 +5684,7 @@ $('#diarGo').addEventListener('click', async () => {
   const go = $('#diarGo'); go.disabled = true;
   try {
     $('#diarDlg').close();
-    const ok = diar.mode === 'browser' ? await diarizeBrowser({ title: '발언자 구분 중' }) : await diarizePython();
+    const ok = diar.mode === 'browser' ? await diarizeBrowser({ title: '발언자 구분 중' }) : diar.mode === 'cloud' ? await diarizeCloud({ title: '발언자 구분 중' }) : await diarizePython();
     if (ok && (speakerIds().length > 1 || S.attendees.some(a => a.name))) openMapDlg();
   } catch (e) {
     aiLog(e && e.name === 'AbortError' ? 'info' : 'error', e && e.name === 'AbortError' ? '발언자 구분 취소됨' : '발언자 구분 실패', errInfo(e));
@@ -5770,9 +5793,10 @@ $('#bgPill').addEventListener('click', () => { if (!progState.active) return; $(
 $('#progCancel').addEventListener('click', () => { if (!progAbort) return; aiLog('info', '분석 취소 요청', { stage: progState.stage }); $('#progStage').textContent = '취소하는 중…'; progAbort(); });
 $('#progDlg').addEventListener('cancel', e => { e.preventDefault(); $('#progBg').click(); });
 
-function uploadForm(url, fd, onUp, signal) {
+function uploadForm(url, fd, onUp, signal, headers) {
   return new Promise((res, rej) => {
     const x = new XMLHttpRequest(); x.open('POST', url);
+    for (const [k, v] of Object.entries(headers || {})) x.setRequestHeader(k, v);
     x.upload.onprogress = e => { if (e.lengthComputable) onUp(e.loaded / e.total); };
     x.onload = () => res({ status: x.status, body: x.responseText });
     x.onerror = () => rej(new Error('Failed to fetch'));
@@ -5790,7 +5814,8 @@ async function runDiarization({ base, n, title }) {
   fd.append('audio', S.audioBlob, 'recording.' + (S.audioExt || mimeExt(S.audioMime)));
   fd.append('lang', ($('#lang').value || 'ko-KR').slice(0, 2));
   if (n > 0) fd.append('num_speakers', String(n));
-  aiLog('info', '발언자 구분 요청', { base: diar.base, bytes: S.audioBlob.size, lang: fd.get('lang'), n: n || 'auto' });
+  const vocab = diar.vocab !== false ? meetingVocab() : []; if (vocab.length) fd.append('vocab', vocab.join(', '));
+  aiLog('info', '발언자 구분 요청', { base: diar.base, bytes: S.audioBlob.size, lang: fd.get('lang'), n: n || 'auto', vocab: vocab.length });
   const ctl = new AbortController(); let jobId = null, cancelled = false;
   progAbort = () => { cancelled = true; ctl.abort(); if (jobId) fetch(`${diar.base}/jobs/${jobId}`, { method: 'DELETE' }).catch(() => {}); };
   progOpen(title);
@@ -5849,6 +5874,175 @@ async function applyDiarResult(result, t0) {
   markDirty(); renderTranscript(); renderTimeline(); selectTab('tr');
   toast(`전사 ${segs.length}개, 발언자 ${new Set(segs.map(s => s.spk)).size}명으로 나눴어요. 이름을 누르면 참석자로 바꿀 수 있어요.`, 7000);
   return true;
+}
+
+/* ---------- 클라우드 STT·발언자 구분 (선택 옵션) ----------
+   기존 두 방식(브라우저 내장·PC 서비스)은 그대로 두고, 유료 API를 세 번째 방식으로 둔다. 키는 브라우저(세션 또는 저장소)에만 두고 계정에 동기화하지 않는다.
+   - 클로바 스피치: 브라우저에서 직접 부를 수 없어(CORS) PC 서비스의 /cloud/clova 를 거쳐 보낸다. 발언자 구분·용어 사전(boostings) 내장
+   - OpenAI gpt-4o-transcribe-diarize: 브라우저에서 직접. 25MB 한도라 큰 녹음은 12분 WAV 구간으로 나누고, 앞 구간의 목소리 샘플(known_speaker_references)로 같은 사람을 이어 준다
+   - AssemblyAI: 올리기 → 작업 생성 → 상태 조회. 발언자 구분·word_boost
+   - Deepgram nova-3: 한 번의 요청으로 utterances(발언자 포함) 반환 */
+const CLOUD_PROV = {
+  clova: { label: '네이버 클로바 스피치', keyLabel: 'Secret Key', url: true, proxy: true, note: '클로바노트와 같은 엔진이라 한국어 회의에 가장 정확하고, 발언자 구분과 용어 사전을 지원해요. 브라우저에서 바로 부를 수 없어 <b>PC 서비스(또는 도커 서버)를 거쳐</b> 보냅니다. 네이버 클라우드 콘솔 → CLOVA Speech → 도메인 → <b>빌더 설정</b>에서 Invoke URL과 Secret Key를 복사해 넣으세요.' },
+  openai: { label: 'OpenAI (gpt-4o-transcribe-diarize)', keyLabel: 'API 키', direct: true, note: '발언자 구분이 내장된 OpenAI 최신 음성 인식 모델. 브라우저에서 바로 보냅니다. 25MB가 넘는 녹음은 12분 단위로 나눠 보내고 앞 구간의 목소리를 다음 구간에 알려 줘 같은 사람을 이어서 알아봐요. 키는 platform.openai.com → API keys.' },
+  assemblyai: { label: 'AssemblyAI', keyLabel: 'API 키', direct: true, note: '발언자 구분·용어 사전을 지원하는 범용 음성 인식 API. 브라우저에서 바로 보내고 처리가 끝날 때까지 상태를 확인해요. 키는 assemblyai.com 대시보드.' },
+  deepgram: { label: 'Deepgram (Nova-3)', keyLabel: 'API 키', direct: true, note: '빠른 음성 인식 API. 한 번의 요청으로 발언자가 구분된 결과를 받아요(한국어 지원, 용어 사전은 영어만). 키는 console.deepgram.com.' }
+};
+const CLOUDKEY_KEY = 'meetnote.cloudKeys';
+function cloudKeys() { const get = st => { try { return JSON.parse(st.getItem(CLOUDKEY_KEY) || '{}'); } catch { return {}; } }; return { ...get(sessionStorage), ...get(localStorage) }; }
+function setCloudKey(prov, key) {
+  const all = cloudKeys(); if (key) all[prov] = key; else delete all[prov];
+  try { (diar.cloud.keep ? localStorage : sessionStorage).setItem(CLOUDKEY_KEY, JSON.stringify(all)); (diar.cloud.keep ? sessionStorage : localStorage).removeItem(CLOUDKEY_KEY); } catch {}
+}
+function renderCloudPanel(pre) {
+  const p = $(`#${pre}Cloud`), prov = diar.cloud.prov, def = CLOUD_PROV[prov], key = cloudKeys()[prov] || '';
+  p.innerHTML = `<label class="field">서비스<select data-cloud="prov">${Object.entries(CLOUD_PROV).map(([k, d]) => `<option value="${k}"${k === prov ? ' selected' : ''}>${esc(d.label)}</option>`).join('')}</select></label>
+    <p class="hint prov-note">${def.note}</p>
+    ${def.url ? `<label class="field">Invoke URL<input data-cloud="url" value="${esc(diar.cloud.url || '')}" placeholder="https://clovaspeech-gw.ncloud.com/external/v1/1234/…" autocomplete="off" spellcheck="false" inputmode="url"></label>` : ''}
+    <label class="field">${esc(def.keyLabel)}<input data-cloud="key" type="password" value="${esc(key)}" placeholder="${def.proxy ? 'Secret Key' : 'sk-…'}" autocomplete="off" spellcheck="false"></label>
+    <label class="chk" title="끄면 이 탭을 닫을 때 키가 지워져요. 공용 PC에서는 끄세요."><input type="checkbox" data-cloud="keep"${diar.cloud.keep ? ' checked' : ''}> 키를 이 브라우저에 기억</label>
+    ${def.proxy ? `<label class="field">거쳐 보낼 PC 서비스 주소<input data-cloud="base" value="${esc(diar.base || 'http://localhost:8765')}" placeholder="http://localhost:8765" inputmode="url"></label><p class="hint">${diar.embedded ? '이 앱에 내장된 분석 서버를 거쳐 보내요.' : 'server/diarize.py(최신)를 실행해 두세요. 키는 요청 때만 전달되고 서버에 남지 않아요.'}</p>` : ''}
+    <label class="field">발언자 수 (비우면 자동)<input data-cloud="n" type="number" min="1" max="10" inputmode="numeric" value="${diar.n || ''}"></label>
+    <label class="chk"><input type="checkbox" data-cloud="vocab"${diar.cloud.vocab !== false ? ' checked' : ''}> 회의 용어 사전 보내기 <span class="hint">(참석자 이름·참고 자료의 용어${prov === 'openai' ? ' — 이 모델은 용어 사전을 받지 않아요' : prov === 'deepgram' ? ' — 영어 회의만' : ''})</span></label>
+    <p class="hint">녹음 파일이 외부 서비스로 전송돼요. 민감한 회의는 브라우저 내장이나 PC 서비스를 쓰세요. 요금은 각 서비스의 기준을 따릅니다.</p>`;
+  if (!p.dataset.wired) {
+    p.dataset.wired = '1';
+    p.addEventListener('change', e => {
+      const k = e.target.dataset.cloud; if (!k) return;
+      if (k === 'prov') { diar.cloud.prov = e.target.value; saveDiar(); renderCloudPanel(pre); return; }
+      if (k === 'url') diar.cloud.url = cleanBase(e.target.value);
+      else if (k === 'key') setCloudKey(diar.cloud.prov, e.target.value.trim());
+      else if (k === 'keep') { diar.cloud.keep = e.target.checked; setCloudKey(diar.cloud.prov, cloudKeys()[diar.cloud.prov] || ''); }
+      else if (k === 'base') { const v = cleanBase(e.target.value); if (!v || /^https?:\/\//i.test(v)) { diar.base = v || 'http://localhost:8765'; diar.embedded = false; } }
+      else if (k === 'n') { const n = parseInt(e.target.value, 10); diar.n = n >= 1 && n <= 10 ? n : 0; }
+      else if (k === 'vocab') diar.cloud.vocab = e.target.checked;
+      saveDiar();
+    });
+  }
+}
+/* 회의 용어 사전: 참석자·발언자 이름, 참고 자료 이름과 자주 나오는 낱말(영문 약어·고유명사 위주). 음성 인식 엔진에 힌트로 준다 */
+const VOCAB_STOP = new Set(['있는', '하는', '대한', '경우', '이런', '그리고', '위한', '통해', '대해', '있습니다', '합니다', '것이', '등의', '또는', '관련', '내용', '사항', '부분', '때문', '정도', '이후', '이전', '해당', '경우에', '있다', '한다', '위해', '따라', '같은', '다른', '모든', '각각', '대상', '방법', '결과', '확인', '진행', '필요', '가능', '사용', '제공', '구성', '기준']);
+function meetingVocab(max = 40) {
+  const seen = new Set(), out = [];
+  const add = t => { t = String(t || '').replace(/\s+/g, ' ').trim(); if (t.length < 2 || t.length > 30 || seen.has(t) || VOCAB_STOP.has(t)) return; seen.add(t); out.push(t); };
+  S.attendees.forEach(a => { add(a.name); add(a.org); });
+  Object.values(S.speakers || {}).forEach(add);
+  S.refs.forEach(r => add(r.name));
+  const freq = new Map(), text = S.title + ' ' + S.refs.map(r => r.text.slice(0, 60000)).join(' ');
+  for (const w of text.match(/[A-Za-z][A-Za-z0-9\-]{1,20}|[가-힣]{2,6}/g) || []) freq.set(w, (freq.get(w) || 0) + (/^[A-Z]/.test(w) ? 3 : /^[a-z]/.test(w) ? 1 : 1));
+  [...freq].filter(([w, n]) => (/^[A-Za-z]/.test(w) ? n >= 2 : n >= 3 && w.length <= 4)).sort((a, b) => b[1] - a[1]).slice(0, max).forEach(([w]) => add(w));
+  return out.slice(0, max);
+}
+const cloudLang = (l, prov) => { const c = (l || 'ko-KR').slice(0, 2); return prov === 'clova' ? ({ ko: 'ko-KR', en: 'en-US', ja: 'ja', zh: 'zh-cn' }[c] || 'ko-KR') : c; };
+const httpErr = (up, lab) => { let d = {}; try { d = JSON.parse(up.body); } catch {} return Object.assign(new Error((d.error && (d.error.message || d.error)) || d.message || d.err_msg || `HTTP ${up.status}`), { status: up.status, body: String(up.body || '').slice(0, 400) }); };
+async function jfetchCloud(url, opt, signal) {
+  const r = await fetch(url, { ...opt, signal }); const t = await r.text(); let d = {}; try { d = JSON.parse(t); } catch {}
+  if (!r.ok) throw Object.assign(new Error((d.error && (d.error.message || d.error)) || d.message || `HTTP ${r.status}`), { status: r.status, body: t.slice(0, 400) });
+  return d;
+}
+function wavBytes(f32, sr) {   // 16비트 PCM WAV
+  const n = f32.length, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); str(8, 'WAVE'); str(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) { const x = Math.max(-1, Math.min(1, f32[i])); v.setInt16(44 + i * 2, x < 0 ? x * 32768 : x * 32767, true); }
+  return buf;
+}
+const blobToDataUrl = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsDataURL(blob); });
+const audioName = () => 'recording.' + (S.audioExt || mimeExt(S.audioMime));
+const CLOUD_RUN = {
+  async clova({ key, n, lang, vocab, signal }) {
+    const base = cleanBase(diar.base) || 'http://localhost:8765';
+    const fd = new FormData(); fd.append('audio', S.audioBlob, audioName()); fd.append('invoke_url', diar.cloud.url); fd.append('key', key); fd.append('lang', cloudLang(lang, 'clova'));
+    if (n) fd.append('num_speakers', String(n)); if (vocab.length) fd.append('vocab', vocab.join(', '));
+    const up = await uploadForm(base + '/cloud/clova', fd, f => progSet(f * 40, f >= 1 ? '클로바 스피치가 인식하는 중 (녹음 길이의 10~20% 정도 걸려요)' : `PC 서비스로 보내는 중 ${Math.round(f * 100)}%`), signal);
+    if (up.status === 404 || up.status === 405) throw new Error('PC 서비스가 옛 버전이라 클라우드 연계가 없어요. server/diarize.py를 최신으로 바꾸고 다시 실행하세요.');
+    if (up.status !== 200) throw httpErr(up);
+    const d = JSON.parse(up.body);
+    if (d.result && d.result !== 'COMPLETED') throw new Error(`클로바 스피치 결과: ${d.result} ${d.message || ''}`);
+    return { segments: (d.segments || []).map(g => ({ t0: g.start / 1000, t1: g.end / 1000, text: g.text, spk: String(g.speaker && (g.speaker.label ?? g.speaker.name) || '0') })), duration: d.segments && d.segments.length ? d.segments[d.segments.length - 1].end / 1000 : undefined };
+  },
+  async openai({ key, n, lang, signal }) {
+    const MAX = 24 * 1048576, okType = /^(audio\/(webm|mp4|mpeg|mp3|wav|x-wav|wave|m4a|x-m4a|mpga)|video\/(webm|mp4))/i;
+    const call = async (blob, name, refs) => {
+      const fd = new FormData(); fd.append('file', blob, name); fd.append('model', 'gpt-4o-transcribe-diarize'); fd.append('response_format', 'diarized_json'); fd.append('chunking_strategy', 'auto'); fd.append('language', cloudLang(lang));
+      (refs || []).forEach(r => { fd.append('known_speaker_names[]', r.name); fd.append('known_speaker_references[]', r.dataUrl); });
+      const d = await jfetchCloud('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { authorization: 'Bearer ' + key }, body: fd }, signal);
+      return (d.segments || []).map(g => ({ t0: +g.start || 0, t1: +g.end || 0, text: String(g.text || ''), spk: String(g.speaker ?? '0') }));
+    };
+    if (S.audioBlob.size <= MAX && okType.test(S.audioMime || '')) { progSet(null, 'OpenAI가 인식하는 중 (녹음 길이의 10~30% 정도 걸려요)'); return { segments: await call(S.audioBlob, audioName()) }; }
+    progSet(2, '녹음이 커서 구간으로 나누는 중 (해독)');
+    const { audio, sr } = await decodeTo16k(S.audioBlob);
+    const CH = 12 * 60 * sr, parts = Math.max(1, Math.ceil(audio.length / CH)), all = []; let refs = [], next = 0;
+    const known = new Map();   // 'spk3' → '3'
+    for (let p = 0; p < parts; p++) {
+      progSet(5 + 90 * p / parts, `OpenAI가 인식하는 중 (${p + 1}/${parts} 구간)`);
+      const off = p * CH, slice = audio.subarray(off, Math.min(audio.length, off + CH)), base = off / sr;
+      const segs = await call(new Blob([wavBytes(slice, sr)], { type: 'audio/wav' }), `part${p + 1}.wav`, refs);
+      const local = new Map();
+      for (const g of segs) {
+        let id = known.get(g.spk);
+        if (id == null) { if (!local.has(g.spk)) local.set(g.spk, String(next++)); id = local.get(g.spk); }
+        all.push({ t0: g.t0 + base, t1: g.t1 + base, text: g.text, spk: id });
+      }
+      // 다음 구간에 알려 줄 목소리 샘플: 화자마다 2~10초짜리 발언 하나(최대 4명)
+      if (p + 1 < parts) {
+        const have = new Set(refs.map(r => r.name));
+        for (const id of [...new Set(all.map(g => g.spk))]) {
+          if (refs.length >= 4) break; const name = 'spk' + id; if (have.has(name)) continue;
+          const g = all.filter(x => x.spk === id && x.t1 - x.t0 >= 2).sort((a, b) => Math.abs(6 - (a.t1 - a.t0)) - Math.abs(6 - (b.t1 - b.t0)))[0]; if (!g) continue;
+          const a = Math.floor(g.t0 * sr), b = Math.min(audio.length, Math.floor(Math.min(g.t1, g.t0 + 10) * sr));
+          refs.push({ name, dataUrl: await blobToDataUrl(new Blob([wavBytes(audio.subarray(a, b), sr)], { type: 'audio/wav' })) }); known.set(name, id);
+        }
+      }
+    }
+    return { segments: all, duration: audio.length / sr };
+  },
+  async assemblyai({ key, n, lang, vocab, signal }) {
+    const H = { authorization: key };
+    const up = await uploadForm('https://api.assemblyai.com/v2/upload', S.audioBlob, f => progSet(f * 30, `AssemblyAI로 보내는 중 ${Math.round(f * 100)}%`), signal, { ...H, 'content-type': 'application/octet-stream' });
+    if (up.status !== 200) throw httpErr(up);
+    const body = { audio_url: JSON.parse(up.body).upload_url, speaker_labels: true, language_code: cloudLang(lang) };
+    if (n) body.speakers_expected = n; if (vocab.length) body.word_boost = vocab.slice(0, 40);
+    progSet(32, '인식 작업을 만드는 중');
+    let job;
+    try { job = await jfetchCloud('https://api.assemblyai.com/v2/transcript', { method: 'POST', headers: { ...H, 'content-type': 'application/json' }, body: JSON.stringify(body) }, signal); }
+    catch (e) { if (e.status === 400 && body.word_boost && /boost/i.test(e.message + e.body)) { delete body.word_boost; aiLog('warn', 'AssemblyAI: 이 모델은 용어 사전을 받지 않아 빼고 다시 요청'); job = await jfetchCloud('https://api.assemblyai.com/v2/transcript', { method: 'POST', headers: { ...H, 'content-type': 'application/json' }, body: JSON.stringify(body) }, signal); } else throw e; }
+    const t0 = performance.now();
+    for (;;) {
+      await sleep(3000); if (signal.aborted) throw Object.assign(new Error('취소됨'), { name: 'AbortError' });
+      const d = await jfetchCloud(`https://api.assemblyai.com/v2/transcript/${job.id}`, { headers: H }, signal);
+      progSet(null, `AssemblyAI가 인식하는 중 (${d.status}) · ${mmss(performance.now() - t0)}`); progPing();
+      if (d.status === 'completed') { const ids = new Map(); return { segments: (d.utterances || []).map(u => { if (!ids.has(u.speaker)) ids.set(u.speaker, String(ids.size)); return { t0: u.start / 1000, t1: u.end / 1000, text: u.text, spk: ids.get(u.speaker) }; }), duration: d.audio_duration }; }
+      if (d.status === 'error') throw new Error(d.error || '인식 실패');
+    }
+  },
+  async deepgram({ key, n, lang, vocab, signal }) {
+    const q = new URLSearchParams({ model: 'nova-3', language: cloudLang(lang), diarize: 'true', utterances: 'true', smart_format: 'true', punctuate: 'true' });
+    if (/^en/.test(lang || '')) vocab.slice(0, 50).forEach(v => q.append('keyterm', v));
+    const up = await uploadForm('https://api.deepgram.com/v1/listen?' + q, S.audioBlob, f => progSet(f * 40, f >= 1 ? 'Deepgram이 인식하는 중' : `Deepgram으로 보내는 중 ${Math.round(f * 100)}%`), signal, { authorization: 'Token ' + key, 'content-type': S.audioMime || 'audio/webm' });
+    if (up.status !== 200) throw httpErr(up);
+    const d = JSON.parse(up.body), utt = (d.results && d.results.utterances) || [];
+    return { segments: utt.map(u => ({ t0: +u.start, t1: +u.end, text: u.transcript, spk: String(u.speaker ?? '0') })), duration: d.metadata && d.metadata.duration };
+  }
+};
+async function diarizeCloud({ title }) {
+  if (!S.audioBlob) throw new Error('녹음 파일이 없어요. 녹음하거나 파일을 붙인 뒤 실행하세요.');
+  if (inClaudeSandbox()) throw new Error('Claude 화면 안에서는 외부 서비스를 부를 수 없어요. 배포한 웹이나 앱에서 실행하세요.');
+  const prov = diar.cloud.prov, def = CLOUD_PROV[prov], key = (cloudKeys()[prov] || '').trim();
+  if (!key) throw Object.assign(new Error(`${def.label}의 ${def.keyLabel}를 입력하세요.`), { code: 'no_key' });
+  if (def.url && !/^https?:\/\//i.test(diar.cloud.url || '')) throw Object.assign(new Error('클로바 스피치 Invoke URL을 입력하세요 (https://clovaspeech-gw.ncloud.com/external/v1/… 형태).'), { code: 'no_key' });
+  const n = diar.n || 0, lang = $('#lang').value || 'ko-KR', vocab = diar.cloud.vocab !== false && prov !== 'openai' ? meetingVocab() : [];
+  const ctl = new AbortController(); progAbort = () => ctl.abort(); progOpen(title);
+  const t0 = performance.now();
+  aiLog('info', '클라우드 분석 요청', { prov, bytes: S.audioBlob.size, mime: S.audioMime, n: n || 'auto', vocab: vocab.length });
+  try {
+    progSet(0, `${def.label}에 보내는 중`);
+    const result = await CLOUD_RUN[prov]({ key, n, lang, vocab, signal: ctl.signal });
+    const ids = new Map();   // 서비스마다 다른 화자 표시(A/B, 1/2…)를 나온 순서대로 0, 1, 2…로 맞춘다
+    result.segments = (result.segments || []).map(g => { const k = String(g.spk ?? '0'); if (!ids.has(k)) ids.set(k, String(ids.size)); return { ...g, spk: ids.get(k) }; });
+    return await applyDiarResult({ ...result, diarizer: prov }, t0);
+  } catch (e) { if (ctl.signal.aborted) throw Object.assign(new Error('취소됨'), { name: 'AbortError' }); throw e; }
+  finally { progAbort = null; progClose(); }
 }
 
 /* ---------- in-browser diarization (transformers.js in a Web Worker) ---------- */
@@ -6104,6 +6298,16 @@ async function diarizePython() {
 /* ---------- ask on fresh audio attach ---------- */
 function diarErrText(e) {
   const m = String(e && e.message || e);
+  if (diar.mode === 'cloud') {
+    const st = e && e.status, lab = (CLOUD_PROV[diar.cloud.prov] || {}).label || '클라우드 API';
+    if (e && e.code === 'no_key') return m;
+    if (st === 401 || st === 403) return `${lab}가 키를 거절했어요(HTTP ${st}). 키가 맞는지, 그 서비스에서 음성 인식 사용이 켜져 있는지 확인하세요.`;
+    if (st === 402 || st === 429) return `${lab} 사용량 한도나 결제 문제예요(HTTP ${st}). 서비스 콘솔에서 크레딧·요금제를 확인하세요.`;
+    if (st === 413) return `${lab}가 받기에 녹음 파일이 너무 커요(HTTP 413). 다른 API를 고르거나 PC 서비스를 쓰세요.`;
+    if (diar.cloud.prov === 'clova' && /Failed to fetch/i.test(m)) return `클로바 스피치는 PC 서비스(${diar.base})를 거쳐 보내는데 연결할 수 없어요. python diarize.py 가 켜져 있는지 확인하세요.`;
+    if (/Failed to fetch/i.test(m)) return `${lab}에 연결할 수 없어요. 인터넷 연결이나 광고 차단 설정을 확인하세요.`;
+    return `${lab}: ${m}`;
+  }
   if (diar.mode === 'py' && /Failed to fetch/i.test(m)) return `서비스(${diar.base})에 연결할 수 없어요. python diarize.py 가 켜져 있는지 확인하세요.`;
   if (diar.mode === 'browser' && /Failed to fetch|import|network|NetworkError|Load failed/i.test(m)) return '모델을 내려받지 못했어요. 인터넷 연결을 확인하세요. Claude 화면 안에서는 동작하지 않아요.';
   return m;
@@ -6117,7 +6321,7 @@ $('#anaGo').addEventListener('click', async () => {
   const go = $('#anaGo'); go.disabled = true;
   try {
     $('#analyzeDlg').close();
-    const ok = diar.mode === 'browser' ? await diarizeBrowser({ title: '발언자별 타임라인 분석 중' }) : await runDiarization({ base: $('#anaBase').value.trim(), n: parseInt($('#anaN').value, 10), title: '발언자별 타임라인 분석 중' });
+    const ok = diar.mode === 'browser' ? await diarizeBrowser({ title: '발언자별 타임라인 분석 중' }) : diar.mode === 'cloud' ? await diarizeCloud({ title: '발언자별 타임라인 분석 중' }) : await runDiarization({ base: $('#anaBase').value.trim(), n: parseInt($('#anaN').value, 10), title: '발언자별 타임라인 분석 중' });
     if (ok && (speakerIds().length > 1 || S.attendees.some(a => a.name))) openMapDlg();
   } catch (e) {
     aiLog(e && e.name === 'AbortError' ? 'info' : 'error', e && e.name === 'AbortError' ? '타임라인 분석 취소됨' : '타임라인 분석 실패', errInfo(e));
@@ -6809,7 +7013,7 @@ async function dbUpsert(m) {
 /* 내 설정 동기화: 발언자 분석(방식·PC 서비스 주소·발언자 수), AI 엔진(종류·주소·모델), 다듬기 옵션, AI 작성 설정(시간 표시·표 정리 포함)·추가 지시 템플릿·작성자를 계정에 저장해 다른 기기·브라우저에서도 이어 쓴다.
    보안 토큰·API 키는 넣지 않는다. 규칙에 settings 경로가 없으면(403) 이 브라우저에만 기억한다 */
 const prefsDoc = a => `${EP.fs}/projects/${encodeURIComponent(FB.projectId)}/databases/(default)/documents/users/${encodeURIComponent(a.uid)}/settings/prefs`;
-const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0 }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, tables: draftOpt.tables, times: draftOpt.times, sections: draftOpt.sections, extra: draftOpt.extra }, tpls: draftTpls, author: { org: authorPref.org, name: authorPref.name, title: authorPref.title } });
+const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0, vocab: diar.vocab !== false, cloudProv: diar.cloud.prov }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, tables: draftOpt.tables, times: draftOpt.times, sections: draftOpt.sections, extra: draftOpt.extra }, tpls: draftTpls, author: { org: authorPref.org, name: authorPref.name, title: authorPref.title } });
 const prefs403 = e => { if (e && e.status === 403) { prefsOff = true; aiLog('warn', '설정 동기화 꺼짐: 목록 DB 규칙에 settings 경로가 없어요(이 브라우저에만 기억)'); renderCloudState(); return true; } return false; };
 async function prefsPush() {
   if (!FB || !user || prefsOff) return;
@@ -6829,7 +7033,9 @@ async function prefsPull() {
     prefsApplying = true;
     try {
       if (o.diar && typeof o.diar === 'object' && !diar.embedded) {
-        if (['browser', 'py'].includes(o.diar.mode)) diar.mode = o.diar.mode;
+        if (['browser', 'py', 'cloud'].includes(o.diar.mode)) diar.mode = o.diar.mode;
+        if (typeof o.diar.vocab === 'boolean') diar.vocab = o.diar.vocab;
+        if (CLOUD_PROV[o.diar.cloudProv]) diar.cloud.prov = o.diar.cloudProv;
         if (url(o.diar.base) && o.diar.base) diar.base = o.diar.base.replace(/\/+$/, '');
         diar.n = Number.isInteger(o.diar.n) && o.diar.n >= 1 && o.diar.n <= 10 ? o.diar.n : 0;
         try { localStorage.setItem(DIAR_KEY, JSON.stringify(diar)); } catch {}
@@ -7343,7 +7549,7 @@ if (FB && user && fbSess && fbSess.sub === user.sub) prefsPull();   // 이미 �
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, draftOpt, playSegment, startSegEdit, endSegEdit, renderTranscript, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
 applyAuthorDefault(false);
 renderAll();
 selectTab(curTab);

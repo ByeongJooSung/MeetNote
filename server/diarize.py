@@ -1,6 +1,8 @@
 """
 MeetNote 발언자 구분 서비스 (로컬 파이썬)
-- 전사: faster-whisper (기본 small, 환경변수 WHISPER_MODEL로 변경)
+- 전사: faster-whisper (기본 small, 환경변수 WHISPER_MODEL로 변경. GPU면 large-v3-turbo 권장)
+- 회의 용어 사전(vocab): 클라이언트가 보낸 참석자 이름·참고 자료 용어를 hotwords/initial_prompt로 넣어 고유명사 인식 향상
+- 클라우드 프록시: /cloud/clova — 네이버 클로바 스피치(브라우저에서 직접 호출 불가)를 대신 호출
 - 발언자 구분: 1) pyannote.audio 3.1 (HF_TOKEN 있을 때, 가장 정확)
               2) resemblyzer 임베딩 + 군집 (토큰 없이, CPU)
               3) 둘 다 없으면 화자 1명으로 반환
@@ -26,7 +28,8 @@ DIARIZER = os.environ.get("DIARIZER", "auto")   # auto | none (전사만)
 BEAM = int(os.environ.get("BEAM_SIZE", "5"))
 PORT = int(os.environ.get("PORT", "8765"))
 PRELOAD = os.environ.get("PRELOAD", "1") != "0"   # 시작 시 모델을 미리 내려받아 첫 분석을 빠르게
-MODEL_SIZE = {"tiny": "75", "base": "145", "small": "460", "medium": "1500", "large-v3": "3000"}
+MODEL_SIZE = {"tiny": "75", "base": "145", "small": "460", "medium": "1500", "large-v3": "3000", "large-v3-turbo": "1600", "turbo": "1600", "distil-large-v3": "1500"}
+CLOUD_TIMEOUT = int(os.environ.get("CLOUD_TIMEOUT", "1800"))   # 클로바 스피치 동기 인식 대기(초)
 
 def _base_dir():
     """실행 위치: 소스 실행이면 server/, PyInstaller exe면 압축이 풀린 임시 폴더."""
@@ -185,7 +188,7 @@ def diarize_embeddings(wav, sr, segments, num_speakers, progress=None, cancelled
 
 class Cancelled(Exception): pass
 
-def run_pipeline(src_path: str, lang: Optional[str], num_speakers: Optional[int], progress=lambda pct, stage, msg="": None, cancelled=lambda: False):
+def run_pipeline(src_path: str, lang: Optional[str], num_speakers: Optional[int], progress=lambda pct, stage, msg="": None, cancelled=lambda: False, vocab: Optional[str] = None):
     """전체 파이프라인. progress(pct 0~100, stage, message) 콜백으로 진행률 보고."""
     def check():
         if cancelled(): raise Cancelled()
@@ -201,10 +204,15 @@ def run_pipeline(src_path: str, lang: Optional[str], num_speakers: Optional[int]
     kw = dict(language=(lang or None) if lang != "auto" else None, vad_filter=True, vad_parameters=dict(min_silence_duration_ms=500),
               beam_size=BEAM, condition_on_previous_text=False, no_repeat_ngram_size=6, repetition_penalty=1.05,
               compression_ratio_threshold=2.2, log_prob_threshold=-1.0, no_speech_threshold=0.6)
+    # 회의 용어 사전(참석자 이름·참고 자료 용어): hotwords는 모든 구간에, initial_prompt는 첫 구간에 힌트로 들어가 고유명사·약어 인식이 좋아진다
+    vocab = " ".join(str(vocab or "").split())[:400]
+    if vocab:
+        kw["hotwords"] = vocab; kw["initial_prompt"] = vocab
+        print(f"[transcribe] 용어 사전 {len(vocab)}자")
     try:
         segs_iter, info = model.transcribe(wav_path, **kw)
     except TypeError:   # 오래된 faster-whisper: 모르는 인자는 빼고
-        for k in ("no_repeat_ngram_size", "repetition_penalty", "vad_parameters"): kw.pop(k, None)
+        for k in ("no_repeat_ngram_size", "repetition_penalty", "vad_parameters", "hotwords"): kw.pop(k, None)
         segs_iter, info = model.transcribe(wav_path, **kw)
     dur = float(getattr(info, "duration", 0) or 0)
     mm = lambda t: f"{int(t // 60):02d}:{int(t % 60):02d}"
@@ -254,13 +262,13 @@ def run_pipeline(src_path: str, lang: Optional[str], num_speakers: Optional[int]
             "diarizer": "pyannote" if (HF_TOKEN and _pyannote) else ("resemblyzer" if _encoder else "none")}
 
 @app.post("/diarize")
-async def diarize(audio: UploadFile = File(...), lang: Optional[str] = Form("ko"), num_speakers: Optional[int] = Form(None)):
+async def diarize(audio: UploadFile = File(...), lang: Optional[str] = Form("ko"), num_speakers: Optional[int] = Form(None), vocab: Optional[str] = Form(None)):
     """동기 API (구버전 호환)."""
     tmpdir = tempfile.mkdtemp(prefix="meetnote_")
     try:
         src = os.path.join(tmpdir, audio.filename or "audio.bin")
         with open(src, "wb") as f: f.write(await audio.read())
-        return run_pipeline(src, lang, num_speakers)
+        return run_pipeline(src, lang, num_speakers, vocab=vocab)
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -269,7 +277,7 @@ JOBS = {}
 JOBS_LOCK = threading.Lock()
 RUN_LOCK = threading.Lock()   # 분석은 한 번에 하나만 (CPU 경쟁 방지)
 
-def _job_worker(job_id: str, src: str, tmpdir: str, lang, num_speakers):
+def _job_worker(job_id: str, src: str, tmpdir: str, lang, num_speakers, vocab=None):
     job = JOBS[job_id]
     def progress(pct, stage, msg=""):
         job.update({"pct": round(float(pct), 1), "stage": stage, "message": msg, "updated": time.time()})
@@ -280,7 +288,7 @@ def _job_worker(job_id: str, src: str, tmpdir: str, lang, num_speakers):
                 if job.get("cancel"): raise Cancelled()
         if job.get("cancel"): raise Cancelled()
         job["state"] = "running"
-        result = run_pipeline(src, lang, num_speakers, progress, lambda: job.get("cancel", False))
+        result = run_pipeline(src, lang, num_speakers, progress, lambda: job.get("cancel", False), vocab=vocab)
         job.update({"state": "done", "result": result, "pct": 100, "stage": "done", "message": "완료"})
     except Cancelled:
         job.update({"state": "cancelled", "message": "취소됨"})
@@ -301,7 +309,7 @@ def _gc_jobs():
             JOBS.pop(k, None)
 
 @app.post("/jobs")
-async def create_job(audio: UploadFile = File(...), lang: Optional[str] = Form("ko"), num_speakers: Optional[int] = Form(None)):
+async def create_job(audio: UploadFile = File(...), lang: Optional[str] = Form("ko"), num_speakers: Optional[int] = Form(None), vocab: Optional[str] = Form(None)):
     _gc_jobs()
     tmpdir = tempfile.mkdtemp(prefix="meetnote_")
     src = os.path.join(tmpdir, audio.filename or "audio.bin")
@@ -309,7 +317,7 @@ async def create_job(audio: UploadFile = File(...), lang: Optional[str] = Form("
     job_id = uuid.uuid4().hex[:12]
     with JOBS_LOCK:
         JOBS[job_id] = {"id": job_id, "state": "queued", "pct": 3, "stage": "queued", "message": "대기 중", "created": time.time()}
-    threading.Thread(target=_job_worker, args=(job_id, src, tmpdir, lang, num_speakers), daemon=True).start()
+    threading.Thread(target=_job_worker, args=(job_id, src, tmpdir, lang, num_speakers, vocab), daemon=True).start()
     return {"job_id": job_id}
 
 @app.get("/jobs/{job_id}")
@@ -327,6 +335,35 @@ def cancel_job(job_id: str):
     job["cancel"] = True
     return {"ok": True}
 
+# ---- 클라우드 STT 프록시: 네이버 클로바 스피치(장문 인식)는 브라우저에서 직접 부를 수 없어(CORS) 여기서 대신 보낸다 ----
+# 키·Invoke URL은 요청마다 받아 전달만 하고 저장하지 않는다. 서버 환경변수 CLOVA_SPEECH_URL / CLOVA_SPEECH_KEY 가 있으면 그것을 기본값으로 쓴다.
+@app.post("/cloud/clova")
+async def cloud_clova(audio: UploadFile = File(...), invoke_url: Optional[str] = Form(None), key: Optional[str] = Form(None), lang: Optional[str] = Form("ko-KR"),
+                      num_speakers: Optional[int] = Form(None), vocab: Optional[str] = Form(None)):
+    import json, requests
+    url = (invoke_url or os.environ.get("CLOVA_SPEECH_URL", "")).strip().rstrip("/")
+    secret = (key or os.environ.get("CLOVA_SPEECH_KEY", "")).strip()
+    if not url.startswith("http") or not secret:
+        raise HTTPException(400, "클로바 스피치 Invoke URL과 Secret Key가 필요해요.")
+    if not url.endswith("/recognizer/upload"): url += "/recognizer/upload"
+    params = {"language": lang or "ko-KR", "completion": "sync", "wordAlignment": False, "fullText": False, "noiseFiltering": True,
+              "diarization": {"enable": True, **({"speakerCountMin": num_speakers, "speakerCountMax": num_speakers} if num_speakers else {})}}
+    words = [w.strip() for w in str(vocab or "").split(",") if w.strip()][:100]
+    if words: params["boostings"] = [{"words": ", ".join(words), "weight": "3"}]
+    data = await audio.read()
+    print(f"[cloud/clova] {len(data) // 1024}KB lang={params['language']} speakers={num_speakers or 'auto'} vocab={len(words)}")
+    try:
+        r = requests.post(url, headers={"X-CLOVASPEECH-API-KEY": secret, "Accept": "application/json"},
+                          files={"media": (audio.filename or "audio.bin", data)}, data={"params": json.dumps(params, ensure_ascii=False)}, timeout=CLOUD_TIMEOUT)
+    except requests.RequestException as e:
+        raise HTTPException(502, f"클로바 스피치에 연결하지 못했어요: {e}")
+    if r.status_code != 200:
+        raise HTTPException(r.status_code, f"클로바 스피치 오류(HTTP {r.status_code}): {r.text[:300]}")
+    try:
+        return r.json()
+    except ValueError:
+        raise HTTPException(502, "클로바 스피치 응답을 해석하지 못했어요: " + r.text[:200])
+
 def _preload():
     try:
         print(f"[preload] 음성 인식 모델({WHISPER_MODEL}) 준비 중… 처음이면 약 {MODEL_SIZE.get(WHISPER_MODEL, '수백')}MB를 내려받아요.")
@@ -338,7 +375,7 @@ def _preload():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "whisper": WHISPER_MODEL, "ready": _whisper is not None,
+    return {"ok": True, "whisper": WHISPER_MODEL, "ready": _whisper is not None, "cloud": ["clova"], "vocab": True,
             "diarizer": "pyannote" if HF_TOKEN else ("resemblyzer" if _encoder else "none"), "ffmpeg": bool(shutil.which("ffmpeg"))}
 
 # ---- 웹 앱을 같은 주소에서 제공 (exe/도커 배포용) ----
