@@ -789,7 +789,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
       <div class="doc-resize" id="docResize" role="separator" aria-orientation="horizontal" aria-label="회의 내용 영역 높이 조절" tabindex="0" title="끌어서 회의 내용 영역 높이 조절 (두 번 누르면 기본 높이)"></div>
       <div class="att" id="tplActions" hidden>
         <div class="att-head"><b>실행계획</b><button class="btn" id="actAdd">행 추가</button></div>
-        <table><thead><tr><th style="width:16%">기한</th><th style="width:18%">작업수행자</th><th>내용</th><th style="width:20%">산출물</th><th></th></tr></thead><tbody id="actBody"></tbody></table>
+        <table><thead><tr><th style="width:18%">기한</th><th style="width:22%">작업수행자</th><th>내용</th><th></th></tr></thead><tbody id="actBody"></tbody></table>
       </div>
       <div id="tplNotes" hidden>
         <div class="sect">특이사항</div>
@@ -1203,6 +1203,9 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
 <dialog id="draftOptDlg" aria-labelledby="draftOptTitle">
   <h2 id="draftOptTitle">작성 옵션</h2>
   <p>이번 회의록 작성에 적용됩니다. 분량·문체·포함 항목·표 정리 같은 기본 지시문은 <button type="button" class="link" id="draftToSettings" style="font-size:inherit">설정 → AI 작성</button>에서 모든 회의에 공통으로 정해요.</p>
+  <div class="sect">초안에 쓸 자료</div>
+  <div class="set-row"><span class="seg" id="srcSeg"><button type="button" data-src="both">전사 + 메모</button><button type="button" data-src="transcript">전사만</button><button type="button" data-src="memo">메모만</button></span></div>
+  <p class="hint" id="srcHint" style="margin-top:-6px"></p>
   <label class="chk"><input type="checkbox" id="aiTimes" checked> 타임라인 시간 표시</label>
   <p class="hint" style="margin-top:4px">초안과 회의록에 넣는 문단 끝(표는 행의 마지막 칸)에 [mm:ss] 출처 시간을 붙입니다. 누르면 그 부분이 재생돼요. 끄면 시간이 빠지고, 비게 되는 "근거" 열도 함께 사라집니다.</p>
   <div class="sect">추가 지시 (이번 회의에만 · 선택)</div>
@@ -1312,8 +1315,13 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.18.0';
+const APP_VERSION = '0.19.0';
 const PATCH_NOTES = [
+  { v: '0.19.0', date: '2026-09-23', items: [
+    'AI 초안을 회의록에 넣으면 자리를 나눠 들어가요: "할 일"은 실행계획 표(기한·작업수행자·내용)로, "추가로 확인할 점" 같은 후속 사항은 특이사항으로, 나머지는 본문으로. 전사로 회의록 작성도 같아요.',
+    '실행계획에서 산출물 열을 뺐어요(화면·내보내기).',
+    '작성 옵션에 초안 자료 선택을 더했어요: 전사 + 메모 / 전사만 / 메모만.'
+  ] },
   { v: '0.18.0', date: '2026-09-23', items: [
     '전사 찾기·바꾸기: 검색창 옆 "바꾸기"로 잘못 전사된 낱말을 전사 전체에서 한꺼번에 고쳐요(되돌리기 한 번 지원).',
     '전사 재생 중 읽고 있는 낱말이 색으로 표시되고, 이미 읽은 부분도 구분돼요.'
@@ -3987,14 +3995,15 @@ function mdToHtml(md) {
 
 /* 작성 옵션: AI 초안·'전사로 회의록 작성'에 쓰는 프롬프트를 사용자가 조절한다(분량·문체·화자·포함 항목·추가 지시). 브라우저에 기억하고 계정에도 동기화 */
 const DRAFT_KEY = 'meetnote.draftOpt';
-const DRAFT_SECTIONS = [['overview', '개요', '## 개요  (일시, 녹음 길이, 두세 문장 요약)'], ['discussion', '주요 논의', null], ['decisions', '결정 사항', '## 결정 사항'], ['todos', '할 일', '## 할 일  (- [ ] 할 일 내용 (담당, 기한) [mm:ss])'], ['followups', '추가로 확인할 점', '## 추가로 확인할 점']];
-const draftOpt = { len: 'mid', tone: 'auto', spk: 'keep', tables: true, times: true, sections: { overview: true, discussion: true, decisions: true, todos: true, followups: true }, extra: '' };
+const DRAFT_SECTIONS = [['overview', '개요', '## 개요  (일시, 녹음 길이, 두세 문장 요약)'], ['discussion', '주요 논의', null], ['decisions', '결정 사항', '## 결정 사항'], ['todos', '할 일', '## 할 일  (- [ ] 할 일 내용 (담당, 기한) [mm:ss])  ※ 회의록의 실행계획 표로 옮겨지므로 항목마다 담당·기한을 꼭 적으세요'], ['followups', '추가로 확인할 점', '## 추가로 확인할 점']];
+const draftOpt = { len: 'mid', tone: 'auto', spk: 'keep', tables: true, times: true, source: 'both', sections: { overview: true, discussion: true, decisions: true, todos: true, followups: true }, extra: '' };
 function normDraftOpt(o, into) {
   if (!o || typeof o !== 'object') return into;
   if (['short', 'mid', 'long'].includes(o.len)) into.len = o.len;
   if (['auto', 'gaejo', 'narr'].includes(o.tone)) into.tone = o.tone;
   if (['keep', 'drop'].includes(o.spk)) into.spk = o.spk;
   for (const k of ['tables', 'times']) if (typeof o[k] === 'boolean') into[k] = o[k];
+  if (['both', 'transcript', 'memo'].includes(o.source)) into.source = o.source;
   if (o.sections && typeof o.sections === 'object') for (const [k] of DRAFT_SECTIONS) if (typeof o.sections[k] === 'boolean') into.sections[k] = o.sections[k];
   if (!Object.values(into.sections).some(Boolean)) into.sections.discussion = true;
   if (typeof o.extra === 'string') into.extra = o.extra.slice(0, 800);
@@ -4023,14 +4032,14 @@ function buildPrompt(mode = 'final', over = null) {
     const r = recMap.get(el.dataset.id);
     return { t: r && r.t != null ? r.t : null, txt };
   }).filter(Boolean);
-  const timed = segTimed();
-  const notesArr = memoItems.map(m => timed ? `[${fmt(m.t ?? 0)}] ${m.txt}` : m.txt);
+  const timed = segTimed(), src = mode === 'live' ? 'both' : (draftOpt.source || 'both');   // 초안 자료: 둘 다 / 전사만 / 메모만 (녹음 중 자동 작성은 둘 다)
+  const notesArr = src === 'transcript' ? [] : memoItems.map(m => timed ? `[${fmt(m.t ?? 0)}] ${m.txt}` : m.txt);
   let notes = notesArr.join('\n');
-  const segs = [...S.segments].sort((a, b) => a.t0 - b.t0);
+  const segs = src === 'memo' ? [] : [...S.segments].sort((a, b) => a.t0 - b.t0);
   let tr = segs.map(s => `${timed ? `[${fmt(s.t0)}] ` : ''}${s.spk ? speakerName(s.spk) + ': ' : ''}${s.text}`).join('\n');
   // 메모와 전사를 시간순으로 맞춰 한 흐름으로 (메모 시점 앞뒤 발언을 근거로 쓰도록)
   let timeline = '', timelineFull = '';
-  if (timed && memoItems.some(m => m.t != null) && segs.length) {
+  if (timed && src === 'both' && memoItems.some(m => m.t != null) && segs.length) {
     const ev = [
       ...memoItems.filter(m => m.t != null).map(m => ({ t: m.t, k: 'M', s: `[${fmt(m.t)}] 메모: ${m.txt.replace(/\n/g, ' / ')}` })),
       ...segs.map(s => ({ t: s.t0, k: 'T', s: `[${fmt(s.t0)}] 발언${s.spk ? '(' + speakerName(s.spk) + ')' : ''}: ${s.text}` }))
@@ -4065,7 +4074,7 @@ ${[refsRule(), projRule(), draftOpt.tables ? TABLE_RULE : '', TONE_RULE[draftOpt
 ${live ? `## 회의 안건
 ## 주요 논의  (주제별 글머리표. 전사가 있으면 누가 어떤 의견을 냈고 어떻게 정리됐는지를 쓰고, 각 줄 끝에 [mm:ss])
 ## 결정 사항
-## 할 일  ${draftOpt.tables ? '(표: | 할 일 | 담당 | 기한 | 근거 |)' : '(- [ ] 할 일 내용 (담당, 기한) [mm:ss])'}` : ['# 회의 제목', ...DRAFT_SECTIONS.filter(([k]) => draftOpt.sections[k]).map(([k, , line]) => draftOpt.tables && k === 'todos' ? '## 할 일  (표: | 할 일 | 담당 | 기한 | 근거 |)' : draftOpt.tables && k === 'decisions' ? '## 결정 사항  (둘 이상이면 표: | 결정 | 내용 | 근거 |)' : line || `## 주요 논의  (주제별 글머리표. ${draftOpt.spk === 'drop' ? '어떤 의견이 나왔고' : '전사가 있으면 누가 어떤 의견을 냈고'} 어떻게 정리됐는지를 쓰고, 각 줄 끝에 [mm:ss])`)].join('\n')}
+## 할 일  ${draftOpt.tables ? '(표: | 할 일 | 담당 | 기한 | 근거 |)' : '(- [ ] 할 일 내용 (담당, 기한) [mm:ss])'}` : ['# 회의 제목', ...DRAFT_SECTIONS.filter(([k]) => draftOpt.sections[k]).map(([k, , line]) => draftOpt.tables && k === 'todos' ? '## 할 일  (표: | 할 일 | 담당 | 기한 | 근거 |)  ※ 회의록의 실행계획 표로 옮겨지므로 담당·기한을 꼭 적고 모르면 "(확인 필요)"' : draftOpt.tables && k === 'decisions' ? '## 결정 사항  (둘 이상이면 표: | 결정 | 내용 | 근거 |)' : line || `## 주요 논의  (주제별 글머리표. ${draftOpt.spk === 'drop' ? '어떤 의견이 나왔고' : '전사가 있으면 누가 어떤 의견을 냈고'} 어떻게 정리됐는지를 쓰고, 각 줄 끝에 [mm:ss])`)].join('\n')}
 - 인사말이나 설명 없이 마크다운 본문만 출력하세요. 코드 블록(\`\`\`)으로 감싸지 마세요.
 
 회의 제목: ${S.title || '(제목 없음)'}
@@ -4185,9 +4194,60 @@ function mdToDocNodes(md, withTimes) {
   d.querySelectorAll('p,li,h2,h3,td').forEach(x => { for (const n of [...x.childNodes]) if (n.nodeType === 3) n.textContent = n.textContent.replace(/\s*\[\s*\]\s*/g, ' '); });
   return [...d.children];
 }
+/* AI 초안을 회의록 각 자리로 나눠 넣는다: '할 일'은 실행계획 표(기한·작업수행자·내용)로, '추가로 확인할 점' 같은 후속 사항은 특이사항으로, 나머지는 본문으로.
+   양식에 실행계획·특이사항 칸이 없으면(기본 양식) 본문에 그대로 둔다 */
+const SEC_TODO = /^(할\s*일|액션\s*아이템|실행\s*계획|후속\s*조치|action\s*items?|to-?do)/i, SEC_NOTE = /^(추가로\s*확인|확인할\s*점|확인\s*필요|미결|보류|기타|특이\s*사항|이슈|리스크|위험|open\s*(issues?|questions?)|follow-?ups?)/i;
+function splitDraft(md) {
+  const secs = TEMPLATES[curTemplate()].sections || {}, lines = String(md || '').replace(/\r/g, '').split('\n');
+  const out = { body: [], todo: [], note: [] }; let cur = 'body';
+  for (const line of lines) {
+    const m = line.match(/^(#{1,3})\s+(.*?)\s*#*$/);
+    if (m) { const h = m[2].replace(/\*\*/g, '').trim(); cur = secs.actions && SEC_TODO.test(h) ? 'todo' : secs.notes && SEC_NOTE.test(h) ? 'note' : 'body'; if (cur === 'body') out.body.push(line); continue; }
+    out[cur].push(line);
+  }
+  return out;
+}
+const cleanCell = t => String(t || '').replace(TS_RE, '').replace(/\((자료|출처)\s*[:：][^()]*\)/g, '').replace(/[☐☑]|\[( |x|X)\]/g, '').replace(/\*\*|`/g, '').replace(/\s+/g, ' ').trim();
+function parseTodos(lines) {   // 표(| 할 일 | 담당 | 기한 |) 또는 목록(- [ ] 내용 (담당, 기한) [mm:ss]) → {due, who, what}
+  const rows = [], tbl = lines.filter(l => /^\s*\|/.test(l));
+  if (tbl.length >= 2 && MD_SEP.test(tbl[1])) {
+    const head = mdCells(tbl[0]).map(h => cleanCell(h)), col = re => head.findIndex(h => re.test(h));
+    const iw = col(/할\s*일|내용|항목|과제|작업|task|item/i), iwho = col(/담당|책임|수행|who|owner/i), idue = col(/기한|일정|마감|납기|due|deadline|date/i);
+    for (const l of tbl.slice(2)) { if (MD_SEP.test(l)) continue; const c = mdCells(l).map(cleanCell); const what = c[iw >= 0 ? iw : 0] || c.find(Boolean); if (!what) continue; rows.push({ what, who: iwho >= 0 ? c[iwho] || '' : '', due: idue >= 0 ? c[idue] || '' : '' }); }
+  }
+  for (const l of lines) {
+    const m = l.match(/^\s*(?:[-*+]|\d+[.)])\s+(.*)/); if (!m || /^\s*\|/.test(l)) continue;
+    let t = cleanCell(m[1]), who = '', due = '';
+    const p = t.match(/\(([^()]{1,60})\)\s*$/);   // 끝의 (담당, 기한)
+    if (p) { const parts = p[1].split(/[,·]/).map(x => x.trim()).filter(Boolean);   /* 9/25 같은 날짜가 잘리지 않게 쉼표·가운뎃점으로만 나눈다 */ t = t.slice(0, p.index).trim(); for (const x of parts) { if (/^(담당|책임)\s*[:：]/.test(x)) who = x.replace(/^(담당|책임)\s*[:：]\s*/, ''); else if (/^(기한|마감|일정)\s*[:：]/.test(x)) due = x.replace(/^(기한|마감|일정)\s*[:：]\s*/, ''); else if (/\d|월|일|주|말|까지|미정|확인/.test(x) && !due) due = x; else if (!who) who = x; } }
+    if (t) rows.push({ what: t, who, due });
+  }
+  return rows.filter(r => r.what && !/^\(?(없음|해당 없음|n\/a)\)?$/i.test(r.what));
+}
+const noteLines = lines => lines.map(l => cleanCell(l.replace(/^\s*(?:[-*+]|\d+[.)])\s+/, ''))).filter(Boolean);
+function insertDraft(md, { replaceBody = false } = {}) {
+  const { body, todo, note } = splitDraft(md);
+  const bodyMd = body.join('\n').trim(), todos = parseTodos(todo), notes = noteLines(note);
+  const nodes = bodyMd ? mdToDocNodes(bodyMd, draftOpt.times) : [];
+  if (nodes.length) { if (replaceBody) setDocHtml(nodes); else appendToDoc(nodes); }
+  let addedTodo = 0, addedNote = 0;
+  if (todos.length) {
+    const acts = (S.meta.actions || (S.meta.actions = [])).filter(a => a.due || a.who || a.what);
+    for (const t of todos) if (!acts.some(a => cleanCell(a.what) === t.what)) { acts.push({ due: t.due, who: t.who, what: t.what }); addedTodo++; }
+    S.meta.actions = acts; renderActions();
+  }
+  if (notes.length) {
+    const have = String(S.meta.notes || '').split('\n').map(x => x.trim());
+    const add = notes.filter(n => !have.includes(n) && !have.includes('- ' + n));
+    if (add.length) { S.meta.notes = [S.meta.notes || '', ...add].filter(Boolean).join('\n').trim(); $('#mNotes').value = S.meta.notes; addedNote = add.length; }
+  }
+  if (addedTodo || addedNote) markDirty();
+  return { body: nodes.length, todo: addedTodo, note: addedNote, todoLines: todo.length, noteLines: note.length };
+}
+const insertDraftToast = (r, lead) => toast(`${lead} ${[r.body && '본문', r.todo && `실행계획 ${r.todo}건`, r.note && `특이사항 ${r.note}건`].filter(Boolean).join(' · ')}에 넣었어요.${r.todoLines && !r.todo ? ' (할 일은 이미 실행계획에 있어요)' : ''}`, 6000);
 $('#aiToDoc').addEventListener('click', () => {
   if (!S.minutes) return;
-  appendToDoc(mdToDocNodes(S.minutes, draftOpt.times)); toast('AI 초안을 회의록에 넣었어요.');
+  const r = insertDraft(S.minutes); insertDraftToast(r, 'AI 초안을');
 });
 
 /* ---------- AI 작업 중 잠금: 본문/AI 초안을 고칠 수 없게 하고 로딩 애니메이션을 보여 준다 ---------- */
@@ -4547,7 +4607,7 @@ async function runAI(opts) {
   if (toDoc && docLocked()) return;
   if (toDoc && !S.segments.length) { toast('전사가 아직 없어요. 녹음하면서 실시간 전사를 켜거나, 녹음 후 "발언자 구분"을 실행해 전사를 만든 뒤 눌러 주세요.', 7000); return; }
   const prompt = buildPrompt();
-  if (!prompt) { toast('메모나 전사가 있어야 초안을 만들 수 있어요.'); return; }
+  if (!prompt) { toast(draftOpt.source === 'transcript' ? '전사가 없어요. 작성 옵션에서 자료를 "전사 + 메모"나 "메모만"으로 바꾸거나 전사를 만드세요.' : draftOpt.source === 'memo' ? '메모가 없어요. 작성 옵션에서 자료를 바꾸거나 메모를 적으세요.' : '메모나 전사가 있어야 초안을 만들 수 있어요.', 6000); return; }
   if (ai.provider === 'auto' && !(await sampleP)) {
     aiLog('warn', '엔진이 자동(Claude)인데 이 화면에서는 Claude를 부를 수 없음 → AI 설정 열기');
     openAIDlg();
@@ -4589,10 +4649,10 @@ async function runAI(opts) {
     S.minutes = text.trim(); renderMd(S.minutes); markDirty();
     if (toDoc && S.minutes) {
       setDocBusy(false);
-      const nodes = mdToDocNodes(S.minutes, draftOpt.times), hadBody = [...docEditor.children].some(hasContent);
-      if (hadBody) appendToDoc(nodes); else setDocHtml(nodes);     // 이미 쓴 내용이 있으면 지우지 않고 그 아래에 붙인다(되돌리기 Ctrl+Z 가능)
+      const hadBody = [...docEditor.children].some(hasContent);
+      const r = insertDraft(S.minutes, { replaceBody: !hadBody });     // 이미 쓴 내용이 있으면 지우지 않고 그 아래에 붙인다(되돌리기 Ctrl+Z 가능). 할 일·확인 사항은 실행계획·특이사항으로
       autoStatus('ok', hadBody ? '전사로 쓴 회의록을 기존 내용 아래에 넣었어요. "회의록 스타일로 다듬기"로 분량·문체를 맞출 수 있어요.' : '전사로 회의록을 작성했어요. "회의록 스타일로 다듬기"로 분량·문체를 맞출 수 있어요.');
-      toast('전사로 회의록을 작성해 회의 내용에 넣었어요.');
+      insertDraftToast(r, '전사로 쓴 회의록을');
     }
     go.textContent = '다시 작성';
     aiLog('info', '초안 완료', { chars: S.minutes.length, ms: Math.round(performance.now() - t0), truncated });
@@ -4701,8 +4761,10 @@ function updateDraftBtns() { const on = !!(S.aiExtra || '').trim(); for (const i
     $('#tplRename').hidden = $('#tplDel').hidden = !tpl;
     updateDraftBtns();
   };
+  const paintSrc = () => { $('#srcSeg').querySelectorAll('[data-src]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.src === (draftOpt.source || 'both')))); $('#srcHint').textContent = { both: '메모를 가장 믿을 만한 근거로, 전사로 구체화해 하나의 회의록을 써요.', transcript: '전사(발언 기록)만으로 써요. 메모는 보내지 않아요.', memo: '메모만으로 써요. 전사는 보내지 않아요.' }[draftOpt.source || 'both'] + ` (지금 전사 ${S.segments.length}문단 · 메모 ${[...memoEditor.children].filter(hasContent).length}블록)`; };
+  $('#srcSeg').addEventListener('click', e => { const b = e.target.closest('[data-src]'); if (!b) return; draftOpt.source = b.dataset.src; saveDraftOpt(); paintSrc(); });
   const open = () => {
-    $('#aiTimes').checked = draftOpt.times; $('#meetExtra').value = S.aiExtra || '';
+    paintSrc(); $('#aiTimes').checked = draftOpt.times; $('#meetExtra').value = S.aiExtra || '';
     const text = (S.aiExtra || '').trim(); if (!cur() || cur().text.trim() !== text) tplId = (draftTpls.find(t => t.text.trim() === text) || {}).id || (cur() && text ? tplId : '');
     paint(); try { dlg.showModal(); } catch {}
   };
@@ -5635,12 +5697,12 @@ const TEMPLATES = {
         [labc(3, 0, '참석자'), { ...multiCell(3, 1, attLines, F.val, { valign: 'CENTER' }), cs: 3 }]
       ] }, [wl, wv1, wl, wv2], [authorLines().length > 1 ? 2900 : RH, RH, RH, Math.max(RH, 1300 * Math.max(1, attLines.length) + 500)]);
       renderBody(B, { box: true, head: { text: '회 의   세 부   내 용', f: { size: 1200, bold: true }, height: 1900 } });
-      const acts = (S.meta.actions || []).filter(a => a.due || a.who || a.what || a.out);
+      const acts = (S.meta.actions || []).filter(a => a.due || a.who || a.what);
       const n = Math.max(1, acts.length);
-      const rows = [[{ ...labc(0, 0, '실행계획'), rs: n + 1 }, labc(0, 1, '기한'), labc(0, 2, '작업수행자'), labc(0, 3, '내용'), labc(0, 4, '산출물')]];
-      for (let i = 0; i < n; i++) { const a = acts[i] || {}; rows.push([cellSpec(i + 1, 1, a.due || '', F.val), cellSpec(i + 1, 2, a.who || '', F.val), cellSpec(i + 1, 3, a.what || '', F.val), cellSpec(i + 1, 4, a.out || '', F.val)]); }
+      const rows = [[{ ...labc(0, 0, '실행계획'), rs: n + 1 }, labc(0, 1, '기한'), labc(0, 2, '작업수행자'), labc(0, 3, '내용')]];
+      for (let i = 0; i < n; i++) { const a = acts[i] || {}; rows.push([cellSpec(i + 1, 1, a.due || '', F.val), cellSpec(i + 1, 2, a.who || '', F.val), cellSpec(i + 1, 3, a.what || '', F.val)]); }
       B.para([], { before: 100 });
-      B.table({ rows: n + 1, cols: 5, origin: rows }, [wl, 6200, 7200, W - wl - 6200 - 7200 - 7600, 7600], rows.map(() => RH));
+      B.table({ rows: n + 1, cols: 4, origin: rows }, [wl, 7000, 8000, W - wl - 7000 - 8000], rows.map(() => RH));
       const notes = String(S.meta.notes || '').split(/\n/).map(x => x.trim()).filter(Boolean);
       B.table({ rows: 1, cols: 1, origin: [[{ r: 0, c: 0, rs: 1, cs: 1, paras: [[{ t: 'ㅇ 특이사항', f: F.lab }], ...(notes.length ? notes.map(l => [{ t: '- ' + l, f: F.val }]) : [[{ t: '-', f: F.val }]])] }]] }, [W], [Math.max(2400, 1200 * (notes.length + 1) + 600)]);
     }
@@ -5685,10 +5747,10 @@ $('#tplSel').addEventListener('change', e => setTemplate(e.target.value));
 $('#expTpl').addEventListener('change', e => setTemplate(e.target.value));
 function renderActions() {
   const tb = $('#actBody'); const acts = S.meta.actions || (S.meta.actions = []);
-  tb.innerHTML = acts.map((a, i) => `<tr>${['due', 'who', 'what', 'out'].map(k => `<td><input data-act="${k}" data-i="${i}" value="${esc(a[k] || '')}" placeholder="${{ due: '예: 5/25', who: '담당', what: '할 일', out: '산출물' }[k]}"></td>`).join('')}<td class="x"><button data-adel="${i}" title="삭제" aria-label="삭제">×</button></td></tr>`).join('')
-    || '<tr><td colspan="5" class="empty">행 추가를 눌러 기한·작업수행자·내용·산출물을 입력하세요.</td></tr>';
+  tb.innerHTML = acts.map((a, i) => `<tr>${['due', 'who', 'what'].map(k => `<td><input data-act="${k}" data-i="${i}" value="${esc(a[k] || '')}" placeholder="${{ due: '예: 5/25', who: '담당', what: '할 일' }[k]}"></td>`).join('')}<td class="x"><button data-adel="${i}" title="삭제" aria-label="삭제">×</button></td></tr>`).join('')
+    || '<tr><td colspan="4" class="empty">행 추가를 눌러 기한·작업수행자·내용을 입력하세요. AI 초안의 "할 일"을 회의록에 넣으면 여기에 채워져요.</td></tr>';
 }
-$('#actAdd').addEventListener('click', () => { (S.meta.actions || (S.meta.actions = [])).push({ due: '', who: '', what: '', out: '' }); renderActions(); markDirty(); $('#actBody').querySelector(`input[data-i="${S.meta.actions.length - 1}"]`)?.focus(); });
+$('#actAdd').addEventListener('click', () => { (S.meta.actions || (S.meta.actions = [])).push({ due: '', who: '', what: '' }); renderActions(); markDirty(); $('#actBody').querySelector(`input[data-i="${S.meta.actions.length - 1}"]`)?.focus(); });
 $('#actBody').addEventListener('input', e => { const i = e.target.dataset.i, k = e.target.dataset.act; if (i == null) return; S.meta.actions[+i][k] = e.target.value; markDirty(); });
 $('#actBody').addEventListener('click', e => { const b = e.target.closest('[data-adel]'); if (!b) return; S.meta.actions.splice(+b.dataset.adel, 1); renderActions(); markDirty(); });
 $('#mNotes').addEventListener('input', e => { S.meta.notes = e.target.value; markDirty(); });
@@ -7630,7 +7692,7 @@ async function dbUpsert(m) {
 /* 내 설정 동기화: 발언자 분석(방식·PC 서비스 주소·발언자 수), AI 엔진(종류·주소·모델), 다듬기 옵션, AI 작성 설정(시간 표시·표 정리 포함)·추가 지시 템플릿·작성자를 계정에 저장해 다른 기기·브라우저에서도 이어 쓴다.
    보안 토큰·API 키는 넣지 않는다. 규칙에 settings 경로가 없으면(403) 이 브라우저에만 기억한다 */
 const prefsDoc = a => `${EP.fs}/projects/${encodeURIComponent(FB.projectId)}/databases/(default)/documents/users/${encodeURIComponent(a.uid)}/settings/prefs`;
-const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0, vocab: diar.vocab !== false, cloudProv: diar.cloud.prov, tier: diar.tier }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, tables: draftOpt.tables, times: draftOpt.times, sections: draftOpt.sections, extra: draftOpt.extra }, tpls: draftTpls, author: { org: authorPref.org, name: authorPref.name, title: authorPref.title } });
+const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0, vocab: diar.vocab !== false, cloudProv: diar.cloud.prov, tier: diar.tier }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, tables: draftOpt.tables, times: draftOpt.times, source: draftOpt.source, sections: draftOpt.sections, extra: draftOpt.extra }, tpls: draftTpls, author: { org: authorPref.org, name: authorPref.name, title: authorPref.title } });
 const prefs403 = e => { if (e && e.status === 403) { prefsOff = true; aiLog('warn', '설정 동기화 꺼짐: 목록 DB 규칙에 settings 경로가 없어요(이 브라우저에만 기억)'); renderCloudState(); return true; } return false; };
 async function prefsPush() {
   if (!FB || !user || prefsOff) return;
@@ -8011,7 +8073,7 @@ if (FB && user && fbSess && fbSess.sub === user.sub) { prefsPull(); projPull(); 
     '#autoChk': '자동 작성 — 녹음 중 정해진 주기마다 전사와 메모를 정리해 본문을 갱신합니다(로컬 LLM·API 키 엔진). 자동으로 쓴 문단은 왼쪽 선으로 표시되고, 직접 쓴 문단은 유지됩니다.',
     '#autoEvery': '자동 작성 주기 — 본문을 얼마나 자주 갱신할지 고릅니다.',
     '#memoToDoc': '메모 전체를 회의록 본문 끝에 넣습니다. 각 문단 끝에 녹음 시점 칩이 붙어요.',
-    '#aiToDoc': 'AI 초안을 회의록 본문 끝에 넣습니다. "타임라인 시간 표시"가 켜져 있으면 문단 끝에 시점 칩이 붙어요.',
+    '#aiToDoc': 'AI 초안을 회의록에 나눠 넣습니다: 할 일 → 실행계획 표, 추가로 확인할 점 → 특이사항, 나머지 → 본문. "타임라인 시간 표시"가 켜져 있으면 문단 끝에 시점 칩이 붙어요.',
     '#aiTimes': '초안 문단 끝의 [mm:ss] 출처 시간을 보이거나 숨깁니다. 누르면 그 부분이 재생돼요.',
     '#trSearch': '전사에서 낱말을 찾아 그 낱말(또는 발언자 이름)이 들어간 문단만 보여 줍니다. 지우면 전체가 다시 보여요.',
     '#trReplaceToggle': '검색창의 낱말을 전사 전체에서 다른 낱말로 한꺼번에 바꿔요. 잘못 전사된 이름·용어를 고칠 때 쓰고, 한 번은 되돌릴 수 있어요.',
@@ -8186,7 +8248,7 @@ if (FB && user && fbSess && fbSess.sub === user.sub) { prefsPull(); projPull(); 
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
 applyAuthorDefault(false);
 renderAll();
 selectTab(curTab);

@@ -62,6 +62,12 @@ async def run():
         expect(await pg.locator('#docEditor td .tchip').count() == 2 and await pg.locator('#docEditor li li em').count() == 1, '표 안 시점 칩 · 중첩 목록 · 기울임')
         n_th = await pg.evaluate("md => { const d = document.createElement('div'); d.innerHTML = __meetnote.mdToHtml(md); return d.querySelectorAll('th').length; }", '\n'.join(['| 할 일 | 근거 |', '|---|---|', '| 가 |  |']))
         expect(n_th == 1, '시간 숨김 시 빈 근거 열 제거')
+        # AI 초안 나눠 넣기: 할 일 → 실행계획, 추가로 확인할 점 → 특이사항
+        md2 = chr(10).join(['## 할 일', '| 할 일 | 담당 | 기한 | 근거 |', '|---|---|---|---|', '| 견적 요청 | 홍길동 | 9/25 | [04:00] |', '- [ ] 요구사항 검토 (담당: 김과장, 기한: 10월 초)', '## 추가로 확인할 점', '- 예산 승인 절차 확인 [06:00]'])
+        r = await pg.evaluate("md => __meetnote.insertDraft(md)", md2)
+        acts = await pg.evaluate("__meetnote.S.meta.actions.map(a => [a.due, a.who, a.what])")
+        expect(r['todo'] == 2 and r['note'] == 1 and ['9/25', '홍길동', '견적 요청'] in acts and ['10월 초', '김과장', '요구사항 검토'] in acts and '예산 승인 절차 확인' == (await pg.input_value('#mNotes')).strip() and '요구사항 검토' not in await pg.inner_text('#docEditor'), f'초안 나눠 넣기(실행계획·특이사항) {r} {acts}')
+        expect(await pg.locator('#tplActions thead th').count() == 4, '실행계획 산출물 열 제거')
         # 작성 옵션(작성 화면): 시간 표시 · 추가 지시 · 템플릿
         await pg.click('#tabAi'); await pg.click('#draftOptBtn')
         await pg.fill('#meetExtra', '결정 사항을 맨 위에 요약'); await pg.click('#tplSave'); await pg.fill('#textDlgInput', '요약 우선'); await pg.click('#textDlgYes'); await pg.wait_for_timeout(200)
@@ -71,6 +77,8 @@ async def run():
         expect(len(tpls) == 1 and tpls[0]['text'].endswith('굵게'), '추가 지시 템플릿 수정(덮어쓰기)')
         await pg.uncheck('#aiTimes'); await pg.wait_for_timeout(100)
         expect(await pg.evaluate("JSON.parse(localStorage.getItem('meetnote.draftOpt')).times") is False, '타임라인 시간 표시 옵션 저장')
+        await pg.click('#srcSeg [data-src="transcript"]'); pr_t = await pg.evaluate("__meetnote.buildPrompt() || ''"); await pg.click('#srcSeg [data-src="both"]')
+        expect('메모 한 줄' not in pr_t and (await pg.evaluate("JSON.parse(localStorage.getItem('meetnote.draftOpt')).source")) == 'both', '초안 자료 선택(전사만 → 메모 제외)')
         await pg.check('#aiTimes'); await pg.click('#draftOptCancel')
         prompt = await pg.evaluate("__meetnote.buildPrompt()")
         expect('담당자를 굵게' in prompt and '마크다운 표로 정리' in prompt, '프롬프트에 추가 지시·표 규칙 반영')
