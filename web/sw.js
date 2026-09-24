@@ -1,7 +1,7 @@
 // MeetNote service worker: 오프라인에서도 앱이 열리도록 정적 파일만 캐시합니다.
 // API(/jobs, /health, /diarize 등)는 절대 캐시하지 않고 항상 서버로 보냅니다.
 const CACHE = 'meetnote-v3';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/favicon.svg'];
 const STATIC = /\.(html|js|css|png|svg|ico|webmanifest|woff2?|ttf)$/i;
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

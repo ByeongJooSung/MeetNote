@@ -43,7 +43,11 @@ MeetNote는 서버 없이 동작합니다. 클라우드 저장은 아래처럼 �
          allow create: if request.auth != null && request.resource.data.owner == request.auth.uid
            && request.resource.data.keys().hasOnly(['json','name','updatedAt','deleted','owner','ownerEmail','memberEmails'])
            && request.resource.data.json is string && request.resource.data.json.size() <= 400000;
-         allow update: if projMember(resource.data) && request.resource.data.owner == resource.data.owner
+         // 갱신: 구성원. 마스터 위임 때는 owner를 비우고(ownerEmail = 새 마스터), 새 마스터가 저장하면 자기 uid로 채운다
+         allow update: if projMember(resource.data)
+           && (request.resource.data.owner == resource.data.owner
+               || resource.data.owner == request.auth.uid
+               || (resource.data.owner == '' && request.resource.data.owner == request.auth.uid && request.auth.token.email == resource.data.ownerEmail))
            && request.resource.data.keys().hasOnly(['json','name','updatedAt','deleted','owner','ownerEmail','memberEmails'])
            && request.resource.data.json is string && request.resource.data.json.size() <= 400000;
          allow delete: if request.auth != null && resource.data.owner == request.auth.uid;

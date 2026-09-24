@@ -42,6 +42,8 @@ async def run():
         logs = []; pg.on('console', lambda m: logs.append(m.text) if 'MeetNote' in m.text else None)
         await pg.goto(url); await pg.wait_for_timeout(1500)
         if await pg.locator('#gateSkip').is_visible(): await pg.click('#gateSkip')
+        await pg.wait_for_timeout(700)
+        if await pg.locator('#cloudDlg').is_visible(): await pg.click('#cloudClose')
         await pg.set_input_files('#audioInput', WAV); await pg.wait_for_timeout(1500)
         if await pg.locator('#analyzeDlg').is_visible(): await pg.click('#anaSkip')
         await pg.evaluate("Object.assign(__meetnote.diarState(), { mode: 'browser', tier: '%s', n: 0 })" % TIER)
