@@ -41,7 +41,7 @@ async def run():
         await pg.goto(url); await pg.wait_for_timeout(1800)
         if await pg.locator('#gateSkip').is_visible(): await pg.click('#gateSkip')
         await pg.wait_for_timeout(700)
-        expect(await pg.locator('#cloudDlg').is_visible() and await pg.locator('#dashProjs button').count() >= 2, '시작 시 대시보드 표시')
+        expect(await pg.locator('#dashPage').is_visible() and await pg.locator('#dashProjs button').count() >= 2, '시작 시 대시보드 표시')
         await pg.click('#cloudClose'); await pg.wait_for_timeout(200)
         expect(await pg.evaluate("!!window.__meetnote && __meetnote.projects().length === 1") and not errs, f'저장된 프로젝트가 있어도 정상 시작 {errs[:1]}')
         await pg.fill('#title', '스모크 회의'); await pg.fill('#mPlace', '테스트실')

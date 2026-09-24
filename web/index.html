@@ -485,20 +485,53 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 @keyframes busyDots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
 .tb[data-hist]:disabled{opacity:.35;cursor:default}
 /* 내 회의록(클라우드) */
-#cloudDlg{width:min(1040px,calc((100vw - 32px) / var(--ui,1)));max-width:none}
-.dash-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-.dash-brand{display:flex;align-items:center;gap:8px}
-.dash-brand h2{margin:0}
-.dash-actions{display:flex;gap:6px;flex-wrap:wrap}
-.dash-projs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 12px}
-.dash-projs button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
-.dash-projs button:hover{border-color:var(--tape)}
-.dash-projs button[aria-pressed="true"]{background:var(--tape);border-color:var(--tape);color:#fff}
-.dash-projs button .n{font-size:11.5px;opacity:.8}
-.dash-projs button .sh{font-size:10.5px;background:var(--bg-purple);color:var(--tc-purple);border-radius:6px;padding:0 5px}
-.dash-projs button[aria-pressed="true"] .sh{background:rgba(255,255,255,.25);color:#fff}
+#dashPage{position:fixed;inset:0;z-index:40;display:grid;grid-template-columns:250px minmax(0,1fr);background:var(--bg);color:var(--ink);zoom:var(--ui,1)}
+#dashPage[hidden]{display:none}
+.lnb{background:var(--surface);border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;gap:4px;overflow:auto;min-height:0}
+.lnb-brand{display:flex;align-items:center;gap:8px;font-size:17px;padding:2px 6px 8px}
+.lnb-user{font-size:12.5px;color:var(--ink2);padding:0 6px 10px;overflow-wrap:anywhere}
+.lnb-cta{width:100%;margin-bottom:6px}
+.lnb .nav-sec{font-size:11.5px;color:var(--ink2);letter-spacing:.04em;margin:12px 6px 4px}
+.lnb .nav,.lnb-projs button{width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:8px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--ink);font-family:inherit}
+.lnb .nav:hover,.lnb-projs button:hover{background:var(--sunk)}
+.lnb-projs button[aria-pressed="true"]{background:var(--tape-soft);color:var(--tape);font-weight:600}
+.lnb-projs button .n{margin-left:auto;font-size:12px;color:var(--ink2);background:var(--sunk);border-radius:999px;padding:0 7px}
+.lnb-projs button[aria-pressed="true"] .n{background:var(--tape);color:#fff}
+.lnb-projs button .sh{font-size:10.5px;background:var(--bg-purple);color:var(--tc-purple);border-radius:6px;padding:0 5px}
+.lnb-projs button .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lnb-spacer{flex:1}
+.lnb-ver{padding:6px;font-size:11.5px}
+.dash-main{overflow:auto;padding:20px 24px 28px;min-height:0}
+.dash-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.dash-top h2{margin:0;font-size:20px}
+.dash-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dash-tools input{border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--surface);color:var(--ink);min-width:200px}
+.dash-tools select{border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--ink)}
+.dash-tools .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.dash-tools .seg button{border:0;background:var(--surface);color:var(--ink);padding:6px 12px;cursor:pointer;font-size:13.5px}
+.dash-tools .seg button[aria-pressed="true"]{background:var(--tape-soft);color:var(--tape);font-weight:600}
+.dash-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.stat .k{font-size:12.5px;color:var(--ink2)}
+.stat .v{font-size:24px;font-weight:700;line-height:1.3;margin-top:2px}
+.stat .s{font-size:12px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dash-grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:14px;margin-top:14px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.card-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px}
+.card .cloud-list{max-height:none}
+.card .cloud-list.recent{max-height:min(60vh,560px);overflow-y:auto}
+#dashPage .cal-cell{min-height:52px}
+@media (max-width:880px){
+  #dashPage{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+  .lnb{flex-direction:row;flex-wrap:wrap;gap:4px;padding:10px;border-right:0;border-bottom:1px solid var(--line);max-height:46vh}
+  .lnb-brand{padding:0 4px;font-size:15px}.lnb-user{width:100%;padding:0 4px 4px}
+  .lnb-cta{width:auto}.lnb .nav-sec{width:100%;margin:6px 4px 2px}
+  .lnb .nav,.lnb-projs button{width:auto;padding:6px 10px;font-size:13px}
+  .lnb-projs{display:flex;flex-wrap:wrap;gap:4px;width:100%}
+  .lnb-spacer,.lnb-ver{display:none}
+  .dash-main{padding:12px}.dash-grid{grid-template-columns:1fr}
+}
 .cloud-list{display:flex;flex-direction:column;gap:6px;max-height:min(50vh,440px);overflow-y:auto;overflow-x:hidden;margin-top:8px;padding:1px}
-#cloudDlg{overflow-x:hidden}
 .cl-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .cl-head h2{margin:0}.cl-head .set-row{margin:0}
 .cl-local{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 12px}
@@ -1211,21 +1244,46 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   </div>
 </dialog>
 
-<dialog id="cloudDlg" class="dash" aria-labelledby="cloudTitle">
-  <div class="dash-head">
-    <div class="dash-brand"><svg width="26" height="26" viewBox="0 0 22 22" aria-hidden="true"><circle cx="7" cy="11" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="15" cy="11" r="5" fill="none" stroke="var(--tape)" stroke-width="2"/><circle cx="7" cy="11" r="1.5" fill="currentColor"/><circle cx="15" cy="11" r="1.5" fill="var(--tape)"/></svg><h2 id="cloudTitle">대시보드</h2><span class="hint" id="dashUser"></span></div>
-    <div class="dash-actions"><button class="btn primary" id="dashNew">새 회의 시작</button><button class="btn" id="cloudLocal" title="파일을 화면에 끌어다 놓아도 열려요">.mnote 파일 열기</button><button class="btn" id="dashProjNew">새 프로젝트</button><button class="btn" id="dashProjManage">프로젝트 관리</button></div>
+<section id="dashPage" class="dash" hidden aria-label="대시보드">
+  <nav class="lnb">
+    <div class="lnb-brand"><svg width="24" height="24" viewBox="0 0 22 22" aria-hidden="true"><circle cx="7" cy="11" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="15" cy="11" r="5" fill="none" stroke="var(--tape)" stroke-width="2"/><circle cx="7" cy="11" r="1.5" fill="currentColor"/><circle cx="15" cy="11" r="1.5" fill="var(--tape)"/></svg><b>MeetNote</b></div>
+    <div class="lnb-user" id="dashUser"></div>
+    <button class="btn primary lnb-cta" id="dashNew">＋ 새 회의 시작</button>
+    <div class="nav-sec">프로젝트</div>
+    <div id="dashProjs" class="lnb-projs"></div>
+    <button type="button" class="nav" id="dashProjNew">＋ 새 프로젝트</button>
+    <button type="button" class="nav" id="dashProjManage">프로젝트 관리 · 구성원</button>
+    <div class="nav-sec">도구</div>
+    <button type="button" class="nav" id="cloudLocal" title="파일을 화면에 끌어다 놓아도 열려요">.mnote 파일 열기</button>
+    <button type="button" class="nav" id="dashSettings">설정</button>
+    <button type="button" class="nav" id="cloudSync" title="Drive의 MeetNote 폴더를 읽어 목록을 다시 맞춥니다">Drive와 목록 맞추기</button>
+    <button type="button" class="nav" id="cloudRefresh">새로고침</button>
+    <div class="lnb-spacer"></div>
+    <button type="button" class="nav" id="cloudClose">← 편집 화면으로</button>
+    <div class="lnb-ver hint">v<span id="dashVer"></span></div>
+  </nav>
+  <div class="dash-main">
+    <div class="dash-top">
+      <div><h2 id="cloudTitle">대시보드</h2><p class="hint" id="cloudInfo" style="margin:2px 0 0"></p></div>
+      <div class="dash-tools"><select id="cloudProj" aria-label="프로젝트" hidden></select><input id="cloudSearch" type="search" placeholder="제목 검색" aria-label="회의록 검색" autocomplete="off"><select id="cloudSort" aria-label="정렬"><option value="saved">최근 저장순</option><option value="when">회의 일시순</option><option value="title">제목순</option></select><span class="seg" id="cloudViewSeg"><button type="button" data-cview="cal">달력</button><button type="button" data-cview="list">목록</button></span></div>
+    </div>
+    <div class="dash-cards" id="dashStats"></div>
+    <div class="dash-grid">
+      <div class="card">
+        <div class="card-head"><b id="dashCalTitle">달력</b></div>
+        <div id="cloudCal" hidden>
+          <div class="cal-nav"><button type="button" class="btn" id="calPrev" aria-label="이전 달">‹</button><b id="calLabel" class="num"></b><button type="button" class="btn" id="calNext" aria-label="다음 달">›</button><button type="button" class="btn" id="calToday">오늘</button></div>
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
+        <div class="cloud-list" id="cloudList"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><b>최근 작성한 회의록</b><span class="hint" id="dashRecentInfo"></span></div>
+        <div class="cloud-list recent" id="dashRecent"></div>
+      </div>
+    </div>
   </div>
-  <div class="dash-projs" id="dashProjs"></div>
-  <div class="cl-head" style="margin-top:4px"><div class="sect" style="margin:0">☁ 회의록 <span class="hint" id="cloudInfo"></span></div><div class="set-row" style="margin:0"><span class="seg" id="cloudViewSeg"><button type="button" data-cview="cal">달력</button><button type="button" data-cview="list">목록</button></span></div></div>
-  <div class="cl-tools"><select id="cloudProj" aria-label="프로젝트"></select><input id="cloudSearch" type="search" placeholder="제목 검색" aria-label="회의록 검색" autocomplete="off"><select id="cloudSort" aria-label="정렬"><option value="saved">최근 저장순</option><option value="when">회의 일시순</option><option value="title">제목순</option></select></div>
-  <div id="cloudCal" hidden>
-    <div class="cal-nav"><button type="button" class="btn" id="calPrev" aria-label="이전 달">‹</button><b id="calLabel" class="num"></b><button type="button" class="btn" id="calNext" aria-label="다음 달">›</button><button type="button" class="btn" id="calToday">오늘</button></div>
-    <div class="cal-grid" id="calGrid"></div>
-  </div>
-  <div class="cloud-list" id="cloudList"></div>
-  <div class="dlg-actions"><button class="btn" id="cloudSync" title="Drive의 MeetNote 폴더를 읽어 목록을 다시 맞춥니다 (다른 기기에서 지웠거나 목록이 어긋났을 때)">Drive와 목록 맞추기</button><button class="btn" id="cloudRefresh">새로고침</button><span style="flex:1"></span><button class="btn primary" id="cloudClose">편집 화면으로</button></div>
-</dialog>
+</section>
 
 <dialog id="draftOptDlg" aria-labelledby="draftOptTitle">
   <h2 id="draftOptTitle">작성 옵션</h2>
@@ -1346,8 +1404,9 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.21.0';
+const APP_VERSION = '0.22.0';
 const PATCH_NOTES = [
+  { v: '0.22.0', date: '2026-09-24', items: ['대시보드를 한 페이지로 다시 만들었어요: 왼쪽 메뉴(프로젝트·새 회의·파일 열기·설정), 오른쪽에 현황 카드(회의록 수·이번 달·프로젝트·마지막 저장), 달력 카드, 최근 작성한 회의록 카드.'] },
   { v: '0.21.0', date: '2026-09-24', items: [
     '대시보드: 앱을 열면(로그인 뒤 최신 목록을 한 번 불러와) 프로젝트·미분류(개인)별로 회의록을 달력·목록으로 보고 열 수 있어요. 새 회의·새 프로젝트·프로젝트 관리도 여기서. 상단 "대시보드" 버튼으로 언제든 돌아와요.',
     '프로젝트 역할: 마스터(만든 사람)는 초대 담당자를 2명까지 지정하고 마스터 권한을 위임할 수 있어요. 초대 담당자도 초대·내보내기를 할 수 있어요.',
@@ -8040,14 +8099,14 @@ const cloudUi = { view: 'cal', ym: null, day: '', src: 'db' };   // 기본은 �
 try { if (localStorage.getItem(CLOUD_VIEW_KEY) === 'list') cloudUi.view = 'list'; } catch {}
 const dayKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const cloudWhen = m => { for (const v of [m.when, m.updatedAt]) { const d = v ? new Date(v) : null; if (d && !isNaN(d)) return d; } return new Date(0); };
-function cloudItemHtml(m) {
+function cloudItemHtml(m, compact) {
   const d = cloudWhen(m), dt = v => { const t = v ? new Date(v) : null; return t && !isNaN(t) ? t.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : ''; };
   const meta = [dt(m.when), m.duration ? '녹음 ' + fmt(m.duration) : '', m.bytes ? (m.bytes / 1048576).toFixed(1) + 'MB' : '', dt(m.updatedAt) ? '저장 ' + dt(m.updatedAt) : '', m.shared && m.ownerEmail ? '올린 사람 ' + m.ownerEmail : ''].filter(Boolean);
   const i = cloudRows.indexOf(m), cur = m.id === safeId(S.id);
   return `<div class="cl-item${cur ? ' cur' : ''}" role="button" tabindex="0" data-copen="${i}" title="눌러서 열기">
     <span class="cl-date num"><b>${d.getTime() ? d.getDate() : '-'}</b><small>${d.getTime() ? `${d.getFullYear() % 100}.${String(d.getMonth() + 1).padStart(2, '0')}` : ''}</small></span>
     <span class="cl-main"><span class="cl-title">${m.shared ? `<span class="cl-shared" title="${esc(m.ownerEmail || '')}">공유</span>` : ''}${m.project ? `<span class="cl-proj">${esc(projName(m.project) || m.projectName || '프로젝트')}</span>` : ''}${esc(m.title || '제목 없는 회의')}${cur ? '<em>열려 있음</em>' : ''}</span><span class="cl-meta">${meta.map(x => `<span>${esc(x)}</span>`).join('<i>·</i>')}</span></span>
-    <span class="cl-act">${m.shared ? '' : `<select class="cl-projsel" data-cproj="${i}" title="프로젝트 지정" aria-label="프로젝트">${projOptions(m.project || '')}</select>`}<button type="button" class="btn" data-copen="${i}">열기</button>${m.shared ? '' : `<button type="button" class="btn" data-cdel="${i}" style="color:var(--rec)">삭제</button>`}</span></div>`;
+    <span class="cl-act">${m.shared || compact ? '' : `<select class="cl-projsel" data-cproj="${i}" title="프로젝트 지정" aria-label="프로젝트">${projOptions(m.project || '')}</select>`}<button type="button" class="btn" data-copen="${i}">열기</button>${m.shared || compact ? '' : `<button type="button" class="btn" data-cdel="${i}" style="color:var(--rec)">삭제</button>`}</span></div>`;
 }
 function renderCloudList(src) {
   if (src) cloudUi.src = src;
@@ -8056,7 +8115,7 @@ function renderCloudList(src) {
   $('#cloudCal').hidden = !cal || !cloudRows.length; $('#cloudSort').hidden = cal;
   $('#cloudInfo').textContent = `파일: 내 Google Drive의 ${DRIVE_FOLDER} 폴더 · 목록: ${cloudUi.src === 'db' ? '동기화됨' : 'Google Drive'}${cloudRows.length ? ` · ${cloudRows.length}건` : ''}`;
   renderCloudProjSel(); renderDashProjs();
-  if (!cloudRows.length) { el.innerHTML = '<div class="cloud-empty">아직 클라우드에 저장한 회의록이 없어요. 위쪽 <b>☁ 클라우드 저장</b>을 눌러 저장하세요.</div>'; return; }
+  if (!cloudRows.length) { el.innerHTML = `<div class="cloud-empty">${user ? '아직 클라우드에 저장한 회의록이 없어요. 회의를 쓴 뒤 <b>☁ 클라우드 저장</b>을 누르면 여기에 보여요.' : '로그인하면 클라우드에 저장한 회의록이 보여요.'}</div>`; return; }
   const q = $('#cloudSearch').value.trim().toLowerCase(), pf = $('#cloudProj').value;
   const rows = cloudRows.filter(m => (pf === '' || (pf === '__none' ? !m.project : String(m.project || '') === pf)) && (!q || String(m.title || '').toLowerCase().includes(q) || String(m.name || '').toLowerCase().includes(q)));
   el.style.maxHeight = '';
@@ -8086,7 +8145,7 @@ function cloudGoMonth(d) {
   cloudUi.day = inMonth.length ? dayKey(inMonth[0]) : ''; renderCloudList();
 }
 async function cloudOpenList({ connect = false } = {}) {
-  try { if (!$('#cloudDlg').open) $('#cloudDlg').showModal(); } catch {}
+  dashOpen();
   const el = $('#cloudList');
   try {
     if (connect) await driveAuth();
@@ -8103,7 +8162,7 @@ async function cloudOpenItem(m) {
   if (rec.state !== 'idle') { toast('녹음 중에는 열 수 없어요.'); return; }
   const ctl = new AbortController();
   try {
-    await driveAuth(); $('#cloudDlg').close();
+    await driveAuth(); dashClose();
     progAbort = () => ctl.abort(); progOpen('클라우드에서 여는 중', { local: true }); progSet(null, 'Google Drive에서 내려받는 중');
     const tok = await driveAuth();
     const r = await fetch(`${EP.drive}/files/${encodeURIComponent(m.fileId)}?alt=media`, { headers: { authorization: 'Bearer ' + tok }, signal: ctl.signal });
@@ -8190,9 +8249,12 @@ function renderCloudState() {
 $('#cloudSaveBtn').addEventListener('click', cloudSave);
 $('#cloudRefresh').addEventListener('click', () => cloudOpenList());
 $('#cloudSync').addEventListener('click', cloudSync);
-$('#cloudClose').addEventListener('click', () => $('#cloudDlg').close());
-$('#cloudLocal').addEventListener('click', () => { $('#cloudDlg').close(); $('#fileInput').click(); });
-$('#cloudList').addEventListener('change', async e => {   // 목록에서 바로 프로젝트 지정·변경(목록 DB에 기록, 파일은 다음 저장 때)
+function dashOpen() { $('#dashPage').hidden = false; $('#dashVer').textContent = APP_VERSION; document.body.classList.add('dash-on'); }
+function dashClose() { $('#dashPage').hidden = true; document.body.classList.remove('dash-on'); }
+$('#cloudClose').addEventListener('click', dashClose);
+$('#cloudLocal').addEventListener('click', () => { dashClose(); $('#fileInput').click(); });
+$('#dashSettings').addEventListener('click', () => openAIDlg('view'));
+$('#dashPage').addEventListener('change', async e => {   // 목록에서 바로 프로젝트 지정·변경(목록 DB에 기록, 파일은 다음 저장 때)
   const sel = e.target.closest('[data-cproj]'); if (!sel) return;
   const m = cloudRows[+sel.dataset.cproj]; if (!m) return; const pid = sel.value;
   m.project = pid; m.projectName = projName(pid);
@@ -8203,7 +8265,8 @@ $('#cloudList').addEventListener('change', async e => {   // 목록에서 바로
   else toast('로그인·목록 DB가 없어 이 화면에서만 바뀌어요. 회의를 열어 저장하면 파일에 남아요.', 6000);
   renderCloudList();
 });
-$('#cloudList').addEventListener('click', e => {
+$('#dashPage').addEventListener('click', e => {
+  if (!e.target.closest('#cloudList, #dashRecent')) return;
   if (e.target.closest('[data-cproj]')) return;
   if (e.target.closest('#cloudConnect')) { cloudOpenList({ connect: true }); return; }
   const o = e.target.closest('[data-copen]'), d = e.target.closest('[data-cdel]');
@@ -8213,21 +8276,36 @@ $('#cloudList').addEventListener('click', e => {
 function renderDashProjs() {
   const box = $('#dashProjs'); if (!box) return;
   const cur = $('#cloudProj').value, cnt = id => cloudRows.filter(m => id === '' ? true : id === '__none' ? !m.project : String(m.project || '') === id).length;
-  const chip = (id, label, extra = '') => `<button type="button" data-dproj="${esc(id)}" aria-pressed="${String(cur === id)}">${label}${extra}<span class="n">${cnt(id)}</span></button>`;
+  const chip = (id, label, extra = '') => `<button type="button" data-dproj="${esc(id)}" aria-pressed="${String(cur === id)}"><span class="nm">${label}</span>${extra}<span class="n">${cnt(id)}</span></button>`;
   box.innerHTML = chip('', '모든 회의록') + chip('__none', '미분류 (개인)') + projList().map(p => chip(p.id, esc(p.name), projShared(p) ? '<span class="sh">공유</span>' : '')).join('');
   $('#dashUser').textContent = user ? (user.email || user.name || '') : '로그인하지 않음 · 파일로 열거나 새 회의를 시작할 수 있어요';
+  const sel = $('#cloudProj'), name = cur === '' ? '모든 회의록' : cur === '__none' ? '미분류 (개인)' : projName(cur) || '프로젝트';
+  $('#cloudTitle').textContent = name; $('#dashCalTitle').textContent = cloudUi.view === 'cal' ? '달력' : '전체 목록';
+  // 현황 카드: 필터 기준 회의록 수 · 이번 달 · 프로젝트 수(공유) · 마지막 저장
+  const rows = cloudRows.filter(m => cur === '' ? true : cur === '__none' ? !m.project : String(m.project || '') === cur);
+  const now = new Date(), ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const thisMonth = rows.filter(m => dayKey(cloudWhen(m)).startsWith(ym)).length, shared = projList().filter(projShared).length;
+  const last = rows.slice().sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))[0];
+  const dt = v => { const t = v ? new Date(v) : null; return t && !isNaN(t) ? t.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : '-'; };
+  $('#dashStats').innerHTML = [['회의록', rows.length + '건', name], ['이번 달 회의', thisMonth + '건', `${now.getMonth() + 1}월`], ['프로젝트', projList().length + '개', shared ? `공유 ${shared}개 포함` : '개인용'], ['마지막 저장', last ? new Date(last.updatedAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-', last ? (last.title || '') : '아직 없어요']].map(([k, v, sub]) => `<div class="stat"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="s">${esc(sub)}</div></div>`).join('');
+  // 최근 작성한 회의록: 필터 기준 저장순 8개
+  const recent = rows.slice().sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))).slice(0, 8);
+  $('#dashRecent').innerHTML = recent.map(m => cloudItemHtml(m, true)).join('') || '<div class="cloud-empty">아직 회의록이 없어요. "새 회의 시작"으로 첫 회의록을 만들어 보세요.</div>';
+  $('#dashRecentInfo').textContent = rows.length > 8 ? `최근 8건 · 전체 ${rows.length}건은 달력·목록에서` : '';
 }
 $('#dashProjs').addEventListener('click', e => { const b = e.target.closest('[data-dproj]'); if (!b) return; $('#cloudProj').value = b.dataset.dproj; cloudUi.ym = null; renderCloudList(); });
-$('#dashNew').addEventListener('click', async () => { $('#cloudDlg').close(); await newMeeting(); });
+$('#cloudViewSeg').addEventListener('click', () => setTimeout(renderDashProjs, 0));
+$('#dashNew').addEventListener('click', async () => { dashClose(); await newMeeting(); });
 $('#dashProjNew').addEventListener('click', async () => { const p = await createProject(); if (p) { renderDashProjs(); toast(`"${p.name}" 프로젝트를 만들었어요. 새 회의를 시작해 이 프로젝트로 지정하세요.`); } });
 $('#dashProjManage').addEventListener('click', () => openProjDlg($('#cloudProj').value && !$('#cloudProj').value.startsWith('__') ? $('#cloudProj').value : ''));
 let dashShown = false;
 async function openDashboard() {
   if (dashShown) return; dashShown = true;
   if (!$('#gate').hidden) return;
-  await cloudOpenList();
+  dashOpen(); await cloudOpenList();
 }
-$('#cloudList').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.cl-item')) { e.preventDefault(); cloudOpenItem(cloudRows[+e.target.dataset.copen]); } });
+$('#dashPage').addEventListener('keydown', e => {
+  if (!e.target.closest('#cloudList, #dashRecent')) return; if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.cl-item')) { e.preventDefault(); cloudOpenItem(cloudRows[+e.target.dataset.copen]); } });
 $('#cloudViewSeg').addEventListener('click', e => { const b = e.target.closest('[data-cview]'); if (!b) return; cloudUi.view = b.dataset.cview; try { localStorage.setItem(CLOUD_VIEW_KEY, cloudUi.view); } catch {} renderCloudList(); });
 $('#calGrid').addEventListener('click', e => { const b = e.target.closest('[data-day]'); if (b) { cloudUi.day = b.dataset.day; renderCloudList(); } });
 $('#calPrev').addEventListener('click', () => cloudGoMonth(new Date(cloudUi.ym.getFullYear(), cloudUi.ym.getMonth() - 1, 1)));
@@ -8456,7 +8534,7 @@ else if ($('#gate').hidden) setTimeout(openDashboard, 400);   // 게스트·로�
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, dashOpen, dashClose, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
 applyAuthorDefault(false);
 renderAll();
 selectTab(curTab);
