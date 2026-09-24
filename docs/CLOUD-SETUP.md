@@ -7,7 +7,8 @@ MeetNote는 서버 없이 동작합니다. 클라우드 저장은 아래처럼 �
 | 회의록 파일(.mnote, 녹음 포함) | **각 사용자의 Google Drive** `MeetNote` 폴더 | 없음(사용자 Drive 용량 사용) |
 | 목록(제목·일시·길이·Drive 파일 id) | **Firestore** `users/{uid}/meetings/{회의 id}` | 무료 한도 안(문서 1건 ≈ 0.3KB) |
 | 내 설정(분석 방식·PC 서비스 주소·AI 엔진 주소 등, 토큰 제외) | **Firestore** `users/{uid}/settings/prefs` | 위와 같음. 규칙에 이 경로가 없으면 브라우저에만 기억 |
-| 프로젝트(이름·설명·참고 문서 요약·통합 참조 문서) | **Firestore** `users/{uid}/projects/{id}` | 위와 같음. 규칙에 이 경로가 없으면 브라우저에만 저장. 회의록의 프로젝트 지정은 `meetings` 문서의 `project`·`projectName` 항목(규칙에 없으면 저장되지 않음) |
+| 프로젝트(이름·설명·참고 문서·통합 참조 문서·구성원) | **Firestore** `projects/{id}` (소유자 uid + memberEmails) | 소유자와 초대된 이메일(같은 Google 계정으로 로그인)만 읽고 쓴다. 규칙에 없으면 브라우저에만 저장 |
+| 프로젝트 회의록 목록 | **Firestore** `projects/{id}/meetings/{mid}` | 구성원이 각자 올린 회의록의 제목·일시·Drive 파일 id. 파일은 올린 사람의 Drive에 있고 구성원에게 Drive 권한(편집)으로 공유된다(알림 메일 없음) |
 | 로그인 | Google Identity Services + Firebase Auth | 없음 |
 
 - 앱은 `drive.file` 권한만 씁니다. **이 앱이 만든 파일만** 볼 수 있고, 사용자의 다른 Drive 파일은 볼 수 없습니다.
@@ -35,7 +36,23 @@ MeetNote는 서버 없이 동작합니다. 클라우드 저장은 아래처럼 �
            && request.resource.data.fileId is string && request.resource.data.fileId.size() <= 200
            && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 300));
        }
-       // 프로젝트(회의록 묶음 + 프로젝트 참고 문서 통합본). json에 프로젝트 전체가 들어간다
+       // 프로젝트(회의록 묶음 + 참고 문서 통합본 + 구성원). 소유자와 memberEmails에 든 사람만 읽고 쓴다
+       function projMember(data) { return request.auth != null && (data.owner == request.auth.uid || request.auth.token.email in data.memberEmails); }
+       match /projects/{pid} {
+         allow read: if projMember(resource.data);
+         allow create: if request.auth != null && request.resource.data.owner == request.auth.uid
+           && request.resource.data.keys().hasOnly(['json','name','updatedAt','deleted','owner','ownerEmail','memberEmails'])
+           && request.resource.data.json is string && request.resource.data.json.size() <= 400000;
+         allow update: if projMember(resource.data) && request.resource.data.owner == resource.data.owner
+           && request.resource.data.keys().hasOnly(['json','name','updatedAt','deleted','owner','ownerEmail','memberEmails'])
+           && request.resource.data.json is string && request.resource.data.json.size() <= 400000;
+         allow delete: if request.auth != null && resource.data.owner == request.auth.uid;
+         // 프로젝트에 묶인 회의록 목록(구성원이 각자 올린 것). 파일 자체는 올린 사람의 Drive에 있고 구성원에게 공유된다
+         match /meetings/{mid} {
+           allow read, write: if projMember(get(/databases/$(database)/documents/projects/$(pid)).data);
+         }
+       }
+       // 옛 위치(개인 프로젝트). 앱이 처음 로그인할 때 위 projects로 옮긴 뒤에는 쓰지 않는다 — 옮긴 뒤 지워도 된다
        match /users/{uid}/projects/{id} {
          allow read, delete: if request.auth != null && request.auth.uid == uid;
          allow create, update: if request.auth != null && request.auth.uid == uid

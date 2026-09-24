@@ -121,6 +121,15 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .proj-row select{max-width:220px}
 #projManage{margin-left:4px}
 #projDlg{width:min(820px,calc((100vw - 32px) / var(--ui,1)));max-width:none}
+.mem-list{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
+.mem-chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:3px 6px 3px 10px;font-size:13px;background:var(--surface)}
+.mem-chip.owner{border-color:var(--tape);color:var(--tape)}
+.mem-chip.me{background:var(--tape-soft)}
+.mem-chip .x{border:0;background:none;color:var(--ink2);cursor:pointer;font-size:15px;line-height:1;padding:0 4px;border-radius:50%}
+.mem-chip .x:hover{color:var(--rec);background:var(--sunk)}
+.mem-add{display:flex;gap:6px;margin:4px 0}
+.mem-add input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--ink)}
+.cl-item .cl-shared{display:inline-block;font-size:11px;color:var(--tc-purple);background:var(--bg-purple);border-radius:6px;padding:0 6px;margin-right:6px;vertical-align:1px}
 .proj-top{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0 10px}
 .proj-top select{flex:1;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--ink)}
 #projDlg textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface);color:var(--ink);font-size:13px;line-height:1.55;resize:vertical;font-family:inherit}
@@ -1242,6 +1251,10 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <p class="hint">회의록을 프로젝트로 묶어 찾고, 프로젝트 공통 참고 문서를 올려 두면 그 프로젝트의 회의록을 쓸 때 AI가 참고해요. 회의록에 직접 올린 참고 자료가 프로젝트 문서보다 우선이에요.</p>
   <div class="proj-top"><select id="projPick" aria-label="프로젝트 선택"></select><button class="btn" id="projNew">새 프로젝트</button><button class="btn" id="projRename">이름 변경</button><button class="btn" id="projDel" style="color:var(--rec)">삭제</button></div>
   <div id="projBody" hidden>
+    <div class="att-head"><b>구성원 <span id="projMemCount" class="hint"></span></b></div>
+    <div id="projMembers" class="mem-list"></div>
+    <div class="mem-add" id="projMemAdd"><input id="projMemEmail" type="email" placeholder="초대할 사람의 Google 이메일" autocomplete="off" spellcheck="false"><button class="btn" id="projMemInvite">초대</button></div>
+    <p class="hint" id="projMemHint"></p>
     <label class="field">설명 (선택 · AI에게 프로젝트가 무엇인지 알려 줘요)<textarea id="projDesc" rows="2" maxlength="600" placeholder="예: 화학물질 공동활용 플랫폼 구축 사업(2026), 발주처 한국환경공단"></textarea></label>
     <div class="att-head"><b>프로젝트 참고 문서 <span id="projRefCount" class="hint"></span></b><span class="att-btns"><button class="btn" id="projRefAdd">문서 추가</button></span><input id="projRefInput" type="file" multiple hidden accept=".pdf,.docx,.pptx,.xlsx,.hwpx,.txt,.md,.csv,.tsv,.json,.html,.htm"></div>
     <div class="ref-list" id="projRefList"></div>
@@ -1315,8 +1328,12 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.19.0';
+const APP_VERSION = '0.20.0';
 const PATCH_NOTES = [
+  { v: '0.20.0', date: '2026-09-24', items: [
+    '프로젝트 공유: 프로젝트 관리에서 구성원을 Google 이메일로 초대하면, 초대받은 사람이 같은 이메일로 로그인했을 때 그 프로젝트와 거기 묶인 회의록이 보이고 열 수 있어요(각자 올린 Drive 파일을 구성원에게 공유). 프로젝트가 없는 개인 회의록은 그대로 나만 봐요.',
+    '목록 DB 규칙을 다시 갱신해야 해요(docs/CLOUD-SETUP.md: 최상위 projects 컬렉션). 기존 개인 프로젝트는 처음 로그인할 때 자동으로 옮겨져요.'
+  ] },
   { v: '0.19.0', date: '2026-09-23', items: [
     'AI 초안을 회의록에 넣으면 자리를 나눠 들어가요: "할 일"은 실행계획 표(기한·작업수행자·내용)로, "추가로 확인할 점" 같은 후속 사항은 특이사항으로, 나머지는 본문으로. 전사로 회의록 작성도 같아요.',
     '실행계획에서 산출물 열을 뺐어요(화면·내보내기).',
@@ -7196,7 +7213,7 @@ const PROJ_KEY = 'meetnote.projects', PROJ_SUM_MAX = 2500, PROJ_MERGED_MAX = 300
 let projects = [];
 try { projects = JSON.parse(localStorage.getItem(PROJ_KEY) || '[]'); if (!Array.isArray(projects)) projects = []; } catch {}
 const projId = id => String(id || '').replace(/[^\w-]/g, '').slice(0, 60) || uid();   // safeId는 아래(클라우드)에서 정의되므로 시작 시점에는 쓸 수 없다
-const normProj = p => ({ id: projId(p.id), name: String(p.name || '이름 없는 프로젝트').slice(0, 60), desc: String(p.desc || '').slice(0, 600), refs: (Array.isArray(p.refs) ? p.refs : []).map(r => ({ id: projId(r.id), name: String(r.name || '문서').slice(0, 60), kind: String(r.kind || 'txt').slice(0, 6), chars: +r.chars || 0, summary: String(r.summary || '').slice(0, PROJ_SUM_MAX + 500), raw: typeof r.raw === 'string' ? r.raw.slice(0, PROJ_RAW_MAX) : '', addedAt: String(r.addedAt || '').slice(0, 30), status: r.status === 'error' ? 'error' : 'ok' })), merged: String(p.merged || '').slice(0, PROJ_MERGED_MAX), updatedAt: String(p.updatedAt || '').slice(0, 30), deleted: !!p.deleted });
+const normProj = p => ({ id: projId(p.id), name: String(p.name || '이름 없는 프로젝트').slice(0, 60), desc: String(p.desc || '').slice(0, 600), refs: (Array.isArray(p.refs) ? p.refs : []).map(r => ({ id: projId(r.id), name: String(r.name || '문서').slice(0, 60), kind: String(r.kind || 'txt').slice(0, 6), chars: +r.chars || 0, summary: String(r.summary || '').slice(0, PROJ_SUM_MAX + 500), raw: typeof r.raw === 'string' ? r.raw.slice(0, PROJ_RAW_MAX) : '', addedAt: String(r.addedAt || '').slice(0, 30), status: r.status === 'error' ? 'error' : 'ok' })), merged: String(p.merged || '').slice(0, PROJ_MERGED_MAX), updatedAt: String(p.updatedAt || '').slice(0, 30), deleted: !!p.deleted, owner: String(p.owner || '').slice(0, 80), ownerEmail: String(p.ownerEmail || '').toLowerCase().slice(0, 120), members: [...new Set((Array.isArray(p.members) ? p.members : []).map(m => String(m || '').toLowerCase().trim()).filter(m => /^[^\s@]+@[^\s@]+$/.test(m)))].slice(0, 50) });
 projects = projects.map(normProj);
 const projById = id => projects.find(p => p.id === id && !p.deleted) || null;
 const projName = id => (projById(id) || {}).name || '';
@@ -7225,7 +7242,7 @@ $('#projSel').addEventListener('change', async e => {
 });
 async function createProject() {
   const name = await askText('새 프로젝트', '프로젝트 이름', '', { max: 60, yes: '만들기' }); if (!name) return null;
-  const p = normProj({ id: uid(), name, refs: [], merged: '' }); projects.push(p); saveProjects(p); aiLog('info', '프로젝트 생성', { name });
+  const p = normProj({ id: uid(), name, refs: [], merged: '', owner: fbSess && user && fbSess.sub === user.sub ? fbSess.uid : '', ownerEmail: myEmail() }); projects.push(p); saveProjects(p); aiLog('info', '프로젝트 생성', { name });
   return p;
 }
 /* 프로젝트 관리 창 */
@@ -7239,6 +7256,7 @@ function renderProjDlg() {
   $('#projPick').innerHTML = `<option value="">(프로젝트를 고르세요)</option>${list.map(x => `<option value="${esc(x.id)}"${x.id === projCur ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}`;
   $('#projRename').disabled = $('#projDel').disabled = !p; $('#projBody').hidden = !p;
   if (!p) return;
+  renderProjMembers(p);
   $('#projDesc').value = p.desc;
   $('#projRefCount').textContent = p.refs.length ? `(${p.refs.length})` : '';
   $('#projRefList').innerHTML = p.refs.map((r, i) => `<div class="ref-item${r.status === 'error' ? ' warn' : ''}" data-pref="${i}" title="${esc(r.summary.slice(0, 300))}"><span class="k">${esc(r.kind)}</span><span class="nm">${esc(r.name)}<small>${r.chars.toLocaleString()}자${r.kind === 'md' ? ' · 그대로' : r.summary ? ` · 요약 ${r.summary.length.toLocaleString()}자` : ''}${r.status === 'error' ? ' · 요약 실패' : ''}</small></span><button type="button" class="x" data-prefdel="${i}" title="문서 빼기" aria-label="문서 빼기">×</button></div>`).join('') || '<div class="photo-empty">아직 문서가 없어요. 사업계획서·요구사항·용어집 같은 프로젝트 공통 자료를 올리세요.</div>';
@@ -7247,12 +7265,81 @@ function renderProjDlg() {
   $('#projRebuild').disabled = !p.refs.some(r => r.summary);
   $('#projStore').textContent = FB && user ? (projOff ? '프로젝트는 이 브라우저에만 저장돼요(목록 DB 규칙에 projects 경로가 없어요).' : '이 브라우저와 계정(목록 DB)에 저장돼 다른 기기에서도 보여요.') : '로그인하지 않아 이 브라우저에만 저장돼요.';
 }
+const myEmail = () => String(user && user.email || '').toLowerCase();
+const isProjOwner = p => !!p && (!p.owner || (fbSess && fbSess.uid === p.owner) || (myEmail() && p.ownerEmail === myEmail()));
+const projShared = p => !!p && p.members.length > 0;
+function renderProjMembers(p) {
+  const own = isProjOwner(p), me = myEmail();
+  const chips = [p.ownerEmail ? `<span class="mem-chip owner${p.ownerEmail === me ? ' me' : ''}" title="소유자">${esc(p.ownerEmail)} · 소유자</span>` : (own ? `<span class="mem-chip owner me">나 · 소유자${FB && user ? '' : ' (로그인하면 이메일로 표시)'}</span>` : ''),
+    ...p.members.map(m => `<span class="mem-chip${m === me ? ' me' : ''}">${esc(m)}${own ? `<button type="button" class="x" data-memdel="${esc(m)}" title="내보내기" aria-label="${esc(m)} 내보내기">×</button>` : ''}</span>`)];
+  $('#projMembers').innerHTML = chips.join('') || '<span class="hint">아직 구성원이 없어요.</span>';
+  $('#projMemCount').textContent = p.members.length ? `(${p.members.length + 1}명)` : '(나만)';
+  const can = !!(FB && user) && own;
+  $('#projMemAdd').hidden = !can;
+  $('#projMemHint').innerHTML = !(FB && user) ? '구성원을 초대하려면 <b>Google 로그인</b>이 필요해요(초대받은 사람도 같은 이메일로 로그인하면 이 프로젝트와 회의록이 보여요).'
+    : !own ? `${esc(p.ownerEmail || '소유자')}가 초대한 프로젝트예요. 소유자만 구성원을 바꿀 수 있어요. <button type="button" class="link" id="projLeave">이 프로젝트에서 나가기</button>`
+    : '초대한 사람이 같은 Google 계정으로 로그인하면 이 프로젝트가 보이고, 프로젝트에 묶인 회의록은 각자 저장한 사람의 Drive 파일이 구성원에게 공유돼요(별도 초대 메일은 가지 않아요).';
+  $('#projRename').disabled = $('#projDel').disabled = !own;
+}
+async function inviteMember() {
+  const p = projById(projCur); if (!p || !isProjOwner(p)) return;
+  const email = $('#projMemEmail').value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('이메일 주소를 확인해 주세요.'); return; }
+  if (email === myEmail() || email === p.ownerEmail) { toast('본인은 이미 소유자예요.'); return; }
+  if (p.members.includes(email)) { toast('이미 구성원이에요.'); return; }
+  p.members.push(email); $('#projMemEmail').value = ''; saveProjects(p); renderProjDlg();
+  aiLog('info', '프로젝트 구성원 초대', { project: p.name, email });
+  toast(`${email}을(를) 초대했어요. 그 사람이 같은 이메일로 로그인하면 프로젝트가 보여요. 이 프로젝트의 내 회의록 파일을 공유하는 중…`, 7000);
+  shareProjectFiles(p, [email]).catch(() => {});
+}
+$('#projMemInvite').addEventListener('click', inviteMember);
+$('#projMemEmail').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); inviteMember(); } });
+$('#projMembers').addEventListener('click', async e => {
+  const b = e.target.closest('[data-memdel]'); if (!b) return; const p = projById(projCur); if (!p || !isProjOwner(p)) return;
+  const email = b.dataset.memdel;
+  if (!(await askConfirm('구성원을 내보낼까요?', `${email}은(는) 더 이상 이 프로젝트와 회의록 목록을 보지 못해요. 이미 공유된 Drive 파일 권한도 거둬요.`, '내보내기'))) return;
+  p.members = p.members.filter(m => m !== email); saveProjects(p); renderProjDlg();
+  unshareProjectFiles(p, email).catch(() => {});
+});
+$('#projMemHint').addEventListener('click', async e => {
+  if (!e.target.closest('#projLeave')) return; const p = projById(projCur); if (!p) return;
+  if (!(await askConfirm('프로젝트에서 나갈까요?', `"${p.name}" 프로젝트와 그 회의록 목록이 더 이상 보이지 않아요. 소유자가 다시 초대하면 돌아올 수 있어요.`, '나가기'))) return;
+  p.members = p.members.filter(m => m !== myEmail()); await projPush(p).catch(() => {});
+  projects = projects.filter(x => x.id !== p.id); try { localStorage.setItem(PROJ_KEY, JSON.stringify(projects)); } catch {}
+  if (S.meta.project === p.id) { S.meta.project = ''; markDirty(); }
+  projCur = ''; renderProjSel(); renderCloudProjSel(); renderProjDlg(); toast('프로젝트에서 나갔어요.');
+});
+/* 프로젝트 회의록 파일 공유: 내가 올린 파일(ownerUid = 나)을 구성원에게 Drive 권한(편집)으로 준다. 상대에게 알림 메일은 보내지 않는다 */
+async function shareFileWith(fileId, emails) {
+  for (const email of emails) {
+    try { await dfetch(`/files/${encodeURIComponent(fileId)}/permissions?sendNotificationEmail=false&fields=id`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ role: 'writer', type: 'user', emailAddress: email }) }); }
+    catch (e) { if (!/already|exists|duplicate/i.test(String(e.message) + String(e.body))) aiLog('warn', 'Drive 공유 실패', { email, ...errInfo(e) }); }
+  }
+}
+async function shareProjectFiles(p, emails) {
+  if (!FB || !user || !emails.length) return;
+  try {
+    await driveAuth(); const a = await fbAuth(); const mine = (await projMeetList(a, p.id)).filter(m => m.ownerUid === a.uid && m.fileId);
+    for (const m of mine) await shareFileWith(m.fileId, emails);
+    aiLog('info', '프로젝트 파일 공유', { project: p.name, files: mine.length, to: emails.length });
+  } catch (e) { aiLog('warn', '프로젝트 파일 공유 실패', errInfo(e)); }
+}
+async function unshareProjectFiles(p, email) {
+  if (!FB || !user) return;
+  try {
+    await driveAuth(); const a = await fbAuth(); const mine = (await projMeetList(a, p.id)).filter(m => m.ownerUid === a.uid && m.fileId);
+    for (const m of mine) {
+      try { const d = await dfetch(`/files/${encodeURIComponent(m.fileId)}/permissions?fields=${encodeURIComponent('permissions(id,emailAddress)')}`); for (const pm of (d && d.permissions) || []) if (String(pm.emailAddress || '').toLowerCase() === email) await dfetch(`/files/${encodeURIComponent(m.fileId)}/permissions/${encodeURIComponent(pm.id)}`, { method: 'DELETE' }); }
+      catch (e) { aiLog('warn', 'Drive 공유 해제 실패', { file: m.fileId, ...errInfo(e) }); }
+    }
+  } catch (e) { aiLog('warn', '프로젝트 파일 공유 해제 실패', errInfo(e)); }
+}
 $('#projManage').addEventListener('click', () => openProjDlg(S.meta.project));
 $('#projPick').addEventListener('change', e => { projCur = e.target.value; renderProjDlg(); });
 $('#projNew').addEventListener('click', async () => { const p = await createProject(); if (p) { projCur = p.id; renderProjDlg(); } });
 $('#projRename').addEventListener('click', async () => { const p = projById(projCur); if (!p) return; const name = await askText('프로젝트 이름 변경', '이름', p.name, { max: 60 }); if (!name || name === p.name) return; p.name = name; saveProjects(p); renderProjDlg(); });
 $('#projDel').addEventListener('click', async () => {
-  const p = projById(projCur); if (!p) return;
+  const p = projById(projCur); if (!p || !isProjOwner(p)) return;
   if (!(await askConfirm('프로젝트를 삭제할까요?', `"${p.name}"과 참고 문서를 지웁니다. 이 프로젝트에 묶인 회의록은 지워지지 않고 "프로젝트 없음"이 돼요.`, '삭제'))) return;
   p.deleted = true; p.refs = []; p.merged = ''; saveProjects(p); if (S.meta.project === p.id) { S.meta.project = ''; markDirty(); }
   projCur = ''; renderProjDlg(); toast('프로젝트를 삭제했어요.');
@@ -7355,34 +7442,84 @@ function projBlock(scale = 1) {
 const projRule = () => { const p = projById(S.meta.project); return !p || !p.merged.trim() ? '' : `- <프로젝트 참고>는 "${p.name}" 프로젝트 전체의 배경 문서(사업 범위·요구사항·용어·역할)를 요약한 것입니다. 이 회의가 프로젝트의 어느 부분을 다루는지 이해하고 용어·고유명사·기관명을 정확히 적는 데 참고하세요. 회의록 내용은 여전히 전사·메모에서만 가져오고, 프로젝트 참고에만 있는 내용을 넣지 마세요.${S.refs.length ? ' 이 회의에 직접 올린 <참고 자료>가 <프로젝트 참고>보다 우선이며, 둘이 다르면 <참고 자료>를 따르세요.' : ''} 프로젝트 참고로 확인한 곳에는 "(자료: 프로젝트)"를 붙이세요.`; };
 /* 계정 동기화(Firestore users/{uid}/projects/{id}). 규칙에 경로가 없으면(403) 이 브라우저에만 */
 let projOff = false;
-const projDoc = (a, id) => `${EP.fs}/projects/${encodeURIComponent(FB.projectId)}/databases/(default)/documents/users/${encodeURIComponent(a.uid)}/projects${id ? '/' + encodeURIComponent(id) : ''}`;
+const fsRoot = () => `${EP.fs}/projects/${encodeURIComponent(FB.projectId)}/databases/(default)/documents`;
+const projDoc = (a, id) => `${fsRoot()}/users/${encodeURIComponent(a.uid)}/projects${id ? '/' + encodeURIComponent(id) : ''}`;   // 옛 위치(개인용) — 한 번 옮긴 뒤에는 쓰지 않는다
+const projDocTop = id => `${fsRoot()}/projects${id ? '/' + encodeURIComponent(id) : ''}`;                                        // 새 위치: 구성원과 공유
+const projMeetDoc = (pid, mid) => `${projDocTop(pid)}/meetings${mid ? '/' + encodeURIComponent(safeId(mid)) : ''}`;
+const fsMask = fields => Object.keys(fields).map(k => 'updateMask.fieldPaths=' + encodeURIComponent(k)).join('&');
 async function projPush(p) {
   if (!FB || !user || projOff) return;
-  try { const a = await fbAuth(); await jfetch(projDoc(a, p.id), { method: 'PATCH', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ fields: { json: { stringValue: JSON.stringify(p) }, name: { stringValue: p.name }, updatedAt: { stringValue: p.updatedAt }, deleted: { booleanValue: !!p.deleted } } }) }); }
-  catch (e) { if (e && e.status === 403) { projOff = true; aiLog('warn', '프로젝트 동기화 꺼짐: 목록 DB 규칙에 projects 경로가 없어요(이 브라우저에만 저장)'); } else aiLog('warn', '프로젝트 동기화 실패', errInfo(e)); }
+  try {
+    const a = await fbAuth();
+    if (!p.owner) { p.owner = a.uid; p.ownerEmail = myEmail(); }
+    const memberEmails = [...new Set([p.ownerEmail, ...p.members].filter(Boolean))];
+    const fields = { json: { stringValue: JSON.stringify(p) }, name: { stringValue: p.name }, updatedAt: { stringValue: p.updatedAt }, deleted: { booleanValue: !!p.deleted }, owner: { stringValue: p.owner }, ownerEmail: { stringValue: p.ownerEmail }, memberEmails: { arrayValue: { values: memberEmails.map(e => ({ stringValue: e })) } } };
+    await jfetch(`${projDocTop(p.id)}?${fsMask(fields)}`, { method: 'PATCH', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ fields }) });
+  }
+  catch (e) { if (e && e.status === 403) { projOff = true; aiLog('warn', '프로젝트 동기화 꺼짐: 목록 DB 규칙에 projects 경로가 없거나 권한이 없어요(docs/CLOUD-SETUP.md의 규칙으로 갱신)', errInfo(e)); } else aiLog('warn', '프로젝트 동기화 실패', errInfo(e)); }
+}
+async function fsQuery(a, parent, collectionId, field, value) {   // 컬렉션에서 field array-contains value 인 문서들
+  const d = await jfetch(`${parent}:runQuery`, { method: 'POST', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId }], where: { fieldFilter: { field: { fieldPath: field }, op: 'ARRAY_CONTAINS', value: { stringValue: value } } }, limit: 300 } }) });
+  return (Array.isArray(d) ? d : []).filter(x => x.document).map(x => ({ id: x.document.name.split('/').pop(), ...fsUn(x.document.fields), _raw: x.document.fields }));
+}
+function mergeRemoteProject(remote) {
+  const local = projects.find(x => x.id === remote.id);
+  if (!local) { projects.push(remote); return 1; }
+  if (String(remote.updatedAt) > String(local.updatedAt)) { Object.assign(local, remote); return 1; }
+  if (String(local.updatedAt) > String(remote.updatedAt) && isProjOwner(local)) projPush(local).catch(() => {});
+  return 0;
 }
 async function projPull() {
   if (!FB || !user || projOff) return;
   try {
-    const a = await fbAuth(); let page = '', changed = 0;
-    do {
-      const d = await jfetch(`${projDoc(a)}?pageSize=200${page ? '&pageToken=' + encodeURIComponent(page) : ''}`, { headers: { authorization: 'Bearer ' + a.idToken } });
-      for (const doc of (d && d.documents) || []) {
-        const f = fsUn(doc.fields); let remote = null; try { remote = normProj(JSON.parse(f.json || '{}')); } catch {}
-        if (!remote) continue; remote.id = doc.name.split('/').pop();
-        const local = projects.find(x => x.id === remote.id);
-        if (!local) { projects.push(remote); changed++; }
-        else if (String(remote.updatedAt) > String(local.updatedAt)) { Object.assign(local, remote); changed++; }
-        else if (String(local.updatedAt) > String(remote.updatedAt)) projPush(local).catch(() => {});
-      }
-      page = (d && d.nextPageToken) || '';
-    } while (page);
-    for (const p of projects) if (p.updatedAt && !p.pushed) projPush(p).catch(() => {});   // 로그인 전 만든 것도 올린다
+    const a = await fbAuth(); let changed = 0;
+    // 새 위치: 내가 소유자이거나 구성원인 프로젝트
+    for (const row of await fsQuery(a, fsRoot(), 'projects', 'memberEmails', myEmail())) {
+      let remote = null; try { remote = normProj(JSON.parse(row.json || '{}')); } catch {} if (!remote) continue;
+      remote.id = row.id; if (row.owner) remote.owner = row.owner; if (row.ownerEmail) remote.ownerEmail = String(row.ownerEmail).toLowerCase();
+      if (remote.deleted) { const k = projects.findIndex(x => x.id === remote.id); if (k >= 0 && !projects[k].deleted) { projects[k].deleted = true; changed++; } continue; }
+      changed += mergeRemoteProject(remote);
+    }
+    // 옛 위치(users/{uid}/projects)에 남은 개인 프로젝트는 새 위치로 한 번 옮긴다
+    let migrated = false; try { migrated = localStorage.getItem('meetnote.projMigrated') === a.uid; } catch {}
+    if (!migrated) {
+      try {
+        const d = await jfetch(`${projDoc(a)}?pageSize=200`, { headers: { authorization: 'Bearer ' + a.idToken } });
+        for (const doc of (d && d.documents) || []) {
+          const f = fsUn(doc.fields); let remote = null; try { remote = normProj(JSON.parse(f.json || '{}')); } catch {} if (!remote) continue;
+          remote.id = doc.name.split('/').pop(); remote.owner = a.uid; remote.ownerEmail = myEmail();
+          changed += mergeRemoteProject(remote); const p = projects.find(x => x.id === remote.id); if (p) projPush(p).catch(() => {});
+        }
+        try { localStorage.setItem('meetnote.projMigrated', a.uid); } catch {}
+      } catch (e) { if (!(e && e.status === 403)) aiLog('warn', '옛 프로젝트 위치 읽기 실패', errInfo(e)); }
+    }
+    for (const p of projects) if (!p.deleted && (!p.owner || p.owner === a.uid)) projPush(p).catch(() => {});   // 로그인 전 만든 것·내 것은 올린다
     if (changed) { try { localStorage.setItem(PROJ_KEY, JSON.stringify(projects)); } catch {} renderProjSel(); renderCloudProjSel(); aiLog('info', '계정의 프로젝트를 불러옴', { changed }); }
-  } catch (e) { if (e && e.status === 403) { projOff = true; aiLog('warn', '프로젝트 동기화 꺼짐(규칙에 projects 경로 없음)'); } else if (e.code !== 'relogin') aiLog('warn', '프로젝트 불러오기 실패', errInfo(e)); }
+  } catch (e) { if (e && e.status === 403) { projOff = true; aiLog('warn', '프로젝트 동기화 꺼짐(규칙에 projects 경로 없음 · docs/CLOUD-SETUP.md)', errInfo(e)); } else if (e.code !== 'relogin') aiLog('warn', '프로젝트 불러오기 실패', errInfo(e)); }
+}
+/* 프로젝트 회의록 목록(projects/{pid}/meetings): 구성원 모두가 읽고, 각자 올린 회의록을 기록한다 */
+async function projMeetUpsert(pid, m) {
+  const a = await fbAuth(); const fields = {}; for (const [k, v] of Object.entries(m)) if (k !== 'id' && v !== undefined) fields[k] = fsVal(v);
+  await jfetch(`${projMeetDoc(pid, m.id)}?${fsMask(fields)}`, { method: 'PATCH', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ fields }) });
+}
+async function projMeetList(a, pid) {
+  const d = await jfetch(`${projMeetDoc(pid)}?pageSize=300`, { headers: { authorization: 'Bearer ' + a.idToken } });
+  return ((d && d.documents) || []).map(doc => ({ id: doc.name.split('/').pop(), ...fsUn(doc.fields), project: pid }));
+}
+async function projMeetDelete(pid, mid) { const a = await fbAuth(); await jfetch(projMeetDoc(pid, mid), { method: 'DELETE', headers: { authorization: 'Bearer ' + a.idToken } }); }
+/* 공유 프로젝트의 다른 구성원 회의록을 내 목록에 합친다(내 것이 우선) */
+async function sharedRows(rows) {
+  if (!FB || !user || projOff) return rows;
+  const shared = projList().filter(projShared); if (!shared.length) return rows;
+  const a = await fbAuth(), have = new Set(rows.map(r => r.id)), out = rows.slice();
+  for (const p of shared) {
+    try { for (const m of await projMeetList(a, p.id)) { if (have.has(m.id) || !m.fileId) continue; have.add(m.id); out.push({ ...m, projectName: p.name, shared: true }); } }
+    catch (e) { aiLog('warn', '공유 프로젝트 목록 읽기 실패', { project: p.name, ...errInfo(e) }); }
+  }
+  return out;
 }
 
-/* ---------- 회의 사진(붙임) ---------- */
+/* ---------- 회의 사진(붙임) ---------- *//* ---------- 회의 사진(붙임) ---------- */
 const PHOTO_MAX = 4, PHOTO_EDGE = 1600;
 // 용량을 줄이려고 긴 변 1600px JPEG로 변환(투명 배경은 흰색)
 async function loadPhoto(file) {
@@ -7829,9 +7966,13 @@ async function cloudSave() {
     if (!fileId) { const d = await dfetch(`/files?q=${encodeURIComponent(`'${folder}' in parents and trashed=false and appProperties has { key='meetnoteId' and value='${meta.id}' }`)}&fields=${encodeURIComponent('files(id)')}&pageSize=1`); fileId = d && d.files && d.files[0] ? d.files[0].id : null; }
     const name = base + '.mnote';
     const up = id => driveUpload(blob, name, meta, id, folder, f => progSet(10 + f * 82, `Google Drive에 올리는 중 ${Math.round(f * 100)}% (${(blob.size / 1048576).toFixed(1)}MB)`), ctl.signal);
-    try { fileId = await up(fileId); } catch (e) { if (fileId && e.status === 404) fileId = await up(null); else throw e; }   // 지워진 파일이면 새로 만든다
+    let forked = false;
+    try { fileId = await up(fileId); } catch (e) { if (fileId && (e.status === 404 || e.status === 403)) { forked = e.status === 403; fileId = await up(null); } else throw e; }   // 지워진 파일이면 새로 만든다. 남의 공유 파일에 쓸 권한이 없으면 내 Drive에 새로 만든다
     S.cloud = { fileId }; S.fileName = base;
     let dbNote = '';
+    const proj = projById(S.meta.project);
+    if (FB && proj) { try { const a = await fbAuth(); await projMeetUpsert(proj.id, { ...meta, fileId, name, ownerUid: a.uid, ownerEmail: myEmail() }); if (proj.members.length) { progSet(93, '구성원에게 파일을 공유하는 중'); await shareFileWith(fileId, [...proj.members, proj.ownerEmail].filter(e => e && e !== myEmail())); } } catch (e) { aiLog('warn', '프로젝트 회의록 기록·공유 실패', errInfo(e)); } }
+    if (forked) toast('공유받은 파일에는 쓸 권한이 없어 내 Drive에 새 파일로 저장했어요. 프로젝트 구성원에게는 이 새 파일이 보여요.', 8000);
     if (FB) { progSet(95, '목록에 기록하는 중'); try { await dbUpsert({ ...meta, fileId, name }); } catch (e) { aiLog('warn', '목록 DB 기록 실패(Drive에는 저장됨)', errInfo(e)); dbNote = ' 목록에는 기록하지 못했어요. "회의록 불러오기"의 "Drive와 목록 맞추기"로 맞출 수 있어요.'; } }
     markClean();
     aiLog('info', '클라우드 저장 완료', { bytes: blob.size, ms: Math.round(performance.now() - t0), db: FB ? !dbNote : 'off' });
@@ -7854,12 +7995,12 @@ const dayKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '
 const cloudWhen = m => { for (const v of [m.when, m.updatedAt]) { const d = v ? new Date(v) : null; if (d && !isNaN(d)) return d; } return new Date(0); };
 function cloudItemHtml(m) {
   const d = cloudWhen(m), dt = v => { const t = v ? new Date(v) : null; return t && !isNaN(t) ? t.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : ''; };
-  const meta = [dt(m.when), m.duration ? '녹음 ' + fmt(m.duration) : '', m.bytes ? (m.bytes / 1048576).toFixed(1) + 'MB' : '', dt(m.updatedAt) ? '저장 ' + dt(m.updatedAt) : ''].filter(Boolean);
+  const meta = [dt(m.when), m.duration ? '녹음 ' + fmt(m.duration) : '', m.bytes ? (m.bytes / 1048576).toFixed(1) + 'MB' : '', dt(m.updatedAt) ? '저장 ' + dt(m.updatedAt) : '', m.shared && m.ownerEmail ? '올린 사람 ' + m.ownerEmail : ''].filter(Boolean);
   const i = cloudRows.indexOf(m), cur = m.id === safeId(S.id);
   return `<div class="cl-item${cur ? ' cur' : ''}" role="button" tabindex="0" data-copen="${i}" title="눌러서 열기">
     <span class="cl-date num"><b>${d.getTime() ? d.getDate() : '-'}</b><small>${d.getTime() ? `${d.getFullYear() % 100}.${String(d.getMonth() + 1).padStart(2, '0')}` : ''}</small></span>
-    <span class="cl-main"><span class="cl-title">${m.project ? `<span class="cl-proj">${esc(projName(m.project) || m.projectName || '프로젝트')}</span>` : ''}${esc(m.title || '제목 없는 회의')}${cur ? '<em>열려 있음</em>' : ''}</span><span class="cl-meta">${meta.map(x => `<span>${esc(x)}</span>`).join('<i>·</i>')}</span></span>
-    <span class="cl-act"><select class="cl-projsel" data-cproj="${i}" title="프로젝트 지정" aria-label="프로젝트">${projOptions(m.project || '')}</select><button type="button" class="btn" data-copen="${i}">열기</button><button type="button" class="btn" data-cdel="${i}" style="color:var(--rec)">삭제</button></span></div>`;
+    <span class="cl-main"><span class="cl-title">${m.shared ? `<span class="cl-shared" title="${esc(m.ownerEmail || '')}">공유</span>` : ''}${m.project ? `<span class="cl-proj">${esc(projName(m.project) || m.projectName || '프로젝트')}</span>` : ''}${esc(m.title || '제목 없는 회의')}${cur ? '<em>열려 있음</em>' : ''}</span><span class="cl-meta">${meta.map(x => `<span>${esc(x)}</span>`).join('<i>·</i>')}</span></span>
+    <span class="cl-act">${m.shared ? '' : `<select class="cl-projsel" data-cproj="${i}" title="프로젝트 지정" aria-label="프로젝트">${projOptions(m.project || '')}</select>`}<button type="button" class="btn" data-copen="${i}">열기</button>${m.shared ? '' : `<button type="button" class="btn" data-cdel="${i}" style="color:var(--rec)">삭제</button>`}</span></div>`;
 }
 function renderCloudList(src) {
   if (src) cloudUi.src = src;
@@ -7905,7 +8046,7 @@ async function cloudOpenList({ connect = false } = {}) {
     el.innerHTML = '<div class="cloud-empty busy-dots">목록을 불러오는 중</div>';
     const hasDrive = !!(driveTok && user && driveTok.sub === user.sub && driveTok.exp > Date.now() + 60000);
     let got = null;
-    if (FB) { try { got = { rows: await dbList(), src: 'db' }; } catch (e) { aiLog('warn', '목록 DB 읽기 실패 → Drive 목록 사용', errInfo(e)); } }
+    if (FB) { try { got = { rows: await sharedRows(await dbList()), src: 'db' }; } catch (e) { aiLog('warn', '목록 DB 읽기 실패 → Drive 목록 사용', errInfo(e)); } }
     if (!got && hasDrive) got = { rows: await driveList(), src: 'drive' };
     if (!got) { $('#cloudInfo').textContent = '클라우드 목록을 보려면 Google Drive에 연결하세요.'; el.innerHTML = '<div class="cloud-empty"><button class="btn primary" id="cloudConnect">Google Drive 연결하고 목록 보기</button></div>'; return; }
     cloudRows = got.rows; cloudUi.ym = null; renderCloudList(got.src);
@@ -7919,7 +8060,7 @@ async function cloudOpenItem(m) {
     progAbort = () => ctl.abort(); progOpen('클라우드에서 여는 중', { local: true }); progSet(null, 'Google Drive에서 내려받는 중');
     const tok = await driveAuth();
     const r = await fetch(`${EP.drive}/files/${encodeURIComponent(m.fileId)}?alt=media`, { headers: { authorization: 'Bearer ' + tok }, signal: ctl.signal });
-    if (!r.ok) throw cerr('http', r.status === 404 ? 'Drive에서 파일을 찾을 수 없어요(지워졌을 수 있어요). "Drive와 목록 맞추기"를 눌러 주세요.' : 'HTTP ' + r.status, { status: r.status });
+    if (!r.ok) throw cerr('http', m.shared && (r.status === 404 || r.status === 403) ? `공유받은 파일을 열 권한이 없어요(HTTP ${r.status}). 올린 사람(${m.ownerEmail || '소유자'})이 그 회의록을 다시 저장하면 구성원에게 공유돼요.` : r.status === 404 ? 'Drive에서 파일을 찾을 수 없어요(지워졌을 수 있어요). "Drive와 목록 맞추기"를 눌러 주세요.' : 'HTTP ' + r.status, { status: r.status });
     const blob = await r.blob(); progClose(); progAbort = null;
     const before = S.id;
     await openFile(new File([blob], (m.name || m.title || 'meeting') + '.mnote', { type: MNOTE_MIME }));
@@ -7934,7 +8075,7 @@ async function cloudDeleteItem(m) {
   if (!(await askConfirm('회의록을 삭제할까요?', `"${m.title || '제목 없는 회의'}"을(를) 목록에서 지우고 Drive 파일은 휴지통으로 옮깁니다. Drive 휴지통에서 30일 안에 되살릴 수 있어요.`, '삭제'))) return;
   try {
     try { await dfetch(`/files/${encodeURIComponent(m.fileId)}?fields=id`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ trashed: true }) }); } catch (e) { if (e.status !== 404) throw e; }
-    if (FB) { try { await dbDelete(m.id); } catch (e) { aiLog('warn', '목록 DB 삭제 실패', errInfo(e)); } }
+    if (FB) { try { await dbDelete(m.id); } catch (e) { aiLog('warn', '목록 DB 삭제 실패', errInfo(e)); } if (m.project) { try { await projMeetDelete(m.project, m.id); } catch {} } }
     if (S.cloud && S.cloud.fileId === m.fileId) S.cloud = null;
     cloudRows = cloudRows.filter(x => x !== m); renderCloudList(FB ? 'db' : 'drive'); toast('삭제했어요.');
   } catch (e) { aiLog('error', '클라우드 삭제 실패', errInfo(e)); toast('삭제하지 못했어요: ' + cloudExplain(e), 7000); }
@@ -8010,6 +8151,7 @@ $('#cloudList').addEventListener('change', async e => {   // 목록에서 바로
   m.project = pid; m.projectName = projName(pid);
   if (safeId(S.id) === m.id) { S.meta.project = pid; renderProjSel(); markDirty(); }
   try { if (m.fileId && driveTok) await dfetch(`/files/${encodeURIComponent(m.fileId)}?fields=id`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ appProperties: { project: pid, projectName: projName(pid).slice(0, 40) } }) }); } catch (err) { aiLog('warn', 'Drive 프로젝트 표시 갱신 실패', errInfo(err)); }
+  if (FB && pid && m.fileId && !m.shared) { try { const a = await fbAuth(); await projMeetUpsert(pid, { id: m.id, title: m.title || '', when: m.when || '', duration: +m.duration || 0, bytes: +m.bytes || 0, updatedAt: m.updatedAt || new Date().toISOString(), fileId: m.fileId, name: m.name || '', ownerUid: a.uid, ownerEmail: myEmail() }); const pj = projById(pid); if (pj && pj.members.length) shareFileWith(m.fileId, pj.members).catch(() => {}); } catch (err) { aiLog('warn', '프로젝트 회의록 기록 실패', errInfo(err)); } }
   if (FB) { try { await dbUpsert({ id: m.id, project: pid, projectName: projName(pid) }); toast(pid ? `"${projName(pid)}" 프로젝트로 옮겼어요.` : '프로젝트 지정을 뺐어요.'); } catch (err) { aiLog('warn', '프로젝트 지정 저장 실패', errInfo(err)); toast('목록 DB에 저장하지 못했어요: ' + cloudExplain(err), 6000); } }
   else toast('로그인·목록 DB가 없어 이 화면에서만 바뀌어요. 회의를 열어 저장하면 파일에 남아요.', 6000);
   renderCloudList();
