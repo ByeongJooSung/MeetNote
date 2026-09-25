@@ -101,7 +101,14 @@ window.MEETNOTE_CONFIG = {
 `git push` 하면 1~2분 뒤 배포됩니다. `googleClientId`가 들어가면 **Google 로그인 없이는 앱을 열 수 없고**, 브라우저에 저장된 설정으로 이를 끌 수 없습니다.
 
 ### API 키 제한(권장)
-Google Cloud Console → **사용자 인증 정보 → API 키(Browser key)** → **웹사이트 제한**에 `https://byeongjoosung.github.io/*`, `http://localhost:8080/*` 를 넣고, **API 제한**은 *Identity Toolkit API*, *Token Service API*, *Cloud Firestore API*만 허용합니다.
+Google Cloud Console → **사용자 인증 정보 → API 키(Browser key)** → **웹사이트 제한**에 `https://byeongjoosung.github.io/*`, `http://localhost:8080/*` 를 넣고, **API 제한**은 *Identity Toolkit API*, *Token Service API*, *Cloud Firestore API*, *Google Picker API*만 허용합니다.
+
+### 공유 프로젝트의 파일을 구성원이 열려면 — Google Picker API (필수)
+앱은 Drive 권한을 가장 좁은 `drive.file`("이 앱으로 만들거나 연 파일만")로 씁니다. Google은 이 권한을 **사용자별**로 매기므로, 올린 사람이 파일을 공유해 줘도 구성원의 앱에서는 처음에 404/403이 납니다. Google이 정해 둔 방법은 구성원이 **Google 파일 선택창(Picker)에서 그 파일을 한 번 고르는 것**이며, 그때부터 그 파일은 바로 열립니다(앱이 자동으로 안내합니다).
+1. Google Cloud Console → **API 및 서비스 → 라이브러리** → **Google Picker API** → 사용 설정.
+2. 위 API 키 제한에 *Google Picker API*를 추가(키를 제한하지 않았다면 생략).
+3. `config.js`는 추가 설정이 없어도 됩니다. 앱은 `googleClientId` 앞의 숫자(Cloud 프로젝트 번호)와 `firebase.apiKey`를 씁니다. 다른 값을 쓰려면 `googleAppId: "프로젝트 번호"`, `pickerKey: "API 키"`를 넣으세요.
+(전체 Drive 읽기 권한 `drive.readonly`를 쓰면 선택창 없이 열리지만, 민감 권한이라 Google 앱 심사가 필요해 쓰지 않습니다.)
 
 ## 4. 쓰는 방법
 - **저장 → 클라우드**(또는 "둘 다"): 헤더의 `저장`을 누르면 클라우드 / .mnote 파일 / 둘 다 중 고릅니다. 클라우드를 고르면 처음 한 번 Drive 권한 창이 뜹니다(“이 앱으로 만든 Drive 파일 보기·수정”). 같은 회의를 다시 저장하면 같은 파일을 덮어씁니다.
