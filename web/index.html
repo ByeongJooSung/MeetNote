@@ -759,7 +759,6 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <button id="micBtn" class="btn mic-btn" data-tone="wait"><span class="sdot"></span>마이크</button>
     <button id="newBtn" class="btn">새 회의</button>
     <button id="saveBtn" class="btn primary" title="클라우드(Google Drive) / .mnote 파일 / 둘 다 중에서 골라 저장해요 (Ctrl+S)">저장</button>
-    <button id="cloudSaveBtn" class="btn" hidden>☁ 클라우드 저장</button>
     <button id="hwpxBtn" class="btn" title="PDF · 한글(HWPX) · Word로 내보내기">내보내기</button>
     <button id="settingsBtn" class="btn" title="설정: AI 엔진 · 로그 · 계정" aria-label="설정">⚙ 설정</button>
     <button id="bgPill" class="bgpill" hidden title="분석 진행 상황 보기"><span class="sdot"></span><span id="bgText">분석 중</span><span class="mini"><i id="bgBar"></i></span></button>
@@ -1432,8 +1431,12 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.25.0';
+const APP_VERSION = '0.25.1';
 const PATCH_NOTES = [
+  { v: '0.25.1', date: '2026-09-26', items: [
+    '공유받은 회의록 자동 열기: 처음 열 때 Google Drive "읽기" 권한을 한 번 허용하면(계정에 기억) 그 뒤로는 파일 선택창 없이 바로 열려요. 허용하지 않으면 지금처럼 선택창에서 고를 수 있어요. 설정 → 계정·클라우드의 Drive 연동 해제로 되돌려요.',
+    '저장 창의 파일 이름 기본값이 회의록 제목이 됐어요. 헤더의 별도 클라우드 저장 버튼은 뺐어요(저장 창에서 고르면 돼요).',
+  ] },
   { v: '0.25.0', date: '2026-09-25', items: [
     '공유받은 회의록 열기: 다른 사람이 올린 파일은 처음 열 때 Google 파일 선택창이 떠요. 거기서 그 파일을 한 번 고르면 그때부터 바로 열려요(앱이 Drive 권한을 "이 앱으로 만들거나 연 파일"로만 쓰기 때문에 Google이 요구하는 절차예요). 관리자는 Cloud 콘솔에서 Google Picker API를 사용 설정해야 해요(docs/CLOUD-SETUP.md).',
   ] },
@@ -7017,7 +7020,7 @@ async function buildZip() {
 
 const stampSec = (d = new Date()) => { const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; };
 const stripStamp = n => String(n || '').replace(/_\d{8}_\d{4}(\d{2})?$/, '');
-const defaultFileName = () => stripStamp(S.fileName) || safeName(S.title || '회의록');   // 회의록 이름(클라우드에 저장되는 이름)
+const defaultFileName = () => safeName(S.title || '') || stripStamp(S.fileName) || '회의록';   // 저장 창의 기본 파일 이름 = 회의록 제목(제목이 없으면 지난번 이름)
 const dlBase = base => `${stripStamp(base || defaultFileName()) || '회의록'}_${stampSec()}`;   // 내려받는 파일: 회의록 이름 + 날짜시분초
 async function askFileName(title) {   // 저장 직전에 파일 이름을 한 번 묻는다(취소하면 null)
   const name = await askText(title, '파일 이름 (.mnote)', defaultFileName(), { max: 80, yes: '저장' });
@@ -7970,7 +7973,6 @@ function renderUser() {
   box.hidden = !user;
   if (user) { $('#userPic').src = user.picture || ''; $('#userPic').hidden = !user.picture; $('#userName').textContent = user.name || user.email || ''; $('#userName').title = user.email || ''; }
   $('#loginBtn').hidden = !!user;
-  $('#cloudSaveBtn').hidden = !(user && authEnabled());
   const strict = authEnabled() && CFG.requireLogin;           // 구성된 사이트에서 로그인 필수
   const showGate = !user && (strict || !guest);
   $('#gate').hidden = !showGate;
@@ -8077,7 +8079,7 @@ $('#dashSignOut').addEventListener('click', signOutAll);
    - Firestore가 없거나 실패해도 Drive 목록으로 동작한다(Drive가 원본, DB는 색인) */
 const EP = Object.assign({ idp: 'https://identitytoolkit.googleapis.com/v1', sts: 'https://securetoken.googleapis.com/v1', fs: 'https://firestore.googleapis.com/v1', drive: 'https://www.googleapis.com/drive/v3', upload: 'https://www.googleapis.com/upload/drive/v3' }, CFG.endpoints || {});
 const FB = CFG.firebase && CFG.firebase.apiKey && CFG.firebase.projectId ? CFG.firebase : null;
-const FB_KEY = 'meetnote.fb', DRIVE_FOLDER_KEY = 'meetnote.driveFolder', DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file', DRIVE_FOLDER = 'MeetNote', MNOTE_MIME = 'application/x-mnote+zip';
+const FB_KEY = 'meetnote.fb', DRIVE_FOLDER_KEY = 'meetnote.driveFolder', DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file', DRIVE_READ_SCOPE = 'https://www.googleapis.com/auth/drive.readonly', DRIVE_WIDE_KEY = 'meetnote.driveWide', DRIVE_FOLDER = 'MeetNote', MNOTE_MIME = 'application/x-mnote+zip';
 let fbSess = null, driveTok = null, cloudBusy = false;
 try { fbSess = JSON.parse(localStorage.getItem(FB_KEY) || 'null'); } catch {}
 const cerr = (code, message, extra) => Object.assign(new Error(message), { code, ...extra });
@@ -8199,18 +8201,25 @@ function gsiReady() {
     const iv = setInterval(() => { if (window.google && google.accounts && google.accounts.oauth2) { clearInterval(iv); res(); } else if (Date.now() - t0 > 8000) { clearInterval(iv); rej(cerr('gsi', 'Google 로그인 모듈을 불러오지 못했어요. 인터넷 연결이나 광고 차단 설정을 확인하세요.')); } }, 100);
   });
 }
-async function driveAuth({ force = false } = {}) {
+/* Drive 권한: 기본은 drive.file(이 앱으로 만들거나 연 파일만). 공유받은 회의록을 매번 파일 선택창 없이 자동으로 열려면
+   사용자가 한 번 '읽기 권한(drive.readonly)'을 허용하고(driveWide, 계정별로 기억) 그 뒤로는 두 권한을 함께 요청한다 */
+const driveWide = () => { try { return localStorage.getItem(DRIVE_WIDE_KEY) === (user && user.sub); } catch { return false; } };
+const driveScope = wide => wide ? DRIVE_SCOPE + ' ' + DRIVE_READ_SCOPE : DRIVE_SCOPE;
+async function driveAuth({ force = false, wide = false } = {}) {
   if (!user || !authEnabled()) throw cerr('login', 'Google 로그인 후 쓸 수 있어요.');
-  if (!force && driveTok && driveTok.sub === user.sub && driveTok.exp > Date.now() + 60000) return driveTok.token;
+  wide = wide || driveWide();
+  if (!force && driveTok && driveTok.sub === user.sub && driveTok.exp > Date.now() + 60000 && (!wide || driveTok.wide)) return driveTok.token;
   await gsiReady();
   return new Promise((res, rej) => {
     const client = google.accounts.oauth2.initTokenClient({
-      client_id: CFG.googleClientId, scope: DRIVE_SCOPE, hint: user.email || undefined, prompt: force ? 'consent' : '',
+      client_id: CFG.googleClientId, scope: driveScope(wide), hint: user.email || undefined, prompt: force ? 'consent' : '', include_granted_scopes: true,
       callback: r => {
         if (!r || r.error || !r.access_token) return rej(cerr('drive_denied', 'Google Drive 권한을 받지 못했어요' + (r && r.error ? ` (${r.error})` : '') + '.'));
         if (google.accounts.oauth2.hasGrantedAllScopes && !google.accounts.oauth2.hasGrantedAllScopes(r, DRIVE_SCOPE)) return rej(cerr('drive_scope', '권한 창에서 "Google Drive 파일" 항목을 체크해야 저장할 수 있어요.'));
-        driveTok = { sub: user.sub, token: r.access_token, exp: Date.now() + (+r.expires_in || 3600) * 1000 };
-        aiLog('info', 'Drive 권한 받음', { expiresIn: r.expires_in }); renderCloudState(); res(driveTok.token);
+        const gotWide = wide && (!google.accounts.oauth2.hasGrantedAllScopes || google.accounts.oauth2.hasGrantedAllScopes(r, DRIVE_READ_SCOPE));
+        if (wide && !gotWide) { try { localStorage.removeItem(DRIVE_WIDE_KEY); } catch {} }   // 읽기 권한을 안 주면 기본 권한으로 되돌린다
+        driveTok = { sub: user.sub, token: r.access_token, exp: Date.now() + (+r.expires_in || 3600) * 1000, wide: gotWide };
+        aiLog('info', 'Drive 권한 받음', { expiresIn: r.expires_in, wide: gotWide }); renderCloudState(); res(driveTok.token);
       },
       error_callback: e => rej(cerr(e && e.type === 'popup_failed_to_open' ? 'popup' : 'drive_denied', e && e.type === 'popup_failed_to_open' ? '권한 창(팝업)이 막혔어요. 주소창의 팝업 차단을 풀고 다시 눌러 주세요.' : 'Drive 권한 요청을 닫았어요.'))
     });
@@ -8424,8 +8433,15 @@ async function cloudOpenItem(m, retried = false) {
     progAbort = () => ctl.abort(); progOpen('클라우드에서 여는 중', { local: true }); progSet(null, 'Google Drive에서 내려받는 중');
     const tok = await driveAuth();
     const r = await fetch(`${EP.drive}/files/${encodeURIComponent(m.fileId)}?alt=media`, { headers: { authorization: 'Bearer ' + tok }, signal: ctl.signal });
-    if (!r.ok && m.shared && (r.status === 404 || r.status === 403) && !retried) {   // 공유받은 파일: 선택창에서 한 번 고르게 하고 다시 시도
+    if (!r.ok && m.shared && (r.status === 404 || r.status === 403) && !retried) {   // 공유받은 파일: (1) 읽기 권한을 한 번 허용해 자동으로, 아니면 (2) 선택창에서 고르게 하고 다시 시도
       progClose(); progAbort = null;
+      if (!driveWide()) {
+        const auto = await askConfirm('다른 사람이 올린 회의록 열기', '이 앱은 Drive에서 "이 앱으로 만들거나 연 파일"만 다뤄요. 공유받은 회의록이 앞으로 자동으로 열리게 하려면 Google Drive "읽기" 권한을 한 번 허용해 주세요(이 계정에 기억돼요. Google이 "확인되지 않은 앱" 화면을 보이면 고급 → 이동을 누르세요).\n\n취소하면 파일 선택창에서 파일을 직접 고르는 방식으로 열어요.', '읽기 권한 허용');
+        if (auto) {
+          try { await driveAuth({ wide: true }); if (driveTok && driveTok.wide) { try { localStorage.setItem(DRIVE_WIDE_KEY, user.sub); } catch {} return cloudOpenItem(m, true); } toast('읽기 권한이 허용되지 않아 파일 선택창으로 열어요.', 5000); }
+          catch (e) { aiLog('warn', 'Drive 읽기 권한 요청 실패', errInfo(e)); toast('읽기 권한을 받지 못했어요: ' + (e.message || e) + ' — 파일 선택창으로 열어요.', 6000); }
+        }
+      }
       if (await pickerGrant(m)) return cloudOpenItem(m, true);
       dashOpen(); toast('파일을 고르지 않아 열지 않았어요.', 4000); return;
     }
@@ -8510,7 +8526,6 @@ function renderCloudState() {
   $('#driveConnect').disabled = $('#leaveBtn').disabled = !can;
   $('#adminBox').hidden = !(isAdmin() || !CFG_LOCKED);   // 배포 설정이 없는(직접 띄운) 환경에서는 누구나 설정 가능
 }
-$('#cloudSaveBtn').addEventListener('click', cloudSave);
 $('#cloudRefresh').addEventListener('click', () => cloudOpenList());
 $('#cloudSync').addEventListener('click', cloudSync);
 /* "← 편집 화면으로"는 이 세션에서 편집 화면에 들어간 적이 있을 때만 보인다(editorLive). 로그아웃하면 편집 내용을 비우고 끈다 → 다른 계정으로 로그인해도 이전 계정의 회의록으로 돌아갈 수 없다 */
@@ -8585,7 +8600,7 @@ $('#leaveBtn').addEventListener('click', leaveService);
 $('#driveConnect').addEventListener('click', async () => { try { await driveAuth({ force: true }); toast('Google Drive를 연결했어요.'); } catch (e) { toast(cloudExplain(e), 7000); } });
 $('#driveDisconnect').addEventListener('click', async () => {
   try { await gsiReady(); if (driveTok) google.accounts.oauth2.revoke(driveTok.token, () => {}); } catch {}
-  driveTok = null; renderCloudState(); toast('이 앱의 Drive 권한을 해제했어요. 다음에 저장할 때 다시 물어봅니다.');
+  driveTok = null; try { localStorage.removeItem(DRIVE_WIDE_KEY); } catch {} renderCloudState(); toast('이 앱의 Drive 권한을 해제했어요. 다음에 저장할 때 다시 물어봅니다.');
 });
 renderUser();
 renderCloudState();
