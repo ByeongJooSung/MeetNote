@@ -12,5 +12,9 @@ window.MEETNOTE_CONFIG = {
   firebase: {
     apiKey: "AIzaSyCWluB9FYIfrfG5DTBgqgKuY1Diubkv7_I",   // Firebase 콘솔 → 프로젝트 설정 → 일반 → 웹 API 키
     projectId: "meetnote-1c25a"   // Firebase 프로젝트 ID
-  }
+  },
+
+  // 공유받은 회의록 열기(Google 파일 선택창)용 API 키. Google Picker API를 사용 설정한 프로젝트의 브라우저 키.
+  // 비우면 firebase.apiKey를 씁니다. 프로젝트 번호는 googleClientId 앞의 숫자를 쓰며, 다르면 googleAppId: "번호" 를 넣으세요.
+  pickerKey: "AIzaSyB9awVQZfT6JfGFjklfdhCoWY1V5c5ZlT0"
 };
