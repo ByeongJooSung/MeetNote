@@ -1430,8 +1430,12 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.24.0';
+const APP_VERSION = '0.24.1';
 const PATCH_NOTES = [
+  { v: '0.24.1', date: '2026-09-25', items: [
+    '긴급 수정: 0.24.0에서 로그아웃하면 브라우저의 프로젝트 목록을 지우던 동작을 없앴어요(저장된 데이터는 어떤 경우에도 지우지 않아요).',
+    '사라진 프로젝트 복구: 회의록이 가리키는 프로젝트가 없으면 계정 DB(새 위치 → 옛 위치)에서 되살리고, DB에도 없으면 회의록에 남은 이름으로 복원해요. 내가 소유한 프로젝트는 구성원 목록과 상관없이 항상 불러와요.',
+  ] },
   { v: '0.24.0', date: '2026-09-25', items: [
     '대시보드 왼쪽 메뉴 아래에 로그아웃을 넣었어요. 로그아웃하면 편집 중이던 회의록과 계정의 프로젝트 목록을 이 브라우저에서 비워요. "← 편집 화면으로"는 이 세션에서 편집 화면에 들어간 적이 있을 때만 보여요.',
     '프로젝트 구성원이 초대 입력란 아래 목록으로 보여요(마스터 → 초대 담당자 → 구성원). 많으면 안에서 스크롤하고 8명이 넘으면 검색란이 생겨요.',
@@ -7628,14 +7632,15 @@ async function projPush(p) {
   try {
     const a = await fbAuth();
     if (!p.owner && (!p.ownerEmail || p.ownerEmail === myEmail())) { p.owner = a.uid; p.ownerEmail = myEmail(); }
+    else if (p.owner === a.uid && !p.ownerEmail) p.ownerEmail = myEmail();   // 옛 버전에서 owner만 기록된 프로젝트: memberEmails에 내 이메일이 빠져 조회되지 않던 문제
     const memberEmails = [...new Set([p.ownerEmail, ...p.members].filter(Boolean))];
     const fields = { json: { stringValue: JSON.stringify(p) }, name: { stringValue: p.name }, updatedAt: { stringValue: p.updatedAt }, deleted: { booleanValue: !!p.deleted }, owner: { stringValue: p.owner }, ownerEmail: { stringValue: p.ownerEmail }, memberEmails: { arrayValue: { values: memberEmails.map(e => ({ stringValue: e })) } } };
     await jfetch(`${projDocTop(p.id)}?${fsMask(fields)}`, { method: 'PATCH', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ fields }) });
   }
   catch (e) { if (e && e.status === 403) { projOff = true; aiLog('warn', '프로젝트 동기화 꺼짐: 목록 DB 규칙에 projects 경로가 없거나 권한이 없어요(docs/CLOUD-SETUP.md의 규칙으로 갱신)', errInfo(e)); } else aiLog('warn', '프로젝트 동기화 실패', errInfo(e)); }
 }
-async function fsQuery(a, parent, collectionId, field, value) {   // 컬렉션에서 field array-contains value 인 문서들
-  const d = await jfetch(`${parent}:runQuery`, { method: 'POST', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId }], where: { fieldFilter: { field: { fieldPath: field }, op: 'ARRAY_CONTAINS', value: { stringValue: value } } }, limit: 300 } }) });
+async function fsQuery(a, parent, collectionId, field, value, op = 'ARRAY_CONTAINS') {   // 컬렉션에서 field (array-contains | ==) value 인 문서들
+  const d = await jfetch(`${parent}:runQuery`, { method: 'POST', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId }], where: { fieldFilter: { field: { fieldPath: field }, op, value: { stringValue: value } } }, limit: 300 } }) });
   return (Array.isArray(d) ? d : []).filter(x => x.document).map(x => ({ id: x.document.name.split('/').pop(), ...fsUn(x.document.fields), _raw: x.document.fields }));
 }
 function mergeRemoteProject(remote) {
@@ -7649,8 +7654,10 @@ async function projPull() {
   if (!FB || !user || projOff) return;
   try {
     const a = await fbAuth(); let changed = 0;
-    // 새 위치: 내가 소유자이거나 구성원인 프로젝트
-    for (const row of await fsQuery(a, fsRoot(), 'projects', 'memberEmails', myEmail())) {
+    // 새 위치: 내가 구성원인 프로젝트(memberEmails) + 내가 소유자인 프로젝트(owner == uid; ownerEmail이 비어 memberEmails에 내가 없던 옛 프로젝트도 이렇게 찾는다)
+    const rows = await fsQuery(a, fsRoot(), 'projects', 'memberEmails', myEmail());
+    try { for (const r of await fsQuery(a, fsRoot(), 'projects', 'owner', a.uid, 'EQUAL')) if (!rows.some(x => x.id === r.id)) rows.push(r); } catch (e) { aiLog('warn', '내 소유 프로젝트 조회 실패', errInfo(e)); }
+    for (const row of rows) {
       let remote = null; try { remote = normProj(JSON.parse(row.json || '{}')); } catch {} if (!remote) continue;
       remote.id = row.id; if (row.owner) remote.owner = row.owner; if (row.ownerEmail) remote.ownerEmail = String(row.ownerEmail).toLowerCase();
       if (remote.deleted) { const k = projects.findIndex(x => x.id === remote.id); if (k >= 0 && !projects[k].deleted) { projects[k].deleted = true; changed++; } continue; }
@@ -7698,6 +7705,33 @@ async function sharedRows(rows) {
    - 프로젝트를 공유하기 전에 저장했거나 옛 버전에서 저장한 회의록은 이 기록이 없어 구성원에게 보이지 않았다 → 대시보드를 열 때마다 뒤에서 맞춘다
    - Drive 토큰이 없으면(권한 창을 띄우지 않으려고) 파일 공유는 건너뛴다. 다음 클라우드 저장·Drive 연결 때 공유된다
    - 어떤 파일을 누구에게 공유했는지는 브라우저에 기억해 같은 요청을 되풀이하지 않는다 */
+/* 회의록이 가리키는 프로젝트가 브라우저에 없으면 되살린다: Firestore 새 위치(projects/{id}) → 옛 위치(users/{uid}/projects/{id}) → 회의록에 남은 이름으로 최소 복원.
+   저장된 데이터를 지우는 일은 절대 하지 않는다. 계정 DB에 '삭제됨'으로 남은 프로젝트는 그대로 둔다(되살리지 않음) */
+async function projRecover(rows) {
+  if (!FB || !user || projOff) return 0;
+  const missing = [...new Set(rows.filter(m => m.project && !m.shared && !projects.some(p => p.id === m.project)).map(m => String(m.project)))];
+  if (!missing.length) return 0;
+  const a = await fbAuth(); let n = 0;
+  for (const id of missing) {
+    let remote = null;
+    for (const url of [projDocTop(id), projDoc(a, id)]) {
+      try {
+        const doc = await jfetch(url, { headers: { authorization: 'Bearer ' + a.idToken } }); const f = fsUn((doc && doc.fields) || {});
+        remote = normProj(JSON.parse(f.json || '{}')); remote.id = id;
+        if (f.owner) remote.owner = f.owner; if (f.ownerEmail) remote.ownerEmail = String(f.ownerEmail).toLowerCase(); if (f.deleted) remote.deleted = true;
+        if (!remote.owner) { remote.owner = a.uid; remote.ownerEmail = myEmail(); }
+        break;
+      } catch (e) { if (!(e && (e.status === 404 || e.status === 403))) aiLog('warn', '프로젝트 복구 조회 실패', { id, ...errInfo(e) }); }
+    }
+    if (remote && remote.deleted) { projects.push(remote); continue; }   // 사용자가 지운 프로젝트: 목록엔 안 보이되 다시 찾지 않게 기록만
+    if (!remote) { const m = rows.find(m => String(m.project) === id); remote = normProj({ id, name: m && m.projectName || '복구된 프로젝트', updatedAt: new Date().toISOString(), owner: a.uid, ownerEmail: myEmail() }); aiLog('warn', '프로젝트를 이름만으로 복원(설명·참고 문서는 계정 DB에 없어 되살리지 못함)', { id, name: remote.name }); }
+    projects.push(remote); n++; aiLog('info', '프로젝트 복구', { id, name: remote.name, from: remote.refs.length || remote.merged ? 'db' : 'name' });
+    projPush(remote).catch(() => {});
+  }
+  try { localStorage.setItem(PROJ_KEY, JSON.stringify(projects)); } catch {}
+  if (n) { renderProjSel(); renderCloudProjSel(); toast(`회의록이 가리키는 프로젝트 ${n}개를 되살렸어요.`, 6000); }
+  return n;
+}
 const SHARE_KEY = 'meetnote.sharedFiles';
 let shareMemo = null, syncBusy = false;
 async function projMeetSync(rows) {
@@ -7961,10 +7995,7 @@ async function signOutAll() {
   user = null; try { localStorage.removeItem(USER_KEY); } catch {}
   try { google.accounts.id.disableAutoSelect(); } catch {}
   guest = false; try { sessionStorage.removeItem('meetnote.guest'); } catch {}
-  await newMeeting();                       // 이전 계정의 회의록이 화면에 남지 않게 비운다
-  projects = projects.filter(p => !p.owner && !p.ownerEmail && !p.members.length);   // 계정에 묶인 프로젝트는 브라우저에서 지운다(다음 로그인 때 그 계정 것만 다시 받는다)
-  try { localStorage.setItem(PROJ_KEY, JSON.stringify(projects)); } catch {}
-  renderProjSel(); renderCloudProjSel();
+  await newMeeting();                       // 이전 계정의 회의록이 화면에 남지 않게 비운다. 프로젝트 등 저장된 데이터는 어떤 것도 지우지 않는다
   cloudRows = []; $('#dashPage').hidden = true; document.body.classList.remove('dash-on'); editorLive = false;   // 다음 계정은 대시보드부터(편집 화면으로 돌아가기 없음)
   renderUser();
 }
@@ -8273,7 +8304,7 @@ async function cloudOpenList({ connect = false } = {}) {
     el.innerHTML = '<div class="cloud-empty busy-dots">목록을 불러오는 중</div>';
     const hasDrive = !!(driveTok && user && driveTok.sub === user.sub && driveTok.exp > Date.now() + 60000);
     let got = null;
-    if (FB) { try { const mine = await dbList(); got = { rows: await sharedRows(mine), src: 'db' }; projMeetSync(mine).catch(() => {}); } catch (e) { aiLog('warn', '목록 DB 읽기 실패 → Drive 목록 사용', errInfo(e)); } }   // 공유 프로젝트 기록·파일 공유는 뒤에서 맞춘다
+    if (FB) { try { const mine = await dbList(); await projRecover(mine).catch(e => aiLog('warn', '프로젝트 복구 실패', errInfo(e))); got = { rows: await sharedRows(mine), src: 'db' }; projMeetSync(mine).catch(() => {}); } catch (e) { aiLog('warn', '목록 DB 읽기 실패 → Drive 목록 사용', errInfo(e)); } }   // 사라진 프로젝트는 먼저 되살리고, 공유 프로젝트 기록·파일 공유는 뒤에서 맞춘다
     if (!got && hasDrive) got = { rows: await driveList(), src: 'drive' };
     if (!got) { cloudRows = []; renderDashProjs(); $('#cloudInfo').textContent = user ? '클라우드 목록을 보려면 Google Drive에 연결하세요.' : '로그인하면 클라우드에 저장한 회의록이 여기에 보여요.'; el.innerHTML = `<div class="cloud-empty">${user ? '<button class="btn primary" id="cloudConnect">Google Drive 연결하고 목록 보기</button>' : '로그인하지 않았어요. 위의 <b>.mnote 파일 열기</b>나 <b>새 회의 시작</b>을 누르세요.'}</div>`; return; }
     cloudRows = got.rows; cloudUi.ym = null; renderCloudList(got.src);
