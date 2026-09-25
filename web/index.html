@@ -126,15 +126,24 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .proj-row select{max-width:220px}
 #projManage{margin-left:4px}
 #projDlg{width:min(820px,calc((100vw - 32px) / var(--ui,1)));max-width:none}
-.mem-list{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
-.mem-chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:3px 6px 3px 10px;font-size:13px;background:var(--surface)}
-.mem-chip.owner{border-color:var(--tape);color:var(--tape)}
-.mem-chip.me{background:var(--tape-soft)}
-.mem-chip .x{border:0;background:none;color:var(--ink2);cursor:pointer;font-size:15px;line-height:1;padding:0 4px;border-radius:50%}
-.mem-chip .x.t{font-size:11px;border-radius:6px;padding:1px 5px;background:var(--sunk);margin-left:2px}
-.mem-chip.inv{border-color:var(--tc-blue)}
-.mem-chip .x:hover{color:var(--rec);background:var(--sunk)}
-.mem-add{display:flex;gap:6px;margin:4px 0}
+/* 구성원: 초대 입력란 아래 세로 목록(많아도 안에서 스크롤, 8명 넘으면 검색란) */
+.mem-list{display:flex;flex-direction:column;margin:0 0 6px;border:1px solid var(--line);border-radius:10px;background:var(--surface);max-height:272px;overflow:auto}
+.mem-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--line);font-size:13px;min-height:36px}
+.mem-row:last-child{border-bottom:0}
+.mem-row .n{width:22px;text-align:right;color:var(--ink2);opacity:.7;font-size:11.5px;flex:none}
+.mem-row .who{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mem-row.me .who::after{content:" (나)";color:var(--ink2)}
+.mem-row .role{flex:none;font-size:11px;border-radius:6px;padding:1px 6px;background:var(--sunk);color:var(--ink2);white-space:nowrap}
+.mem-row.owner .role{background:var(--tape-soft);color:var(--tape);font-weight:600}
+.mem-row.inv .role{color:var(--tc-blue);background:var(--bg-blue)}
+.mem-row .acts{display:flex;gap:4px;flex:none}
+.mem-list .x{border:0;background:none;color:var(--ink2);cursor:pointer;font-size:15px;line-height:1;padding:0 6px;border-radius:50%}
+.mem-list .x.t{font-size:11px;border-radius:6px;padding:2px 6px;background:var(--sunk)}
+.mem-list .x:hover{color:var(--rec);background:var(--sunk)}
+.mem-list .hint{padding:10px}
+.mem-add{display:flex;gap:6px;margin:4px 0 8px}
+.mem-filter{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:6px 9px;background:var(--surface);color:var(--ink);font-size:13px;margin:0 0 6px}
+@media (max-width:560px){.mem-row{flex-wrap:wrap}.mem-row .acts{width:100%;justify-content:flex-end}}
 .mem-add input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--ink)}
 .cl-item .cl-shared{display:inline-block;font-size:11px;color:var(--tc-purple);background:var(--bg-purple);border-radius:6px;padding:0 6px;margin-right:6px;vertical-align:1px}
 .proj-top{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0 10px}
@@ -1264,6 +1273,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <button type="button" class="nav" id="cloudRefresh">새로고침</button>
     <div class="lnb-spacer"></div>
     <button type="button" class="nav" id="cloudClose">← 편집 화면으로</button>
+    <button type="button" class="nav" id="dashSignOut" hidden title="Google 계정에서 로그아웃해요">로그아웃</button>
     <div class="lnb-ver hint">v<span id="dashVer"></span></div>
   </nav>
   <div class="dash-main">
@@ -1332,8 +1342,9 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div class="proj-top"><select id="projPick" aria-label="프로젝트 선택"></select><button class="btn" id="projNew">새 프로젝트</button><button class="btn" id="projRename">이름 변경</button><button class="btn" id="projDel" style="color:var(--rec)">삭제</button></div>
   <div id="projBody" hidden>
     <div class="att-head"><b>구성원 <span id="projMemCount" class="hint"></span></b></div>
-    <div id="projMembers" class="mem-list"></div>
     <div class="mem-add" id="projMemAdd"><input id="projMemEmail" type="email" placeholder="초대할 사람의 Google 이메일" autocomplete="off" spellcheck="false"><button class="btn" id="projMemInvite">초대</button></div>
+    <input id="projMemFilter" class="mem-filter" type="search" placeholder="구성원 검색 (이메일)" autocomplete="off" hidden>
+    <div id="projMembers" class="mem-list" role="list"></div>
     <p class="hint" id="projMemHint"></p>
     <label class="field">설명 (선택 · AI에게 프로젝트가 무엇인지 알려 줘요)<textarea id="projDesc" rows="2" maxlength="600" placeholder="예: 화학물질 공동활용 플랫폼 구축 사업(2026), 발주처 한국환경공단"></textarea></label>
     <div class="att-head"><b>프로젝트 참고 문서 <span id="projRefCount" class="hint"></span></b><span class="att-btns"><button class="btn" id="projRefAdd">문서 추가</button></span><input id="projRefInput" type="file" multiple hidden accept=".pdf,.docx,.pptx,.xlsx,.hwpx,.txt,.md,.csv,.tsv,.json,.html,.htm"></div>
@@ -1419,8 +1430,13 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.23.1';
+const APP_VERSION = '0.24.0';
 const PATCH_NOTES = [
+  { v: '0.24.0', date: '2026-09-25', items: [
+    '대시보드 왼쪽 메뉴 아래에 로그아웃을 넣었어요. 로그아웃하면 편집 중이던 회의록과 계정의 프로젝트 목록을 이 브라우저에서 비워요. "← 편집 화면으로"는 이 세션에서 편집 화면에 들어간 적이 있을 때만 보여요.',
+    '프로젝트 구성원이 초대 입력란 아래 목록으로 보여요(마스터 → 초대 담당자 → 구성원). 많으면 안에서 스크롤하고 8명이 넘으면 검색란이 생겨요.',
+    '공유 프로젝트: 프로젝트를 공유하기 전에(또는 옛 버전에서) 저장한 회의록이 구성원에게 보이지 않던 문제를 고쳤어요. 올린 사람이 대시보드를 열면 뒤에서 프로젝트 기록과 Drive 파일 공유를 맞춰요. 구성원 화면에는 아직 기록이 없을 때 이유를 안내해요.',
+  ] },
   { v: '0.23.1', date: '2026-09-25', items: [
     '대시보드 회의록 목록에서 첫 행에만 보이던 프로젝트 선택·삭제 버튼이 모든 행에 보여요.',
   ] },
@@ -7400,16 +7416,21 @@ const isInviter = p => !!p && (isProjOwner(p) || (myEmail() && p.inviters.includ
 const projShared = p => !!p && p.members.length > 0;
 function renderProjMembers(p) {
   const own = isProjOwner(p), inv = isInviter(p), me = myEmail();
-  const role = m => p.inviters.includes(m) ? '초대 담당자' : '구성원';
-  const chips = [p.ownerEmail ? `<span class="mem-chip owner${p.ownerEmail === me ? ' me' : ''}" title="마스터(소유자)">${esc(p.ownerEmail)} · 마스터</span>` : (own ? `<span class="mem-chip owner me">나 · 마스터${FB && user ? '' : ' (로그인하면 이메일로 표시)'}</span>` : ''),
-    ...p.members.map(m => {
-      const isInv = p.inviters.includes(m), acts = [];
-      if (own) { acts.push(`<button type="button" class="x t" data-mem="${esc(m)}" data-act="inviter" title="${isInv ? '초대 담당자 해제' : '초대 담당자로 지정(최대 2명)'}">${isInv ? '담당 해제' : '초대 담당'}</button>`); acts.push(`<button type="button" class="x t" data-mem="${esc(m)}" data-act="master" title="마스터 권한을 이 사람에게 넘기고 나는 구성원이 돼요">마스터 위임</button>`); }
-      if (own || (inv && !isInv)) acts.push(`<button type="button" class="x" data-mem="${esc(m)}" data-act="del" title="내보내기" aria-label="${esc(m)} 내보내기">×</button>`);
-      return `<span class="mem-chip${m === me ? ' me' : ''}${isInv ? ' inv' : ''}" title="${role(m)}">${esc(m)}${isInv ? ' · 초대 담당' : ''}${acts.join('')}</span>`;
-    })];
-  $('#projMembers').innerHTML = chips.join('') || '<span class="hint">아직 구성원이 없어요.</span>';
-  $('#projMemCount').textContent = p.members.length ? `(${p.members.length + 1}명)` : '(나만)';
+  // 초대 입력란 아래에 세로 목록: 마스터 → 초대 담당자 → 구성원(가나다) 순. 많으면 안에서 스크롤하고 검색란이 나온다
+  const q = ($('#projMemFilter').value || '').trim().toLowerCase();
+  const ownerRow = p.ownerEmail ? `<div class="mem-row owner${p.ownerEmail === me ? ' me' : ''}" role="listitem"><span class="n">1</span><span class="who" title="${esc(p.ownerEmail)}">${esc(p.ownerEmail)}</span><span class="role">마스터</span></div>`
+    : (own ? `<div class="mem-row owner me" role="listitem"><span class="n">1</span><span class="who">나${FB && user ? '' : ' (로그인하면 이메일로 표시)'}</span><span class="role">마스터</span></div>` : '');
+  const sorted = p.members.slice().sort((a, b) => (p.inviters.includes(b) - p.inviters.includes(a)) || a.localeCompare(b));
+  const rows = sorted.map((m, i) => {
+    const isInv = p.inviters.includes(m), acts = [];
+    if (own) { acts.push(`<button type="button" class="x t" data-mem="${esc(m)}" data-act="inviter" title="${isInv ? '초대 담당자 해제' : '초대 담당자로 지정(최대 2명)'}">${isInv ? '담당 해제' : '초대 담당'}</button>`); acts.push(`<button type="button" class="x t" data-mem="${esc(m)}" data-act="master" title="마스터 권한을 이 사람에게 넘기고 나는 구성원이 돼요">마스터 위임</button>`); }
+    if (own || (inv && !isInv)) acts.push(`<button type="button" class="x" data-mem="${esc(m)}" data-act="del" title="내보내기" aria-label="${esc(m)} 내보내기">×</button>`);
+    return { m, html: `<div class="mem-row${m === me ? ' me' : ''}${isInv ? ' inv' : ''}" role="listitem"><span class="n">${i + 2}</span><span class="who" title="${esc(m)}">${esc(m)}</span><span class="role">${isInv ? '초대 담당자' : '구성원'}</span><span class="acts">${acts.join('')}</span></div>` };
+  }).filter(r => !q || r.m.toLowerCase().includes(q));
+  const showOwner = !q || (p.ownerEmail || '').toLowerCase().includes(q);
+  $('#projMembers').innerHTML = ((showOwner ? ownerRow : '') + rows.map(r => r.html).join('')) || `<span class="hint">${q ? '검색 결과가 없어요.' : '아직 구성원이 없어요.'}</span>`;
+  $('#projMemCount').textContent = p.members.length ? `(${p.members.length + 1}명${q ? ` 중 ${rows.length + (showOwner && ownerRow ? 1 : 0)}명 표시` : ''})` : '(나만)';
+  const filt = $('#projMemFilter'); filt.hidden = p.members.length < 8 && !q; if (filt.hidden) filt.value = '';
   const can = !!(FB && user) && inv;
   $('#projMemAdd').hidden = !can;
   $('#projMemHint').innerHTML = !(FB && user) ? '구성원을 초대하려면 <b>Google 로그인</b>이 필요해요(초대받은 사람도 같은 이메일로 로그인하면 이 프로젝트와 회의록이 보여요).'
@@ -7431,6 +7452,7 @@ async function inviteMember() {
 }
 $('#projMemInvite').addEventListener('click', inviteMember);
 $('#projMemEmail').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); inviteMember(); } });
+$('#projMemFilter').addEventListener('input', () => { const p = projById(projCur); if (p) renderProjMembers(p); });
 $('#projMembers').addEventListener('click', async e => {
   const b = e.target.closest('[data-mem]'); if (!b) return; const p = projById(projCur); if (!p) return;
   const email = b.dataset.mem, act = b.dataset.act, own = isProjOwner(p);
@@ -7471,7 +7493,9 @@ async function shareFileWith(fileId, emails) {
 async function shareProjectFiles(p, emails) {
   if (!FB || !user || !emails.length) return;
   try {
-    await driveAuth(); const a = await fbAuth(); const mine = (await projMeetList(a, p.id)).filter(m => m.ownerUid === a.uid && m.fileId);
+    await driveAuth(); const a = await fbAuth();
+    try { await projMeetSync(await dbList()); } catch {}   // 공유 전에 저장한 회의록도 프로젝트 기록에 넣고 새 구성원까지 공유
+    const mine = (await projMeetList(a, p.id)).filter(m => m.ownerUid === a.uid && m.fileId);
     for (const m of mine) await shareFileWith(m.fileId, emails);
     aiLog('info', '프로젝트 파일 공유', { project: p.name, files: mine.length, to: emails.length });
   } catch (e) { aiLog('warn', '프로젝트 파일 공유 실패', errInfo(e)); }
@@ -7487,7 +7511,7 @@ async function unshareProjectFiles(p, email) {
   } catch (e) { aiLog('warn', '프로젝트 파일 공유 해제 실패', errInfo(e)); }
 }
 $('#projManage').addEventListener('click', () => openProjDlg(S.meta.project));
-$('#projPick').addEventListener('change', e => { projCur = e.target.value; renderProjDlg(); });
+$('#projPick').addEventListener('change', e => { projCur = e.target.value; $('#projMemFilter').value = ''; renderProjDlg(); });
 $('#projNew').addEventListener('click', async () => { const p = await createProject(); if (p) { projCur = p.id; renderProjDlg(); } });
 $('#projRename').addEventListener('click', async () => { const p = projById(projCur); if (!p) return; const name = await askText('프로젝트 이름 변경', '이름', p.name, { max: 60 }); if (!name || name === p.name) return; p.name = name; saveProjects(p); renderProjDlg(); });
 $('#projDel').addEventListener('click', async () => {
@@ -7666,9 +7690,44 @@ async function sharedRows(rows) {
   const a = await fbAuth(), have = new Set(rows.map(r => r.id)), out = rows.slice();
   for (const p of shared) {
     try { for (const m of await projMeetList(a, p.id)) { if (have.has(m.id) || !m.fileId) continue; have.add(m.id); out.push({ ...m, projectName: p.name, shared: true }); } }
-    catch (e) { aiLog('warn', '공유 프로젝트 목록 읽기 실패', { project: p.name, ...errInfo(e) }); }
+    catch (e) { aiLog('warn', '공유 프로젝트 목록 읽기 실패', { project: p.name, ...errInfo(e) }); toast(`"${p.name}" 프로젝트의 공유 회의록 목록을 읽지 못했어요: ${cloudExplain(e)}`, 8000); }
   }
   return out;
+}
+/* 내 회의록 중 공유 프로젝트에 묶인 것이 projects/{pid}/meetings에 빠짐없이(최신으로) 기록되게 하고, 구성원에게 Drive 파일을 공유한다.
+   - 프로젝트를 공유하기 전에 저장했거나 옛 버전에서 저장한 회의록은 이 기록이 없어 구성원에게 보이지 않았다 → 대시보드를 열 때마다 뒤에서 맞춘다
+   - Drive 토큰이 없으면(권한 창을 띄우지 않으려고) 파일 공유는 건너뛴다. 다음 클라우드 저장·Drive 연결 때 공유된다
+   - 어떤 파일을 누구에게 공유했는지는 브라우저에 기억해 같은 요청을 되풀이하지 않는다 */
+const SHARE_KEY = 'meetnote.sharedFiles';
+let shareMemo = null, syncBusy = false;
+async function projMeetSync(rows) {
+  if (!FB || !user || projOff || syncBusy) return 0;
+  const mine = rows.filter(m => !m.shared && m.fileId && m.project && projShared(projById(m.project)));
+  if (!mine.length) return 0;
+  syncBusy = true; let fixed = 0, shared = 0;
+  try {
+    const a = await fbAuth(), me = myEmail();
+    const canShare = !!(driveTok && driveTok.sub === user.sub && driveTok.exp > Date.now() + 60000);
+    if (!shareMemo) { try { shareMemo = JSON.parse(localStorage.getItem(SHARE_KEY) || '{}'); } catch { shareMemo = {}; } }
+    const byProj = new Map(); mine.forEach(m => byProj.set(m.project, [...(byProj.get(m.project) || []), m]));
+    for (const [pid, list] of byProj) {
+      const p = projById(pid); let have;
+      try { have = new Map((await projMeetList(a, pid)).map(h => [h.id, h])); } catch (e) { aiLog('warn', '프로젝트 회의록 목록 읽기 실패', { project: p.name, ...errInfo(e) }); continue; }
+      const to = [...p.members, p.ownerEmail].filter(e => e && e !== me).sort(), key = to.join(',');
+      for (const m of list) {
+        const h = have.get(m.id);
+        if (!h || h.fileId !== m.fileId || (h.updatedAt || '') !== (m.updatedAt || '') || (h.title || '') !== (m.title || '')) {
+          try { await projMeetUpsert(pid, { id: m.id, title: m.title || '', when: m.when || '', duration: +m.duration || 0, bytes: +m.bytes || 0, updatedAt: m.updatedAt || new Date().toISOString(), fileId: m.fileId, name: m.name || '', ownerUid: a.uid, ownerEmail: me }); fixed++; }
+          catch (e) { aiLog('warn', '프로젝트 회의록 기록 실패', { project: p.name, id: m.id, ...errInfo(e) }); }
+        }
+        if (canShare && to.length && shareMemo[m.fileId] !== key) { await shareFileWith(m.fileId, to); shareMemo[m.fileId] = key; shared++; }
+      }
+    }
+    try { localStorage.setItem(SHARE_KEY, JSON.stringify(shareMemo)); } catch {}
+    if (fixed || shared) aiLog('info', '프로젝트 회의록 목록·공유 보강', { fixed, shared });
+  } catch (e) { aiLog('warn', '프로젝트 회의록 맞추기 실패', errInfo(e)); }
+  finally { syncBusy = false; }
+  return fixed;
 }
 
 /* ---------- 회의 사진(붙임) ---------- *//* ---------- 회의 사진(붙임) ---------- */
@@ -7895,13 +7954,22 @@ $('#authApply').addEventListener('click', () => {
   if (id && authPossible()) { $('#gate').hidden = false; renderGate(); toast('설정했어요. Google 계정으로 로그인하세요.'); }
   else if (!id) toast('로그인 설정을 지웠어요.');
 });
-$('#signOut').addEventListener('click', () => {
+async function signOutAll() {
+  if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 로그아웃해 주세요.'); return; }
+  if (dirty && !(await askConfirm('로그아웃할까요?', '저장하지 않은 내용은 사라져요. 저장하려면 취소하고 저장을 누르세요.', '로그아웃'))) return;
   cloudSignOut();
   user = null; try { localStorage.removeItem(USER_KEY); } catch {}
   try { google.accounts.id.disableAutoSelect(); } catch {}
   guest = false; try { sessionStorage.removeItem('meetnote.guest'); } catch {}
+  await newMeeting();                       // 이전 계정의 회의록이 화면에 남지 않게 비운다
+  projects = projects.filter(p => !p.owner && !p.ownerEmail && !p.members.length);   // 계정에 묶인 프로젝트는 브라우저에서 지운다(다음 로그인 때 그 계정 것만 다시 받는다)
+  try { localStorage.setItem(PROJ_KEY, JSON.stringify(projects)); } catch {}
+  renderProjSel(); renderCloudProjSel();
+  cloudRows = []; $('#dashPage').hidden = true; document.body.classList.remove('dash-on'); editorLive = false;   // 다음 계정은 대시보드부터(편집 화면으로 돌아가기 없음)
   renderUser();
-});
+}
+$('#signOut').addEventListener('click', signOutAll);
+$('#dashSignOut').addEventListener('click', signOutAll);
 /* ---------- 클라우드 저장: 파일은 사용자의 Google Drive, 목록은 Firestore(설정된 경우) ----------
    - Drive: drive.file 권한(이 앱이 만든 파일만 접근). 'MeetNote' 폴더에 .mnote를 이어 올리기로 저장, appProperties에 목록 정보도 함께 기록
    - Firestore: users/{uid}/meetings/{회의 id} 문서에 제목·일시·길이·Drive 파일 id. Google ID 토큰으로 Firebase 인증(REST)
@@ -8166,6 +8234,12 @@ function renderCloudList(src) {
   const q = $('#cloudSearch').value.trim().toLowerCase(), pf = $('#cloudProj').value;
   const rows = cloudRows.filter(m => (pf === '' || (pf === '__none' ? !m.project : String(m.project || '') === pf)) && (!q || String(m.title || '').toLowerCase().includes(q) || String(m.name || '').toLowerCase().includes(q)));
   el.style.maxHeight = '';
+  const pj = pf && pf !== '__none' ? projById(pf) : null;
+  if (pj && !rows.length && !q && !cloudRows.some(m => String(m.project || '') === pf)) {   // 공유받은 프로젝트인데 기록된 회의록이 하나도 없을 때: 왜 안 보이는지 안내
+    $('#cloudCal').hidden = true;
+    el.innerHTML = `<div class="cloud-empty">${isProjOwner(pj) ? '이 프로젝트에 묶인 회의록이 아직 없어요. 회의를 쓰고 저장할 때 프로젝트를 고르거나, 목록의 프로젝트 선택으로 옮길 수 있어요.' : `"${esc(pj.name)}" 프로젝트에 아직 기록된 회의록이 없어요. 올린 사람(${esc(pj.ownerEmail || '마스터')})이 대시보드를 열거나 회의록을 다시 저장하면 구성원에게 공유되고 여기에 보여요. 그 뒤에 <b>새로고침</b>을 눌러 주세요.`}</div>`;
+    return;
+  }
   if (!cal) {
     const by = $('#cloudSort').value;
     rows.sort((a, b) => by === 'title' ? String(a.title || '').localeCompare(String(b.title || ''), 'ko') : by === 'when' ? cloudWhen(b) - cloudWhen(a) : String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
@@ -8199,7 +8273,7 @@ async function cloudOpenList({ connect = false } = {}) {
     el.innerHTML = '<div class="cloud-empty busy-dots">목록을 불러오는 중</div>';
     const hasDrive = !!(driveTok && user && driveTok.sub === user.sub && driveTok.exp > Date.now() + 60000);
     let got = null;
-    if (FB) { try { got = { rows: await sharedRows(await dbList()), src: 'db' }; } catch (e) { aiLog('warn', '목록 DB 읽기 실패 → Drive 목록 사용', errInfo(e)); } }
+    if (FB) { try { const mine = await dbList(); got = { rows: await sharedRows(mine), src: 'db' }; projMeetSync(mine).catch(() => {}); } catch (e) { aiLog('warn', '목록 DB 읽기 실패 → Drive 목록 사용', errInfo(e)); } }   // 공유 프로젝트 기록·파일 공유는 뒤에서 맞춘다
     if (!got && hasDrive) got = { rows: await driveList(), src: 'drive' };
     if (!got) { cloudRows = []; renderDashProjs(); $('#cloudInfo').textContent = user ? '클라우드 목록을 보려면 Google Drive에 연결하세요.' : '로그인하면 클라우드에 저장한 회의록이 여기에 보여요.'; el.innerHTML = `<div class="cloud-empty">${user ? '<button class="btn primary" id="cloudConnect">Google Drive 연결하고 목록 보기</button>' : '로그인하지 않았어요. 위의 <b>.mnote 파일 열기</b>나 <b>새 회의 시작</b>을 누르세요.'}</div>`; return; }
     cloudRows = got.rows; cloudUi.ym = null; renderCloudList(got.src);
@@ -8296,8 +8370,10 @@ function renderCloudState() {
 $('#cloudSaveBtn').addEventListener('click', cloudSave);
 $('#cloudRefresh').addEventListener('click', () => cloudOpenList());
 $('#cloudSync').addEventListener('click', cloudSync);
-function dashOpen() { $('#dashPage').hidden = false; $('#dashVer').textContent = APP_VERSION; document.body.classList.add('dash-on'); }
-function dashClose() { $('#dashPage').hidden = true; document.body.classList.remove('dash-on'); }
+/* "← 편집 화면으로"는 이 세션에서 편집 화면에 들어간 적이 있을 때만 보인다(editorLive). 로그아웃하면 편집 내용을 비우고 끈다 → 다른 계정으로 로그인해도 이전 계정의 회의록으로 돌아갈 수 없다 */
+let editorLive = false;
+function dashOpen() { $('#dashPage').hidden = false; $('#dashVer').textContent = APP_VERSION; $('#cloudClose').hidden = !editorLive; document.body.classList.add('dash-on'); }
+function dashClose() { editorLive = true; $('#dashPage').hidden = true; document.body.classList.remove('dash-on'); }
 $('#cloudClose').addEventListener('click', dashClose);
 $('#cloudLocal').addEventListener('click', () => { dashClose(); $('#fileInput').click(); });
 $('#dashSettings').addEventListener('click', () => openAIDlg('view'));
@@ -8326,6 +8402,7 @@ function renderDashProjs() {
   const chip = (id, label, extra = '') => `<button type="button" data-dproj="${esc(id)}" aria-pressed="${String(cur === id)}"><span class="nm">${label}</span>${extra}<span class="n">${cnt(id)}</span></button>`;
   box.innerHTML = chip('', '모든 회의록') + chip('__none', '미분류 (개인)') + projList().map(p => chip(p.id, esc(p.name), projShared(p) ? '<span class="sh">공유</span>' : '')).join('');
   $('#dashUser').textContent = user ? (user.email || user.name || '') : '로그인하지 않음 · 파일로 열거나 새 회의를 시작할 수 있어요';
+  $('#dashSignOut').hidden = !user;
   const sel = $('#cloudProj'), name = cur === '' ? '모든 회의록' : cur === '__none' ? '미분류 (개인)' : projName(cur) || '프로젝트';
   $('#cloudTitle').textContent = name; $('#dashCalTitle').textContent = cloudUi.view === 'cal' ? '달력' : '전체 목록';
   // 현황 카드: 필터 기준 회의록 수 · 이번 달 · 프로젝트 수(공유) · 마지막 저장
