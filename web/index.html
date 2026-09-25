@@ -65,6 +65,10 @@ button.brand.back:hover{background:var(--sunk);border-color:var(--line)}
 .title::placeholder{color:var(--ink2)}
 .meta{font-size:12.5px;color:var(--ink2);padding:0 6px}
 .meta .dirty{color:var(--rec)}
+.meta .lockbar{color:var(--wait);font-weight:600}
+.meta .lockbar .link{margin-left:4px}
+body.ro #docEditor,body.ro #memoEditor{background:var(--sunk)}
+body.ro .docwrap input,body.ro .docwrap select,body.ro .docwrap textarea,body.ro #title{opacity:.85}
 .actions{display:flex;gap:6px;flex-wrap:wrap}
 .btn{border:1px solid var(--line);background:var(--surface);padding:6px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;line-height:1.4}
 .btn:hover:not(:disabled){background:var(--sunk)}
@@ -753,7 +757,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   </button>
   <div class="titlebox">
     <input id="title" class="title" placeholder="회의 제목" aria-label="회의 제목" autocomplete="off">
-    <div class="meta"><span id="metaDate"></span> <span id="dirtyMark" class="dirty" hidden>· 저장하지 않은 변경</span></div>
+    <div class="meta"><span id="metaDate"></span> <span id="dirtyMark" class="dirty" hidden>· 저장하지 않은 변경</span> <span id="lockBar" class="lockbar" hidden><span id="lockMsg"></span> <button type="button" class="link" id="lockTake">편집 시작</button></span></div>
   </div>
   <div class="actions">
     <button id="micBtn" class="btn mic-btn" data-tone="wait"><span class="sdot"></span>마이크</button>
@@ -1386,6 +1390,12 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   </div>
 </dialog>
 
+<dialog id="choiceDlg">
+  <h2 id="choiceTitle"></h2>
+  <p id="choiceMsg" style="white-space:pre-wrap"></p>
+  <div class="dlg-actions" id="choiceBtns"></div>
+</dialog>
+
 <dialog id="confirmDlg">
   <h2 id="confirmTitle">계속할까요?</h2>
   <p id="confirmMsg"></p>
@@ -1431,8 +1441,12 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.26.0';
+const APP_VERSION = '0.27.0';
 const PATCH_NOTES = [
+  { v: '0.27.0', date: '2026-09-26', items: [
+    '함께 열었을 때 덮어쓰기 방지: 클라우드 저장 직전에 그 사이 다른 사람이 저장했는지 확인하고, 있으면 "최신 내용 불러오기 / 내 것을 새 회의록으로 저장 / 그래도 덮어쓰기" 중에서 골라요.',
+    '편집 중 표시(소프트 락): 프로젝트 회의록을 열고 있으면 대시보드 목록에 "✎ 편집 중"으로 보여요. 다른 사람이 편집 중인 회의록을 열면 읽기 전용으로 열리고(입력·저장 잠금), 상단의 "편집 시작"으로 이어받을 수 있어요.',
+  ] },
   { v: '0.26.0', date: '2026-09-26', items: [
     '공유 회의록 양방향 수정: 구성원이 고쳐 저장하면 올린 사람의 목록에도 반영돼요(같은 파일에 되쓰고, 목록에 "수정 아무개"로 표시). 이를 위해 자동 열기의 Drive 권한이 "읽기"에서 "Drive 접근"으로 바뀌어 한 번 더 허용을 물어요. 권한 없이 선택창으로 연 파일도 그 파일에 되써져요.',
     '올린 사람 쪽 자동 동기화가 구성원의 더 최근 수정 기록을 덮어쓰지 않아요.',
@@ -1648,6 +1662,16 @@ function askConfirm(title, msg, yes = '계속') {
     $('#confirmNo').onclick = () => done(false);
     d.oncancel = () => done(false);
     try { d.showModal(); } catch { res(true); }
+  });
+}
+function askChoice(title, msg, buttons) {   // 여러 선택지 중 하나: [{ id, label, primary }] → 고른 id, 닫으면 null
+  const d = $('#choiceDlg'); $('#choiceTitle').textContent = title; $('#choiceMsg').textContent = msg;
+  $('#choiceBtns').innerHTML = buttons.map(b => `<button type="button" class="btn${b.primary ? ' primary' : ''}" data-choice="${esc(b.id)}">${esc(b.label)}</button>`).join('');
+  return new Promise(res => {
+    const done = v => { d.close(); $('#choiceBtns').onclick = null; res(v); };
+    $('#choiceBtns').onclick = e => { const b = e.target.closest('[data-choice]'); if (b) done(b.dataset.choice); };
+    d.oncancel = () => done(null);
+    try { d.showModal(); } catch { res(null); }
   });
 }
 function askText(title, label, value = '', opt = {}) {
@@ -7045,6 +7069,7 @@ async function chooseSaveHow() {   // 저장 버튼: 클라우드 / .mnote / 둘
   });
 }
 async function saveAny() {
+  if (readOnly) { toast('읽기 전용으로 열었어요. 고치려면 위의 "편집 시작"을 누르세요.', 5000); return; }
   if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 저장해 주세요.'); return; }
   const how = await chooseSaveHow(); if (!how) return;
   if (how === 'local') return save();
@@ -7162,6 +7187,7 @@ async function newMeeting() {
   clearAudio();
   replayOn = false; $('#replayChk').checked = false;
   docReplayOn = false; $('#docReplayChk').checked = false;
+  presStop(); setReadOnly(false);
   S = fresh(); recMap = new Map(); docRec = new Map();
   applyAuthorDefault(false);
   renderAll(); markClean();
@@ -7768,7 +7794,8 @@ async function sharedRows(rows) {
       for (const m of await projMeetList(a, p.id)) {
         if (!m.fileId) continue;
         const mine = have.get(m.id);
-        if (mine) {   // 내가 올린 회의록을 구성원이 고쳐 저장한 경우(같은 파일에 되쓰거나, 권한이 없어 자기 Drive에 새 파일로): 더 새 기록을 따른다
+        if (mine) {
+          mine.editing = m.editing || ''; mine.editingAt = m.editingAt || '';   // 누가 편집 중인지   // 내가 올린 회의록을 구성원이 고쳐 저장한 경우(같은 파일에 되쓰거나, 권한이 없어 자기 Drive에 새 파일로): 더 새 기록을 따른다
           if (String(m.updatedAt || '') > String(mine.updatedAt || '')) {
             const forked = m.fileId !== mine.fileId;
             Object.assign(mine, { updatedAt: m.updatedAt, title: m.title || mine.title, fileId: m.fileId, editedBy: m.editedBy || (forked ? m.ownerEmail : ''), shared: mine.shared || forked });
@@ -8315,10 +8342,22 @@ async function cloudSave({ alsoLocal = false } = {}) {
     let fileId = S.cloud && S.cloud.fileId || null;
     if (!fileId) { const d = await dfetch(`/files?q=${encodeURIComponent(`'${folder}' in parents and trashed=false and appProperties has { key='meetnoteId' and value='${meta.id}' }`)}&fields=${encodeURIComponent('files(id)')}&pageSize=1`); fileId = d && d.files && d.files[0] ? d.files[0].id : null; }
     const name = base + '.mnote';
+    if (fileId && S.cloud && S.cloud.modifiedTime) {   // 그 사이 다른 사람이 저장했으면 묻는다
+      const now = await driveModified(fileId);
+      if (now && now.modifiedTime && now.modifiedTime > S.cloud.modifiedTime) {
+        progClose();
+        const ago = Math.max(1, Math.round((Date.now() - new Date(now.modifiedTime).getTime()) / 60000));
+        const c = await askChoice('다른 사람이 먼저 저장했어요', `${now.by || '다른 사람'}이(가) ${ago}분 전에 이 회의록을 저장했어요. 지금 덮어쓰면 그 내용이 사라져요.`, [{ id: 'reload', label: '최신 내용 불러오기(내 수정은 버림)' }, { id: 'fork', label: '내 것을 새 회의록으로 저장', primary: true }, { id: 'over', label: '그래도 덮어쓰기' }, { id: 'no', label: '취소' }]);
+        if (!c || c === 'no') return;
+        if (c === 'reload') { const row = cloudRows.find(r => r.fileId === fileId) || { id: safeId(S.id), fileId, title: S.title, project: S.meta.project }; markClean(); await cloudOpenItem(row, true); return; }
+        if (c === 'fork') { S.id = uid(); S.title = (S.title || '회의록') + ' (' + (user.name || myEmail()) + ' 수정본)'; $('#title').value = S.title; S.cloud = null; fileId = null; meta.id = S.id; meta.title = S.title; }
+        progOpen('클라우드에 저장하는 중', { local: true });
+      }
+    }
     const up = id => driveUpload(blob, name, meta, id, folder, f => progSet(10 + f * 82, `Google Drive에 올리는 중 ${Math.round(f * 100)}% (${(blob.size / 1048576).toFixed(1)}MB)`), ctl.signal);
     let forked = false;
     try { fileId = await up(fileId); } catch (e) { if (fileId && (e.status === 404 || e.status === 403)) { forked = e.status === 403; fileId = await up(null); } else throw e; }   // 지워진 파일이면 새로 만든다. 남의 공유 파일에 쓸 권한이 없으면 내 Drive에 새로 만든다
-    S.cloud = { fileId }; S.fileName = base;
+    S.cloud = { fileId, ...(await driveModified(fileId) || {}) }; S.fileName = base; presStart();
     let dbNote = '';
     const proj = projById(S.meta.project);
     if (FB && proj) {
@@ -8359,7 +8398,7 @@ function cloudItemHtml(m, compact) {
   const i = cloudRows.indexOf(m), cur = m.id === safeId(S.id);
   return `<div class="cl-item${cur ? ' cur' : ''}" role="button" tabindex="0" data-copen="${i}" title="눌러서 열기">
     <span class="cl-date num"><b>${d.getTime() ? d.getDate() : '-'}</b><small>${d.getTime() ? `${d.getFullYear() % 100}.${String(d.getMonth() + 1).padStart(2, '0')}` : ''}</small></span>
-    <span class="cl-main"><span class="cl-title">${m.shared ? `<span class="cl-shared" title="${esc(m.ownerEmail || '')}">공유</span>` : ''}${m.project ? `<span class="cl-proj">${esc(projName(m.project) || m.projectName || '프로젝트')}</span>` : ''}${esc(m.title || '제목 없는 회의')}${cur ? '<em>열려 있음</em>' : ''}</span><span class="cl-meta">${meta.map(x => `<span>${esc(x)}</span>`).join('<i>·</i>')}</span></span>
+    <span class="cl-main"><span class="cl-title">${presOther(m) ? `<span class="cl-shared" style="color:var(--wait);background:var(--bg-yellow)" title="${esc(presOther(m))}">✎ 편집 중</span>` : ''}${m.shared ? `<span class="cl-shared" title="${esc(m.ownerEmail || '')}">공유</span>` : ''}${m.project ? `<span class="cl-proj">${esc(projName(m.project) || m.projectName || '프로젝트')}</span>` : ''}${esc(m.title || '제목 없는 회의')}${cur ? '<em>열려 있음</em>' : ''}</span><span class="cl-meta">${meta.map(x => `<span>${esc(x)}</span>`).join('<i>·</i>')}</span></span>
     <span class="cl-act">${m.shared || compact ? '' : `<select class="cl-projsel" data-cproj="${i}" title="프로젝트 지정" aria-label="프로젝트">${projOptions(m.project || '')}</select>`}<button type="button" class="btn" data-copen="${i}">열기</button>${m.shared || compact ? '' : `<button type="button" class="btn" data-cdel="${i}" style="color:var(--rec)">삭제</button>`}</span></div>`;
 }
 function renderCloudList(src) {
@@ -8418,6 +8457,46 @@ async function cloudOpenList({ connect = false } = {}) {
     cloudRows = got.rows; cloudUi.ym = null; renderCloudList(got.src);
   } catch (e) { aiLog('error', '회의록 목록 실패', errInfo(e)); el.innerHTML = `<div class="cloud-empty">목록을 불러오지 못했어요: ${esc(cloudExplain(e))}<br><button class="btn" id="cloudConnect" style="margin-top:8px">다시 시도</button></div>`; }
 }
+/* ---------- 함께 열었을 때: 편집 중 표시(소프트 락) + 저장 시 덮어쓰기 방지 ----------
+   - 프로젝트에 묶인 회의록을 열고 있는 동안 projects/{pid}/meetings/{mid}에 editing(이메일)·editingAt을 30초마다 남긴다(90초 지나면 무시)
+   - 다른 사람이 편집 중인 회의록을 열면 읽기 전용으로 열고(편집기·입력 잠금, 저장 막음) "편집 시작"으로 이어받을 수 있다
+   - 열 때 Drive 파일의 modifiedTime을 기억해 두고, 저장 직전에 다시 확인해 그 사이 누가 저장했으면 묻는다(최신 불러오기 / 새 회의록으로 / 덮어쓰기) */
+const PRESENCE_FRESH = 90000;
+let presTimer = null, presKey = '', readOnly = false;
+const presFresh = m => !!(m && m.editing && m.editingAt && Date.now() - new Date(m.editingAt).getTime() < PRESENCE_FRESH);
+const presOther = m => presFresh(m) && String(m.editing).toLowerCase() !== myEmail() ? String(m.editing) : '';
+function presTarget() { const pid = S.meta.project, ok = FB && user && pid && projById(pid) && S.cloud && S.cloud.fileId && !readOnly; return ok ? { pid, mid: safeId(S.id) } : null; }
+async function presWrite(t, on) {
+  if (!t) return; const a = await fbAuth();
+  const fields = { editing: { stringValue: on ? myEmail() : '' }, editingAt: { stringValue: on ? new Date().toISOString() : '' } };
+  await jfetch(`${projMeetDoc(t.pid, t.mid)}?${fsMask(fields)}`, { method: 'PATCH', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ fields }), keepalive: true });
+}
+async function presTick() {
+  const t = presTarget(), key = t ? t.pid + '/' + t.mid : '';
+  if (key !== presKey) { if (presKey) { const [pid, mid] = presKey.split('/'); presWrite({ pid, mid }, false).catch(() => {}); } presKey = key; }
+  if (t) presWrite(t, true).catch(e => aiLog('warn', '편집 중 표시 실패', errInfo(e)));
+}
+function presStart() { if (!presTimer) presTimer = setInterval(presTick, 30000); presTick(); }
+function presStop() { clearInterval(presTimer); presTimer = null; if (presKey) { const [pid, mid] = presKey.split('/'); presKey = ''; presWrite({ pid, mid }, false).catch(() => {}); } }
+window.addEventListener('pagehide', () => { if (presKey) { const [pid, mid] = presKey.split('/'); presWrite({ pid, mid }, false).catch(() => {}); } });
+async function presPeek(pid, mid) {   // 지금 누가 편집 중인지(없으면 '')
+  try { const a = await fbAuth(); const d = fsUn((await jfetch(projMeetDoc(pid, mid), { headers: { authorization: 'Bearer ' + a.idToken } }) || {}).fields || {}); return presOther(d); } catch { return ''; }
+}
+function setReadOnly(on, who) {
+  readOnly = on; document.body.classList.toggle('ro', on);
+  for (const el of document.querySelectorAll('#docsheet [contenteditable], #editor, #docEditor')) { if (on) { if (el.getAttribute('contenteditable') === 'true') el.setAttribute('data-ro', '1'); el.setAttribute('contenteditable', 'false'); } else if (el.dataset.ro) { el.setAttribute('contenteditable', 'true'); el.removeAttribute('data-ro'); } }
+  for (const el of document.querySelectorAll('#docsheet input, #docsheet select, #docsheet textarea, #docsheet button:not(#lockTake), #title')) { if (on) { if (!el.disabled) el.setAttribute('data-ro', '1'); el.disabled = true; } else if (el.dataset.ro) { el.disabled = false; el.removeAttribute('data-ro'); } }
+  $('#lockBar').hidden = !on; $('#lockMsg').textContent = on ? `${who}님이 편집 중이라 읽기 전용으로 열었어요.` : '';
+  if (!on && S.cloud && S.cloud.fileId) presStart();
+}
+$('#lockTake').addEventListener('click', async () => {
+  const pid = S.meta.project, mid = safeId(S.id); const who = pid ? await presPeek(pid, mid) : '';
+  if (who && !(await askConfirm('편집을 이어받을까요?', `${who}님이 아직 편집 중이에요. 이어받으면 두 사람이 같은 회의록을 고치게 되고, 나중에 저장하는 쪽이 먼저 저장한 내용을 덮어쓸 수 있어요(저장할 때 다시 확인해요).`, '이어받기'))) return;
+  setReadOnly(false); toast('편집을 시작했어요. 저장하면 이 파일에 기록돼요.');
+});
+async function driveModified(fileId) {   // Drive 파일의 마지막 수정 시각·수정자
+  try { const f = await dfetch(`/files/${encodeURIComponent(fileId)}?fields=${encodeURIComponent('modifiedTime,lastModifyingUser(emailAddress,displayName)')}`); return { modifiedTime: f.modifiedTime || '', by: f.lastModifyingUser && (f.lastModifyingUser.emailAddress || f.lastModifyingUser.displayName) || '' }; } catch { return null; }
+}
 /* 공유받은 파일 열기: 이 앱은 Drive 권한을 가장 좁게(drive.file: 이 앱으로 만들거나 연 파일만) 쓰는데, Google은 이 권한을 사용자별로 매긴다.
    그래서 올린 사람이 공유해 줘도 구성원의 앱에서는 처음엔 404/403이 난다. Google이 정해 둔 방법은 구성원이 Google 파일 선택창(Picker)에서
    그 파일을 한 번 고르는 것 — 그러면 이 앱에 그 파일 권한이 생기고 다음부터는 바로 열린다(setAppId = Cloud 프로젝트 번호가 있어야 권한이 붙는다) */
@@ -8451,9 +8530,17 @@ async function pickerGrant(m) {   // 구성원이 파일 선택창에서 이 파
 }
 async function cloudOpenItem(m, retried = false) {
   if (rec.state !== 'idle') { toast('녹음 중에는 열 수 없어요.'); return; }
-  const ctl = new AbortController();
+  const ctl = new AbortController(); let lockedBy = '';
   try {
-    await driveAuth(); dashClose();
+    await driveAuth();
+    if (!retried && FB && m.project && projById(m.project)) {   // 다른 사람이 편집 중이면 읽기 전용 / 이어받기 / 취소
+      lockedBy = await presPeek(m.project, m.id);
+      if (lockedBy) {
+        const c = await askChoice(`${lockedBy}님이 편집 중이에요`, '같은 회의록을 동시에 고치면 나중에 저장하는 쪽이 먼저 저장한 내용을 덮어쓸 수 있어요. 읽기 전용으로 열어 보다가 필요하면 "편집 시작"으로 이어받을 수 있어요.', [{ id: 'ro', label: '읽기 전용으로 열기', primary: true }, { id: 'take', label: '이어서 편집' }, { id: 'no', label: '취소' }]);
+        if (!c || c === 'no') return; if (c === 'take') lockedBy = '';
+      }
+    }
+    dashClose();
     progAbort = () => ctl.abort(); progOpen('클라우드에서 여는 중', { local: true }); progSet(null, 'Google Drive에서 내려받는 중');
     const tok = await driveAuth();
     const r = await fetch(`${EP.drive}/files/${encodeURIComponent(m.fileId)}?alt=media`, { headers: { authorization: 'Bearer ' + tok }, signal: ctl.signal });
@@ -8473,8 +8560,9 @@ async function cloudOpenItem(m, retried = false) {
     const blob = await r.blob(); progClose(); progAbort = null;
     const before = S.id;
     await openFile(new File([blob], (m.name || m.title || 'meeting') + '.mnote', { type: MNOTE_MIME }));
-    if (S.id !== before || safeId(S.id) === m.id) { S.cloud = { fileId: m.fileId }; S.fileName = safeName(stripStamp(String(m.name || '').replace(/[.]mnote$/i, ''))) || ''; if (m.project !== undefined && String(m.project || '') !== String(S.meta.project || '')) { S.meta.project = String(m.project || ''); renderProjSel(); } }   // 목록에서 바꾼 프로젝트가 파일보다 새것   // 내려받을 때 클라우드에 저장된 이름을 쓴다
-    aiLog('info', '클라우드에서 열기', { bytes: blob.size });
+    presStop(); setReadOnly(!!lockedBy, lockedBy);
+    if (S.id !== before || safeId(S.id) === m.id) { S.cloud = { fileId: m.fileId, ...(await driveModified(m.fileId) || {}) }; S.fileName = safeName(stripStamp(String(m.name || '').replace(/[.]mnote$/i, ''))) || ''; if (m.project !== undefined && String(m.project || '') !== String(S.meta.project || '')) { S.meta.project = String(m.project || ''); renderProjSel(); } }   // 목록에서 바꾼 프로젝트가 파일보다 새것   // 내려받을 때 클라우드에 저장된 이름을 쓴다
+    aiLog('info', '클라우드에서 열기', { bytes: blob.size, readOnly: !!lockedBy }); if (!lockedBy) presStart();
   } catch (e) {
     if (e && e.name === 'AbortError') toast('열기를 취소했어요.');
     else { aiLog('error', '클라우드 열기 실패', errInfo(e)); toast('열지 못했어요: ' + cloudExplain(e), 8000); }
@@ -8840,7 +8928,7 @@ else if ($('#gate').hidden) setTimeout(openDashboard, 400);   // 게스트·로�
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, dashOpen, dashClose, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, dashOpen, dashClose, setReadOnly, askChoice, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
 applyAuthorDefault(false);
 renderAll();
 selectTab(curTab);
