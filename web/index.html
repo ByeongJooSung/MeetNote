@@ -1419,8 +1419,11 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.23.0';
+const APP_VERSION = '0.23.1';
 const PATCH_NOTES = [
+  { v: '0.23.1', date: '2026-09-25', items: [
+    '대시보드 회의록 목록에서 첫 행에만 보이던 프로젝트 선택·삭제 버튼이 모든 행에 보여요.',
+  ] },
   { v: '0.23.0', date: '2026-09-25', items: [
     '저장 버튼 하나로 클라우드 / .mnote 파일 / 둘 다 중에서 골라 저장해요(Ctrl+S). 마지막 선택을 기억해요.',
     '편집 화면 왼쪽 위 로고 자리가 "← 대시보드"가 됐어요. 저장하지 않은 내용이 있을 때는 대시보드로 나가거나 다른 파일을 열 때만 한 번 확인하고, 새 회의 시작에서는 묻지 않아요.',
@@ -8166,7 +8169,7 @@ function renderCloudList(src) {
   if (!cal) {
     const by = $('#cloudSort').value;
     rows.sort((a, b) => by === 'title' ? String(a.title || '').localeCompare(String(b.title || ''), 'ko') : by === 'when' ? cloudWhen(b) - cloudWhen(a) : String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
-    el.innerHTML = rows.map(cloudItemHtml).join('') || '<div class="cloud-empty">검색 결과가 없어요.</div>';
+    el.innerHTML = rows.map(m => cloudItemHtml(m)).join('') || '<div class="cloud-empty">검색 결과가 없어요.</div>';   // map(cloudItemHtml)로 쓰면 index가 compact로 들어가 첫 행만 조작부가 보이는 버그
     return;
   }
   if (!cloudUi.ym) { const latest = rows.map(cloudWhen).sort((a, b) => b - a)[0] || new Date(); cloudUi.ym = new Date(latest.getFullYear(), latest.getMonth(), 1); cloudUi.day = dayKey(latest); }
@@ -8180,7 +8183,7 @@ function renderCloudList(src) {
   }
   $('#calGrid').innerHTML = h;
   const dayRows = (byDay.get(cloudUi.day) || []).sort((a, b) => cloudWhen(a) - cloudWhen(b));
-  el.innerHTML = dayRows.map(cloudItemHtml).join('') || `<div class="cloud-empty">${[...byDay.keys()].some(k => k.startsWith(dayKey(first).slice(0, 7))) ? '숫자가 표시된 날짜를 누르면 그날의 회의가 나와요.' : '이 달에는 저장한 회의가 없어요. ‹ › 로 다른 달을 보세요.'}</div>`;
+  el.innerHTML = dayRows.map(m => cloudItemHtml(m)).join('') || `<div class="cloud-empty">${[...byDay.keys()].some(k => k.startsWith(dayKey(first).slice(0, 7))) ? '숫자가 표시된 날짜를 누르면 그날의 회의가 나와요.' : '이 달에는 저장한 회의가 없어요. ‹ › 로 다른 달을 보세요.'}</div>`;
   const items = el.querySelectorAll('.cl-item'); el.style.maxHeight = items.length > 5 ? (items[5].offsetTop - items[0].offsetTop - 6) + 'px' : '';   // 카드 5개 높이(실제 렌더 높이 기준)
 }
 function cloudGoMonth(d) {
