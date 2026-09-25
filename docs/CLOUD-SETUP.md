@@ -104,10 +104,10 @@ window.MEETNOTE_CONFIG = {
 Google Cloud Console → **사용자 인증 정보 → API 키(Browser key)** → **웹사이트 제한**에 `https://byeongjoosung.github.io/*`, `http://localhost:8080/*` 를 넣고, **API 제한**은 *Identity Toolkit API*, *Token Service API*, *Cloud Firestore API*만 허용합니다.
 
 ## 4. 쓰는 방법
-- **☁ 클라우드 저장**: 처음 한 번 Drive 권한 창이 뜹니다(“이 앱으로 만든 Drive 파일 보기·수정”). 같은 회의를 다시 저장하면 같은 파일을 덮어씁니다.
+- **저장 → 클라우드**(또는 "둘 다"): 헤더의 `저장`을 누르면 클라우드 / .mnote 파일 / 둘 다 중 고릅니다. 클라우드를 고르면 처음 한 번 Drive 권한 창이 뜹니다(“이 앱으로 만든 Drive 파일 보기·수정”). 같은 회의를 다시 저장하면 같은 파일을 덮어씁니다.
 - **내 회의록**: 목록에서 열기·삭제. 삭제는 Drive **휴지통**으로 옮기므로 30일 안에 되살릴 수 있습니다.
 - **Drive와 목록 맞추기**: Drive에서 직접 지웠거나 다른 기기에서 저장해 목록이 어긋났을 때, Drive 폴더를 기준으로 목록을 다시 맞춥니다.
-- `.mnote로 저장`(파일 내려받기)은 그대로 쓸 수 있습니다.
+- 저장 창에서 `.mnote 파일`(내려받기)은 로그인 없이도 쓸 수 있습니다.
 - Drive 권한은 **⚙ 설정 → 계정·클라우드**에서 다시 연결하거나 해제할 수 있습니다. 구글 계정의 https://myaccount.google.com/permissions 에서도 언제든 끊을 수 있습니다.
 
 ## 보안 점검표 (공개 저장소로 운영할 때)

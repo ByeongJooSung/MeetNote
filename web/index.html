@@ -56,6 +56,8 @@ button,select,input,textarea{font:inherit;color:inherit}
 /* header */
 header.top{display:flex;align-items:center;gap:10px 14px;padding:10px 20px;background:var(--surface);border-bottom:1px solid var(--line);flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:-.01em}
+button.brand.back{border:1px solid transparent;background:none;color:var(--ink);padding:6px 10px 6px 6px;border-radius:10px;cursor:pointer;font:inherit;font-weight:700}
+button.brand.back:hover{background:var(--sunk);border-color:var(--line)}
 .brand svg{flex:none}
 .titlebox{flex:1 1 260px;min-width:0;display:flex;flex-direction:column}
 .title{border:0;background:transparent;font-size:19px;font-weight:600;padding:2px 6px;border-radius:6px;min-width:0;color:var(--ink)}
@@ -571,6 +573,7 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 .tpl-row .btn{padding:4px 10px;font-size:13px}
 #draftOptDlg textarea,#setDraft textarea{width:100%}
 #meetExtra{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface);color:var(--ink);font-size:13.5px;line-height:1.55;resize:vertical}
+#saveDlg{width:min(560px,calc((100vw - 32px) / var(--ui,1)))}
 #textDlg{width:min(420px,calc((100vw - 32px) / var(--ui,1)))}
 #textDlg input{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--ink)}
 .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:40px;height:34px;padding:0;border-radius:999px}
@@ -578,7 +581,7 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 .icon-btn .ic-pause,.icon-btn[data-playing="true"] .ic-play{display:none}
 .icon-btn[data-playing="true"] .ic-pause{display:block}
 .icon-btn[data-playing="true"]{background:var(--tape);border-color:var(--tape);color:#fff}
-.patch-notes{display:flex;flex-direction:column;gap:10px;font-size:13.5px}
+.patch-notes{display:flex;flex-direction:column;gap:10px;font-size:13.5px;max-height:min(52vh,460px);overflow-y:auto;padding-right:6px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .patch-notes .pn-head{display:flex;align-items:baseline;gap:8px;font-weight:600}
 .patch-notes .pn-head small{font-weight:400;color:var(--ink2)}
 .patch-notes .pn-head .cur{font-size:11.5px;font-weight:600;color:#fff;background:var(--tape);border-radius:999px;padding:1px 8px}
@@ -598,7 +601,7 @@ dialog textarea{width:100%;border:1px solid var(--line);border-radius:8px;paddin
 #draftSecs{gap:6px 14px}
 /* 설정 창 */
 #aiDlg{width:min(780px,calc((100vw - 32px) / var(--ui,1)));max-width:none}
-.set-tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);margin:6px 0 12px}
+.set-tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);margin:6px 0 12px;position:sticky;top:-20px;background:var(--surface);z-index:2;padding-top:4px}
 .set-tabs button{border:0;background:none;padding:8px 12px;font-size:14px;color:var(--ink2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
 .set-tabs button[aria-selected="true"]{color:var(--tape);border-bottom-color:var(--tape);font-weight:600}
 #setLog #aiLogView{max-height:min(52vh,420px)}
@@ -668,7 +671,8 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   html{scroll-padding-top:150px}   /* 커서를 화면에 맞출 때 위에 고정된 헤더·도구 모음에 가리지 않게 */
   body.kb header.top{position:static}
   body.kb footer.transport{display:none}
-  header.top .brand{display:none}
+  header.top .brand{display:flex;padding:4px 8px 4px 4px;font-size:14px}
+  header.top .brand svg:nth-of-type(2){display:none}
   header.top .titlebox{flex:1 1 100%}
   .title{font-size:16px;padding:0 4px}
   .meta{font-size:11.5px;padding:0 4px}
@@ -733,10 +737,11 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   </div>
 </div>
 <header class="top">
-  <div class="brand">
+  <button type="button" class="brand back" id="backDash" title="대시보드로 (프로젝트·회의록 목록)">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="7" cy="11" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="15" cy="11" r="5" fill="none" stroke="var(--tape)" stroke-width="2"/><circle cx="7" cy="11" r="1.5" fill="currentColor"/><circle cx="15" cy="11" r="1.5" fill="var(--tape)"/></svg>
-    MeetNote
-  </div>
+    <span>대시보드</span>
+  </button>
   <div class="titlebox">
     <input id="title" class="title" placeholder="회의 제목" aria-label="회의 제목" autocomplete="off">
     <div class="meta"><span id="metaDate"></span> <span id="dirtyMark" class="dirty" hidden>· 저장하지 않은 변경</span></div>
@@ -744,9 +749,8 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div class="actions">
     <button id="micBtn" class="btn mic-btn" data-tone="wait"><span class="sdot"></span>마이크</button>
     <button id="newBtn" class="btn">새 회의</button>
-    <button id="openBtn" class="btn">대시보드</button>
-    <button id="saveBtn" class="btn primary">.mnote로 저장</button>
-    <button id="cloudSaveBtn" class="btn" hidden title="녹음과 회의록을 내 Google Drive에 저장하고 '내 회의록' 목록에 기록합니다">☁ 클라우드 저장</button>
+    <button id="saveBtn" class="btn primary" title="클라우드(Google Drive) / .mnote 파일 / 둘 다 중에서 골라 저장해요 (Ctrl+S)">저장</button>
+    <button id="cloudSaveBtn" class="btn" hidden>☁ 클라우드 저장</button>
     <button id="hwpxBtn" class="btn" title="PDF · 한글(HWPX) · Word로 내보내기">내보내기</button>
     <button id="settingsBtn" class="btn" title="설정: AI 엔진 · 로그 · 계정" aria-label="설정">⚙ 설정</button>
     <button id="bgPill" class="bgpill" hidden title="분석 진행 상황 보기"><span class="sdot"></span><span id="bgText">분석 중</span><span class="mini"><i id="bgBar"></i></span></button>
@@ -1350,6 +1354,17 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div class="dlg-actions"><button class="btn" id="refDlgDel" style="color:var(--rec)">자료 삭제</button><span style="flex:1"></span><button class="btn primary" id="refDlgClose">닫기</button></div>
 </dialog>
 
+<dialog id="saveDlg" aria-labelledby="saveDlgTitle">
+  <h2 id="saveDlgTitle">어디에 저장할까요?</h2>
+  <div class="eng-row">
+    <label class="opt"><input type="radio" name="saveHow" value="cloud"><div><b>☁ 클라우드</b><span>내 Google Drive의 MeetNote 폴더에 저장하고 대시보드 목록에 기록해요. 프로젝트 구성원과 공유돼요.</span></div></label>
+    <label class="opt"><input type="radio" name="saveHow" value="local"><div><b>.mnote 파일</b><span>이 기기에 파일로 내려받아요(녹음 포함). 다른 기기로 옮기거나 보관할 때.</span></div></label>
+    <label class="opt"><input type="radio" name="saveHow" value="both"><div><b>둘 다</b><span>클라우드에 저장하고 같은 파일을 내려받아요.</span></div></label>
+  </div>
+  <p class="hint" id="saveDlgNote"></p>
+  <div class="dlg-actions"><button class="btn" id="saveDlgCancel">취소</button><button class="btn primary" id="saveDlgGo">저장</button></div>
+</dialog>
+
 <dialog id="textDlg" aria-labelledby="textDlgTitle">
   <h2 id="textDlgTitle">이름</h2>
   <label class="field"><span id="textDlgLabel"></span><input id="textDlgInput" autocomplete="off" spellcheck="false"></label>
@@ -1404,8 +1419,13 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.22.0';
+const APP_VERSION = '0.23.0';
 const PATCH_NOTES = [
+  { v: '0.23.0', date: '2026-09-25', items: [
+    '저장 버튼 하나로 클라우드 / .mnote 파일 / 둘 다 중에서 골라 저장해요(Ctrl+S). 마지막 선택을 기억해요.',
+    '편집 화면 왼쪽 위 로고 자리가 "← 대시보드"가 됐어요. 저장하지 않은 내용이 있을 때는 대시보드로 나가거나 다른 파일을 열 때만 한 번 확인하고, 새 회의 시작에서는 묻지 않아요.',
+    '설정의 버전 정보(패치 노트)는 안에서 스크롤하고, 설정 탭은 위에 고정돼요.'
+  ] },
   { v: '0.22.0', date: '2026-09-24', items: ['대시보드를 한 페이지로 다시 만들었어요: 왼쪽 메뉴(프로젝트·새 회의·파일 열기·설정), 오른쪽에 현황 카드(회의록 수·이번 달·프로젝트·마지막 저장), 달력 카드, 최근 작성한 회의록 카드.'] },
   { v: '0.21.0', date: '2026-09-24', items: [
     '대시보드: 앱을 열면(로그인 뒤 최신 목록을 한 번 불러와) 프로젝트·미분류(개인)별로 회의록을 달력·목록으로 보고 열 수 있어요. 새 회의·새 프로젝트·프로젝트 관리도 여기서. 상단 "대시보드" 버튼으로 언제든 돌아와요.',
@@ -1566,7 +1586,8 @@ function toast(msg, ms = 4200) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.hidden = true; }, ms);
 }
-function markDirty() { dirty = true; $('#dirtyMark').hidden = false; }
+let dirtyAck = false;   // 이탈 확인을 한 번 받았으면 내용이 다시 바뀌기 전까지 다시 묻지 않는다
+function markDirty() { dirty = true; dirtyAck = false; $('#dirtyMark').hidden = false; }
 function markClean() { dirty = false; $('#dirtyMark').hidden = true; }
 function askConfirm(title, msg, yes = '계속') {
   const d = $('#confirmDlg');
@@ -6961,13 +6982,33 @@ async function askFileName(title) {   // 저장 직전에 파일 이름을 한 �
   const name = await askText(title, '파일 이름 (.mnote)', defaultFileName(), { max: 80, yes: '저장' });
   return name ? safeName(stripStamp(name.replace(/\.mnote$/i, ''))) : null;
 }
-async function save() {
+const SAVE_HOW_KEY = 'meetnote.saveHow';
+async function chooseSaveHow() {   // 저장 버튼: 클라우드 / .mnote / 둘 다. 마지막 선택을 기억한다
+  const canCloud = !!(user && authEnabled());
+  let how = 'local'; try { how = localStorage.getItem(SAVE_HOW_KEY) || (canCloud ? 'cloud' : 'local'); } catch {}
+  if (!canCloud && how !== 'local') how = 'local';
+  document.querySelectorAll('input[name="saveHow"]').forEach(r => { r.checked = r.value === how; r.disabled = r.value !== 'local' && !canCloud; r.closest('label').style.opacity = r.disabled ? .5 : 1; });
+  $('#saveDlgNote').textContent = canCloud ? `파일 이름은 다음 단계에서 정해요. 지금 회의: ${S.title || '제목 없는 회의'}${S.meta.project && projName(S.meta.project) ? ` · 프로젝트 ${projName(S.meta.project)}` : ''}` : 'Google 로그인을 하면 클라우드 저장도 고를 수 있어요.';
+  return new Promise(res => {
+    const d = $('#saveDlg'); const done = v => { d.close(); $('#saveDlgGo').onclick = $('#saveDlgCancel').onclick = null; res(v); };
+    $('#saveDlgGo').onclick = () => { const v = document.querySelector('input[name="saveHow"]:checked')?.value || 'local'; try { localStorage.setItem(SAVE_HOW_KEY, v); } catch {} done(v); };
+    $('#saveDlgCancel').onclick = () => done(null); d.oncancel = () => done(null);
+    try { d.showModal(); } catch { res('local'); }
+  });
+}
+async function saveAny() {
+  if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 저장해 주세요.'); return; }
+  const how = await chooseSaveHow(); if (!how) return;
+  if (how === 'local') return save();
+  return cloudSave({ alsoLocal: how === 'both' });
+}
+async function save(pre) {
   if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 저장해 주세요.'); return; }
   if (!window.JSZip) { toast('파일 모듈을 불러오지 못했어요. 네트워크 연결을 확인하고 새로고침해 주세요.', 6000); return; }
-  const base = await askFileName('회의록 저장'); if (!base) return;
+  const base = pre && pre.base || await askFileName('회의록 저장'); if (!base) return;
   const btn = $('#saveBtn'); btn.disabled = true;
   try {
-    const blob = await buildZip();
+    const blob = pre && pre.blob || await buildZip();
     await saveBlob(blob, dlBase(base), 'mnote');
     S.fileName = base; markClean();
   } catch (e) {
@@ -6983,7 +7024,8 @@ async function openFile(file) {
   if (!file) return;
   if (rec.state !== 'idle') { toast('녹음 중에는 파일을 열 수 없어요.'); return; }
   if (!window.JSZip) { toast('파일 모듈을 불러오지 못했어요. 새로고침해 주세요.'); return; }
-  if (dirty && !(await askConfirm('저장하지 않은 내용이 있어요', '파일을 열면 지금 회의의 저장하지 않은 내용이 사라집니다.', '파일 열기'))) return;
+  if (dirty && !dirtyAck && !(await askConfirm('저장하지 않은 내용이 있어요', '파일을 열면 지금 회의의 저장하지 않은 내용이 사라집니다.', '파일 열기'))) return;
+  dirtyAck = true;
   try {
     const zip = await JSZip.loadAsync(file);
     const mf = zip.file('manifest.json');
@@ -7069,7 +7111,6 @@ async function openFile(file) {
 
 async function newMeeting() {
   if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 새 회의를 시작해 주세요.'); return; }
-  if (dirty && !(await askConfirm('저장하지 않은 내용이 있어요', '새 회의를 시작하면 지금 회의의 저장하지 않은 내용이 사라집니다.', '새 회의 시작'))) return;
   clearAudio();
   replayOn = false; $('#replayChk').checked = false;
   docReplayOn = false; $('#docReplayChk').checked = false;
@@ -7079,11 +7120,13 @@ async function newMeeting() {
   setActive(docEditor); placeCaretIn(docEditor.firstElementChild, false);
 }
 
-$('#saveBtn').addEventListener('click', save);
+$('#saveBtn').addEventListener('click', saveAny);
 $('#newBtn').addEventListener('click', newMeeting);
-$('#openBtn').addEventListener('click', () => {
-  if (user && authEnabled()) cloudOpenList(); else $('#fileInput').click();   // 로그인 상태면 '내 컴퓨터 + 클라우드 목록' 창, 아니면 바로 파일 선택
-});
+async function goDashboard() {
+  if (dirty && !dirtyAck && rec.state === 'idle') { if (!(await askConfirm('저장하지 않은 내용이 있어요', '대시보드로 나가도 이 회의는 화면에 남아 있어요. 다만 다른 회의를 열거나 새 회의를 시작하면 사라져요. 저장하려면 취소하고 저장을 누르세요.', '대시보드로'))) return; dirtyAck = true; }
+  cloudOpenList();   // 대시보드(로그인 없으면 파일 열기·새 회의만 보임)
+}
+$('#backDash').addEventListener('click', goDashboard);
 $('#fileInput').addEventListener('change', e => { openFile(e.target.files[0]); e.target.value = ''; });
 window.addEventListener('dragover', e => e.preventDefault());
 window.addEventListener('drop', e => {
@@ -7098,7 +7141,7 @@ window.addEventListener('drop', e => {
   if (f) openFile(f);
 });
 document.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveAny(); }
 });
 window.addEventListener('beforeunload', e => {
   if (dirty || rec.state !== 'idle') { e.preventDefault(); e.returnValue = ''; }
@@ -8053,7 +8096,7 @@ const cloudExplain = e => {
   if (e.code === 'http' && e.status === 403 && /quota|storage/i.test(e.body || '')) return 'Google Drive 저장 공간이 가득 찼어요.';
   return e.message || String(e);
 };
-async function cloudSave() {
+async function cloudSave({ alsoLocal = false } = {}) {
   if (cloudBusy) return;
   if (rec.state !== 'idle') { toast('녹음을 정지한 뒤 저장해 주세요.'); return; }
   if (!window.JSZip) { toast('파일 모듈을 불러오지 못했어요. 새로고침해 주세요.'); return; }
@@ -8065,6 +8108,7 @@ async function cloudSave() {
     progSet(3, '회의록 파일을 만드는 중');
     const blob = await buildZip(); if (ctl.signal.aborted) throw Object.assign(new Error('취소됨'), { name: 'AbortError' });
     const meta = cloudMeta(blob.size);
+    if (alsoLocal) { progSet(6, '파일을 내려받는 중'); try { await saveBlob(blob, dlBase(base), 'mnote'); } catch (e) { aiLog('warn', '내려받기 실패(클라우드는 계속)', errInfo(e)); toast('파일 내려받기는 실패했어요: ' + (e && e.message || e), 6000); } }
     progSet(8, 'Google Drive 폴더를 확인하는 중');
     const folder = await driveFolder();
     // 같은 회의를 다시 저장하면 같은 파일을 덮어쓴다: 이번에 연 파일 → 목록 DB의 기록 → Drive의 appProperties 순으로 찾는다
@@ -8082,7 +8126,7 @@ async function cloudSave() {
     if (FB) { progSet(95, '목록에 기록하는 중'); try { await dbUpsert({ ...meta, fileId, name }); } catch (e) { aiLog('warn', '목록 DB 기록 실패(Drive에는 저장됨)', errInfo(e)); dbNote = ' 목록에는 기록하지 못했어요. "회의록 불러오기"의 "Drive와 목록 맞추기"로 맞출 수 있어요.'; } }
     markClean();
     aiLog('info', '클라우드 저장 완료', { bytes: blob.size, ms: Math.round(performance.now() - t0), db: FB ? !dbNote : 'off' });
-    toast('내 Google Drive에 저장했어요.' + dbNote, dbNote ? 9000 : 4000);
+    toast((alsoLocal ? '내 Google Drive에 저장하고 파일도 내려받았어요.' : '내 Google Drive에 저장했어요.') + dbNote, dbNote ? 9000 : 4000);
   } catch (e) {
     if (e && e.name === 'AbortError') toast('저장을 취소했어요.');
     else { aiLog('error', '클라우드 저장 실패', errInfo(e)); toast('클라우드에 저장하지 못했어요: ' + cloudExplain(e), 8000); }
@@ -8373,8 +8417,8 @@ else if ($('#gate').hidden) setTimeout(openDashboard, 400);   // 게스트·로�
     '#micBoost': '녹음할 때 마이크 소리를 압축·증폭해 작은 목소리와 큰 목소리를 고르게 맞춰요(Web Audio API). 녹음 파일에 그대로 반영되고 실시간 전사도 보정된 소리를 들어요. 다음 녹음부터 적용.',
     '#recBtn': '녹음 시작/일시정지 — 마이크가 막혀 있으면 "시계만 켜고 기록" 방식을 안내합니다.',
     '#attachBtn': '휴대폰 녹음 앱 등으로 따로 녹음한 파일(m4a·mp3·wav)을 이 회의에 붙입니다.',
-    '#saveBtn': '녹음·메모·본문·전사·AI 초안을 .mnote 파일 하나로 저장합니다 (Ctrl+S). 저장하기 전에 파일 이름을 한 번 물어봐요.',
-    '#openBtn': '대시보드 — 프로젝트별·달력·목록으로 회의록을 찾아 열고, 새 회의나 프로젝트를 만듭니다.',
+    '#saveBtn': '저장 (Ctrl+S) — 클라우드(Google Drive) / .mnote 파일 / 둘 다 중에서 고르고, 파일 이름을 정한 뒤 저장해요.',
+    '#backDash': '대시보드로 돌아갑니다(프로젝트·달력·최근 회의록). 저장하지 않은 내용이 있으면 한 번 확인해요.',
     '#hwpxBtn': 'PDF · 한글(HWPX) · Word로 내보냅니다. 양식과 부록을 고를 수 있어요.',
     '#splitter': '드래그해서 좌우 너비를 조절합니다. 더블클릭하면 6:4로 돌아갑니다.'
   };
