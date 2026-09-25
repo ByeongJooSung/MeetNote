@@ -5,7 +5,6 @@ window.MEETNOTE_CONFIG = {
   // "승인된 JavaScript 원본"에 배포 주소(예: https://아이디.github.io)와 http://localhost:8080 을 추가하세요.
   googleClientId: "622282166227-c7m54699gmk9j7q5pvmm92upqradhtrl.apps.googleusercontent.com",
   requireLogin: true,          // true: Google 로그인해야 앱 사용 가능(클라이언트 ID를 넣으면 브라우저에서 끌 수 없음)
-  adminEmails: ["tjdqudwn@gmail.com"],   // 관리자 전용 설정 화면을 볼 수 있는 계정(화면 표시용)
 
   // 클라우드 저장: 파일(.mnote)은 각 사용자의 Google Drive에, 목록은 Firestore에 기록합니다.
   // 비워 두면 목록도 Drive에서 읽습니다(목록 DB 없이 동작).
