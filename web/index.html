@@ -1432,8 +1432,12 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.24.3';
+const APP_VERSION = '0.24.4';
 const PATCH_NOTES = [
+  { v: '0.24.4', date: '2026-09-25', items: [
+    '공유 안 되던 원인 수정: 참고 문서가 있는 프로젝트는 원문까지 계정 DB에 올리다 크기 한도(400KB)에 걸려 거부됐고, 그 한 번의 거부가 프로젝트 동기화 전체를 조용히 꺼 버렸어요(공유 목록·회의록 기록 포함). 이제 원문은 올리지 않고(요약·통합 문서만), 올리기 실패는 그 프로젝트만 알리며 공유 목록·기록은 계속 동작해요.',
+    '구성원 화면: 회의록이 하나도 없어도 공유 프로젝트를 고르면 왜 안 보이는지 안내해요. 공유 점검에 프로젝트 크기 항목을 더했어요.',
+  ] },
   { v: '0.24.3', date: '2026-09-25', items: [
     '프로젝트 창에 "공유 점검" 버튼: 계정 DB 문서·구성원 목록·회의록 기록·Drive 파일 권한을 단계별로 확인해 어디서 막히는지 보여줘요(마스터·구성원 양쪽에서 쓸 수 있어요).',
   ] },
@@ -7475,6 +7479,7 @@ async function projDiagnose() {
   if (projOff) { L.push('⚠ 이 세션에서 프로젝트 동기화가 꺼져 있어요(이전에 403). 새로고침 후 다시 점검하세요.'); show(); }
   let a; try { a = await fbAuth(); ok('계정 DB 로그인', `uid ${a.uid}`); } catch (e) { bad('계정 DB 로그인', e); return; }
   const h = { authorization: 'Bearer ' + a.idToken };
+  const jb = new TextEncoder().encode(JSON.stringify({ ...p, refs: p.refs.map(r => ({ ...r, raw: '' })) })).length; (jb <= 380000 ? ok : bad)('프로젝트 크기(계정 DB에 올리는 기준)', `${Math.round(jb / 1024)}KB / 한도 약 371KB${jb > 380000 ? ' → 통합 참조 문서를 줄여야 올라가요' : ''}`);
   let doc = null;
   try { doc = fsUn((await jfetch(projDocTop(p.id), { headers: h })).fields || {}); ok('프로젝트 문서 읽기(projects/{id})', `소유자 ${doc.ownerEmail || doc.owner || '?'}`); }
   catch (e) { bad('프로젝트 문서 읽기(projects/{id})', e); L.push(e.status === 403 ? '   → Firestore 규칙에 projects 경로가 없거나, 이 이메일이 memberEmails에 없어요. 마스터가 프로젝트 창을 열어 저장(구성원 초대 등)하면 다시 올라가요.' : e.status === 404 ? '   → 계정 DB에 이 프로젝트가 없어요. 마스터가 프로젝트 창을 열어 저장하면 올라가요.' : ''); show(); }
@@ -7671,10 +7676,20 @@ async function projPush(p) {
     if (!p.owner && (!p.ownerEmail || p.ownerEmail === myEmail())) { p.owner = a.uid; p.ownerEmail = myEmail(); }
     else if (p.owner === a.uid && !p.ownerEmail) p.ownerEmail = myEmail();   // 옛 버전에서 owner만 기록된 프로젝트: memberEmails에 내 이메일이 빠져 조회되지 않던 문제
     const memberEmails = [...new Set([p.ownerEmail, ...p.members].filter(Boolean))];
-    const fields = { json: { stringValue: JSON.stringify(p) }, name: { stringValue: p.name }, updatedAt: { stringValue: p.updatedAt }, deleted: { booleanValue: !!p.deleted }, owner: { stringValue: p.owner }, ownerEmail: { stringValue: p.ownerEmail }, memberEmails: { arrayValue: { values: memberEmails.map(e => ({ stringValue: e })) } } };
+    // 계정 DB 규칙은 json을 400,000(바이트 기준으로 잡음)까지만 받는다. 참고 문서의 원문(raw)은 요약 재시도용이라 올리지 않고, 그래도 크면 통합 참조 문서를 뒤에서 자른다
+    // (예전에는 원문까지 통째로 올리다 403이 나면 프로젝트 동기화 전체가 조용히 꺼졌다 → 공유가 안 되고 프로젝트가 브라우저에만 남던 원인)
+    const bytes = s => new TextEncoder().encode(s).length, LIMIT = 380000;
+    const slim = { ...p, refs: p.refs.map(r => ({ ...r, raw: r.status === 'error' ? r.raw.slice(0, 20000) : '' })) };
+    let json = JSON.stringify(slim);
+    if (bytes(json) > LIMIT) { slim.refs = slim.refs.map(r => ({ ...r, raw: '' })); json = JSON.stringify(slim); }
+    if (bytes(json) > LIMIT) { const over = bytes(json) - LIMIT; slim.merged = slim.merged.slice(0, Math.max(0, slim.merged.length - Math.ceil(over / 3) - 200)); json = JSON.stringify(slim); aiLog('warn', '프로젝트가 너무 커서 통합 참조 문서 뒷부분을 잘라 올렸어요(브라우저에는 전체가 남아 있음)', { project: p.name, bytes: bytes(json) }); }
+    const fields = { json: { stringValue: json }, name: { stringValue: p.name }, updatedAt: { stringValue: p.updatedAt }, deleted: { booleanValue: !!p.deleted }, owner: { stringValue: p.owner }, ownerEmail: { stringValue: p.ownerEmail }, memberEmails: { arrayValue: { values: memberEmails.map(e => ({ stringValue: e })) } } };
     await jfetch(`${projDocTop(p.id)}?${fsMask(fields)}`, { method: 'PATCH', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ fields }) });
   }
-  catch (e) { if (e && e.status === 403) { projOff = true; aiLog('warn', '프로젝트 동기화 꺼짐: 목록 DB 규칙에 projects 경로가 없거나 권한이 없어요(docs/CLOUD-SETUP.md의 규칙으로 갱신)', errInfo(e)); } else aiLog('warn', '프로젝트 동기화 실패', errInfo(e)); }
+  catch (e) {   // 올리기 실패는 이 프로젝트만의 문제일 수 있으므로 동기화 전체를 끄지 않고 알린다
+    aiLog('warn', '프로젝트 올리기 실패', { project: p.name, ...errInfo(e) });
+    if (e && e.status === 403) toast(`프로젝트 "${p.name}"을(를) 계정 DB에 올리지 못했어요(권한 거부). 프로젝트가 너무 크거나 Firestore 규칙이 오래됐을 수 있어요 — 설정 → 로그, docs/CLOUD-SETUP.md 참고.`, 9000);
+  }
 }
 async function fsQuery(a, parent, collectionId, field, value, op = 'ARRAY_CONTAINS') {   // 컬렉션에서 field (array-contains | ==) value 인 문서들
   const d = await jfetch(`${parent}:runQuery`, { method: 'POST', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId }], where: { fieldFilter: { field: { fieldPath: field }, op, value: { stringValue: value } } }, limit: 300 } }) });
@@ -7715,7 +7730,7 @@ async function projPull() {
     }
     for (const p of projects) if (!p.deleted && ((!p.owner && (!p.ownerEmail || p.ownerEmail === myEmail())) || p.owner === a.uid)) projPush(p).catch(() => {});   // 로그인 전 만든 것·내 것은 올린다
     if (changed) { try { localStorage.setItem(PROJ_KEY, JSON.stringify(projects)); } catch {} renderProjSel(); renderCloudProjSel(); aiLog('info', '계정의 프로젝트를 불러옴', { changed }); }
-  } catch (e) { if (e && e.status === 403) { projOff = true; aiLog('warn', '프로젝트 동기화 꺼짐(규칙에 projects 경로 없음 · docs/CLOUD-SETUP.md)', errInfo(e)); } else if (e.code !== 'relogin') aiLog('warn', '프로젝트 불러오기 실패', errInfo(e)); }
+  } catch (e) { if (e && e.status === 403) { projOff = true; aiLog('warn', '프로젝트 동기화 꺼짐(규칙에 projects 경로 없음 · docs/CLOUD-SETUP.md)', errInfo(e)); toast('계정 DB에서 프로젝트를 읽지 못했어요(권한 거부). Firestore 규칙에 projects 경로가 있는지 확인하세요(docs/CLOUD-SETUP.md). 이 세션에서는 프로젝트가 브라우저에만 저장돼요.', 10000); } else if (e.code !== 'relogin') aiLog('warn', '프로젝트 불러오기 실패', errInfo(e)); }
 }
 /* 프로젝트 회의록 목록(projects/{pid}/meetings): 구성원 모두가 읽고, 각자 올린 회의록을 기록한다 */
 async function projMeetUpsert(pid, m) {
@@ -7729,7 +7744,7 @@ async function projMeetList(a, pid) {
 async function projMeetDelete(pid, mid) { const a = await fbAuth(); await jfetch(projMeetDoc(pid, mid), { method: 'DELETE', headers: { authorization: 'Bearer ' + a.idToken } }); }
 /* 공유 프로젝트의 다른 구성원 회의록을 내 목록에 합친다(내 것이 우선) */
 async function sharedRows(rows) {
-  if (!FB || !user || projOff) return rows;
+  if (!FB || !user) return rows;   // projOff(규칙 문제)여도 시도한다: 실패는 각자 알린다
   const shared = projList().filter(projShared); if (!shared.length) return rows;
   const a = await fbAuth(), have = new Set(rows.map(r => r.id)), out = rows.slice();
   for (const p of shared) {
@@ -7745,7 +7760,7 @@ async function sharedRows(rows) {
 /* 회의록이 가리키는 프로젝트가 브라우저에 없으면 되살린다: Firestore 새 위치(projects/{id}) → 옛 위치(users/{uid}/projects/{id}) → 회의록에 남은 이름으로 최소 복원.
    저장된 데이터를 지우는 일은 절대 하지 않는다. 계정 DB에 '삭제됨'으로 남은 프로젝트는 그대로 둔다(되살리지 않음) */
 async function projRecover(rows) {
-  if (!FB || !user || projOff) return 0;
+  if (!FB || !user) return 0;
   const missing = [...new Set(rows.filter(m => m.project && !m.shared && !projects.some(p => p.id === m.project)).map(m => String(m.project)))];
   if (!missing.length) return 0;
   const a = await fbAuth(); let n = 0;
@@ -7772,7 +7787,7 @@ async function projRecover(rows) {
 const SHARE_KEY = 'meetnote.sharedFiles';
 let shareMemo = null, syncBusy = false;
 async function projMeetSync(rows) {
-  if (!FB || !user || projOff || syncBusy) return 0;
+  if (!FB || !user || syncBusy) return 0;
   const mine = rows.filter(m => !m.shared && m.fileId && m.project && projShared(projById(m.project)));
   if (!mine.length) return 0;
   syncBusy = true; let fixed = 0, shared = 0, pending = 0, failed = 0, indexFail = 0;
@@ -8312,16 +8327,16 @@ function renderCloudList(src) {
   $('#cloudCal').hidden = !cal || !cloudRows.length; $('#cloudSort').hidden = cal;
   $('#cloudInfo').textContent = `파일: 내 Google Drive의 ${DRIVE_FOLDER} 폴더 · 목록: ${cloudUi.src === 'db' ? '동기화됨' : 'Google Drive'}${cloudRows.length ? ` · ${cloudRows.length}건` : ''}`;
   renderCloudProjSel(); renderDashProjs();
-  if (!cloudRows.length) { el.innerHTML = `<div class="cloud-empty">${user ? '아직 클라우드에 저장한 회의록이 없어요. 회의를 쓴 뒤 <b>☁ 클라우드 저장</b>을 누르면 여기에 보여요.' : '로그인하면 클라우드에 저장한 회의록이 보여요.'}</div>`; return; }
   const q = $('#cloudSearch').value.trim().toLowerCase(), pf = $('#cloudProj').value;
-  const rows = cloudRows.filter(m => (pf === '' || (pf === '__none' ? !m.project : String(m.project || '') === pf)) && (!q || String(m.title || '').toLowerCase().includes(q) || String(m.name || '').toLowerCase().includes(q)));
-  el.style.maxHeight = '';
   const pj = pf && pf !== '__none' ? projById(pf) : null;
-  if (pj && !rows.length && !q && !cloudRows.some(m => String(m.project || '') === pf)) {   // 공유받은 프로젝트인데 기록된 회의록이 하나도 없을 때: 왜 안 보이는지 안내
-    $('#cloudCal').hidden = true;
-    el.innerHTML = `<div class="cloud-empty">${isProjOwner(pj) ? '이 프로젝트에 묶인 회의록이 아직 없어요. 회의를 쓰고 저장할 때 프로젝트를 고르거나, 목록의 프로젝트 선택으로 옮길 수 있어요.' : `"${esc(pj.name)}" 프로젝트에 아직 기록된 회의록이 없어요. 올린 사람(${esc(pj.ownerEmail || '마스터')})이 대시보드를 열거나 회의록을 다시 저장하면 구성원에게 공유되고 여기에 보여요. 그 뒤에 <b>새로고침</b>을 눌러 주세요.`}</div>`;
+  if (pj && !q && !cloudRows.some(m => String(m.project || '') === pf)) {   // 이 프로젝트에 기록된 회의록이 하나도 없을 때(공유받은 쪽이면 왜 안 보이는지) 안내
+    $('#cloudCal').hidden = true; el.style.maxHeight = '';
+    el.innerHTML = `<div class="cloud-empty">${isProjOwner(pj) ? '이 프로젝트에 묶인 회의록이 아직 없어요. 회의를 쓰고 저장할 때 프로젝트를 고르거나, 목록의 프로젝트 선택으로 옮길 수 있어요.' : `"${esc(pj.name)}" 프로젝트에 아직 기록된 회의록이 없어요. 올린 사람(${esc(pj.ownerEmail || '마스터')})이 대시보드를 열거나 회의록을 다시 저장하면 구성원에게 공유되고 여기에 보여요. 그 뒤에 <b>새로고침</b>을 눌러 주세요. 계속 안 보이면 프로젝트 관리 → <b>공유 점검</b>을 눌러 보세요.`}</div>`;
     return;
   }
+  if (!cloudRows.length) { el.innerHTML = `<div class="cloud-empty">${user ? '아직 클라우드에 저장한 회의록이 없어요. 회의를 쓴 뒤 저장에서 <b>클라우드</b>를 고르면 여기에 보여요.' : '로그인하면 클라우드에 저장한 회의록이 보여요.'}</div>`; return; }
+  const rows = cloudRows.filter(m => (pf === '' || (pf === '__none' ? !m.project : String(m.project || '') === pf)) && (!q || String(m.title || '').toLowerCase().includes(q) || String(m.name || '').toLowerCase().includes(q)));
+  el.style.maxHeight = '';
   if (!cal) {
     const by = $('#cloudSort').value;
     rows.sort((a, b) => by === 'title' ? String(a.title || '').localeCompare(String(b.title || ''), 'ko') : by === 'when' ? cloudWhen(b) - cloudWhen(a) : String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
