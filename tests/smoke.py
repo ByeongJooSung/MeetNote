@@ -14,7 +14,7 @@ def check_syntax():
     s = open(HTML, encoding='utf-8').read()
     js = re.findall(r'<script data-app>(.*?)</script>', s, re.S)[-1]
     tmp = os.path.join(tempfile.gettempdir(), 'meetnote_app.js'); open(tmp, 'w', encoding='utf-8').write(js)
-    r = subprocess.run(['node', '--check', tmp], capture_output=True, text=True)
+    r = subprocess.run(['node', '--check', tmp], capture_output=True, text=True, encoding='utf-8', errors='replace')   # node 오류 출력에 한글·기호가 섞여도 cp949로 죽지 않게
     print('syntax:', 'OK' if r.returncode == 0 else r.stderr); return r.returncode == 0
 
 def serve():

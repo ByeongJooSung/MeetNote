@@ -1346,6 +1346,8 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <input id="projMemFilter" class="mem-filter" type="search" placeholder="구성원 검색 (이메일)" autocomplete="off" hidden>
     <div id="projMembers" class="mem-list" role="list"></div>
     <p class="hint" id="projMemHint"></p>
+    <div class="att-head"><span class="hint">회의록이 구성원에게 안 보이면</span><span class="att-btns"><button class="btn" id="projDiag" title="계정 DB 기록·읽기 권한·Drive 파일 권한을 확인해요">공유 점검</button></span></div>
+    <pre id="projDiagOut" class="hint" hidden style="white-space:pre-wrap;user-select:text;background:var(--sunk);border-radius:8px;padding:8px 10px;margin:0 0 8px;font-size:12px;line-height:1.5"></pre>
     <label class="field">설명 (선택 · AI에게 프로젝트가 무엇인지 알려 줘요)<textarea id="projDesc" rows="2" maxlength="600" placeholder="예: 화학물질 공동활용 플랫폼 구축 사업(2026), 발주처 한국환경공단"></textarea></label>
     <div class="att-head"><b>프로젝트 참고 문서 <span id="projRefCount" class="hint"></span></b><span class="att-btns"><button class="btn" id="projRefAdd">문서 추가</button></span><input id="projRefInput" type="file" multiple hidden accept=".pdf,.docx,.pptx,.xlsx,.hwpx,.txt,.md,.csv,.tsv,.json,.html,.htm"></div>
     <div class="ref-list" id="projRefList"></div>
@@ -1430,8 +1432,11 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.24.2';
+const APP_VERSION = '0.24.3';
 const PATCH_NOTES = [
+  { v: '0.24.3', date: '2026-09-25', items: [
+    '프로젝트 창에 "공유 점검" 버튼: 계정 DB 문서·구성원 목록·회의록 기록·Drive 파일 권한을 단계별로 확인해 어디서 막히는지 보여줘요(마스터·구성원 양쪽에서 쓸 수 있어요).',
+  ] },
   { v: '0.24.2', date: '2026-09-25', items: [
     '공유 프로젝트: 구성원에게 파일을 공유하지 못했거나(Drive 미연결·구성원 이메일 문제) 프로젝트 기록에 실패하면 화면에 알려요. Drive에 연결되지 않아 미뤄진 공유는 "Drive와 목록 맞추기"를 누르면 함께 처리돼요. 초대 후 공유 결과도 토스트로 보여요.',
   ] },
@@ -7460,6 +7465,32 @@ async function inviteMember() {
 $('#projMemInvite').addEventListener('click', inviteMember);
 $('#projMemEmail').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); inviteMember(); } });
 $('#projMemFilter').addEventListener('input', () => { const p = projById(projCur); if (p) renderProjMembers(p); });
+/* 공유 점검: 구성원에게 회의록이 안 보일 때 어디서 막히는지 단계별로 확인해 보여 준다(계정 DB 문서 → 구성원 목록 → 회의록 기록 → 내 회의록 → Drive 권한) */
+async function projDiagnose() {
+  const p = projById(projCur); if (!p) return; const out = $('#projDiagOut'); out.hidden = false; const L = []; const show = () => { out.textContent = L.join('\n'); };
+  const ok = (t, d = '') => { L.push('✔ ' + t + (d ? ' — ' + d : '')); show(); }, bad = (t, e) => { L.push('✘ ' + t + (e ? ' — ' + (e.status ? `HTTP ${e.status} ` : '') + (e.message || e) : '')); show(); };
+  L.push(`프로젝트 "${p.name}" (id ${p.id}) · 로그인 ${myEmail() || '(없음)'} · 앱 v${APP_VERSION}`); show();
+  if (!FB) { bad('계정 DB(Firestore)가 설정되지 않았어요. config.js의 firebase 설정이 필요해요.'); return; }
+  if (!user) { bad('로그인이 필요해요.'); return; }
+  if (projOff) { L.push('⚠ 이 세션에서 프로젝트 동기화가 꺼져 있어요(이전에 403). 새로고침 후 다시 점검하세요.'); show(); }
+  let a; try { a = await fbAuth(); ok('계정 DB 로그인', `uid ${a.uid}`); } catch (e) { bad('계정 DB 로그인', e); return; }
+  const h = { authorization: 'Bearer ' + a.idToken };
+  let doc = null;
+  try { doc = fsUn((await jfetch(projDocTop(p.id), { headers: h })).fields || {}); ok('프로젝트 문서 읽기(projects/{id})', `소유자 ${doc.ownerEmail || doc.owner || '?'}`); }
+  catch (e) { bad('프로젝트 문서 읽기(projects/{id})', e); L.push(e.status === 403 ? '   → Firestore 규칙에 projects 경로가 없거나, 이 이메일이 memberEmails에 없어요. 마스터가 프로젝트 창을 열어 저장(구성원 초대 등)하면 다시 올라가요.' : e.status === 404 ? '   → 계정 DB에 이 프로젝트가 없어요. 마스터가 프로젝트 창을 열어 저장하면 올라가요.' : ''); show(); }
+  try { const raw = (await jfetch(projDocTop(p.id), { headers: h })).fields || {}; const emails = ((raw.memberEmails || {}).arrayValue || {}).values || []; const list = emails.map(v => v.stringValue); (list.includes(myEmail()) ? ok : bad)('구성원 목록(memberEmails)에 내 이메일', list.join(', ') || '(비어 있음)'); } catch {}
+  let idx = [];
+  try { idx = await projMeetList(a, p.id); (idx.length ? ok : bad)('프로젝트 회의록 기록(projects/{id}/meetings)', `${idx.length}건` + (idx.length ? ': ' + idx.slice(0, 5).map(m => `${m.title || '(제목 없음)'}←${m.ownerEmail || m.ownerUid || '?'}`).join(' / ') : '')); if (!idx.length) { L.push('   → 마스터(회의록을 올린 사람)가 대시보드를 열면 뒤에서 채워져요. 그래도 0건이면 마스터 쪽에서 이 점검을 눌러 보세요.'); show(); } }
+  catch (e) { bad('프로젝트 회의록 기록 읽기', e); L.push('   → Firestore 규칙의 projects/{pid}/meetings 부분(docs/CLOUD-SETUP.md)이 콘솔에 반영됐는지 확인하세요.'); show(); }
+  try { const mine = (await dbList()).filter(m => String(m.project || '') === p.id); ok('내 회의록 중 이 프로젝트', `${mine.length}건`); const missing = mine.filter(m => !idx.some(i => i.id === m.id)); if (missing.length) { L.push(`⚠ 그중 ${missing.length}건이 프로젝트 기록에 없어요 → 대시보드 "Drive와 목록 맞추기"를 누르면 기록·공유돼요.`); show(); } } catch (e) { bad('내 회의록 목록', e); }
+  const others = idx.filter(m => m.ownerUid !== a.uid && m.fileId), mineIdx = idx.filter(m => m.ownerUid === a.uid && m.fileId);
+  const hasDrive = !!(driveTok && driveTok.sub === user.sub && driveTok.exp > Date.now() + 60000);
+  if (!hasDrive) { L.push('ℹ Drive에 연결돼 있지 않아 파일 권한은 확인하지 않았어요(대시보드 "Drive와 목록 맞추기"로 연결 후 다시 점검).', '점검 끝. 이 내용을 복사해 알려 주시면 원인을 바로 짚을 수 있어요.'); show(); return; }
+  for (const m of others.slice(0, 3)) { try { const f = await dfetch(`/files/${encodeURIComponent(m.fileId)}?fields=${encodeURIComponent('id,name,owners(emailAddress)')}`); ok(`공유받은 파일 열기 권한: ${m.title || m.fileId}`, `소유 ${(f.owners || []).map(o => o.emailAddress).join(', ')}`); } catch (e) { bad(`공유받은 파일 열기 권한: ${m.title || m.fileId}`, e); L.push('   → 올린 사람이 대시보드에서 "Drive와 목록 맞추기"를 누르면 공유돼요. 그래도 안 되면 그 사람 쪽 설정 → 로그의 "Drive 공유 실패"를 확인하세요.'); show(); } }
+  for (const m of mineIdx.slice(0, 3)) { try { const d = await dfetch(`/files/${encodeURIComponent(m.fileId)}/permissions?fields=${encodeURIComponent('permissions(emailAddress,role)')}`); const em = (d.permissions || []).map(x => x.emailAddress).filter(Boolean); const need = [...p.members, p.ownerEmail].filter(e => e && e !== myEmail()); const lack = need.filter(e => !em.map(x => x.toLowerCase()).includes(e)); (lack.length ? bad : ok)(`내 파일 공유 상태: ${m.title || m.fileId}`, lack.length ? `공유 안 됨: ${lack.join(', ')}` : `공유됨: ${em.join(', ') || '(구성원 없음)'}`); } catch (e) { bad(`내 파일 권한 조회: ${m.title || m.fileId}`, e); } }
+  L.push('점검 끝. 이 내용을 복사해 알려 주시면 원인을 바로 짚을 수 있어요.'); show();
+}
+$('#projDiag').addEventListener('click', () => projDiagnose().catch(e => { $('#projDiagOut').hidden = false; $('#projDiagOut').textContent += '\n✘ 점검 중 오류: ' + (e && e.message || e); }));
 $('#projMembers').addEventListener('click', async e => {
   const b = e.target.closest('[data-mem]'); if (!b) return; const p = projById(projCur); if (!p) return;
   const email = b.dataset.mem, act = b.dataset.act, own = isProjOwner(p);
@@ -7521,7 +7552,7 @@ async function unshareProjectFiles(p, email) {
   } catch (e) { aiLog('warn', '프로젝트 파일 공유 해제 실패', errInfo(e)); }
 }
 $('#projManage').addEventListener('click', () => openProjDlg(S.meta.project));
-$('#projPick').addEventListener('change', e => { projCur = e.target.value; $('#projMemFilter').value = ''; renderProjDlg(); });
+$('#projPick').addEventListener('change', e => { projCur = e.target.value; $('#projMemFilter').value = ''; $('#projDiagOut').hidden = true; renderProjDlg(); });
 $('#projNew').addEventListener('click', async () => { const p = await createProject(); if (p) { projCur = p.id; renderProjDlg(); } });
 $('#projRename').addEventListener('click', async () => { const p = projById(projCur); if (!p) return; const name = await askText('프로젝트 이름 변경', '이름', p.name, { max: 60 }); if (!name || name === p.name) return; p.name = name; saveProjects(p); renderProjDlg(); });
 $('#projDel').addEventListener('click', async () => {
