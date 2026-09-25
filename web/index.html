@@ -1430,8 +1430,11 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.24.1';
+const APP_VERSION = '0.24.2';
 const PATCH_NOTES = [
+  { v: '0.24.2', date: '2026-09-25', items: [
+    '공유 프로젝트: 구성원에게 파일을 공유하지 못했거나(Drive 미연결·구성원 이메일 문제) 프로젝트 기록에 실패하면 화면에 알려요. Drive에 연결되지 않아 미뤄진 공유는 "Drive와 목록 맞추기"를 누르면 함께 처리돼요. 초대 후 공유 결과도 토스트로 보여요.',
+  ] },
   { v: '0.24.1', date: '2026-09-25', items: [
     '긴급 수정: 0.24.0에서 로그아웃하면 브라우저의 프로젝트 목록을 지우던 동작을 없앴어요(저장된 데이터는 어떤 경우에도 지우지 않아요).',
     '사라진 프로젝트 복구: 회의록이 가리키는 프로젝트가 없으면 계정 DB(새 위치 → 옛 위치)에서 되살리고, DB에도 없으면 회의록에 남은 이름으로 복원해요. 내가 소유한 프로젝트는 구성원 목록과 상관없이 항상 불러와요.',
@@ -7488,11 +7491,13 @@ $('#projMemHint').addEventListener('click', async e => {
   projCur = ''; renderProjSel(); renderCloudProjSel(); renderProjDlg(); toast('프로젝트에서 나갔어요.');
 });
 /* 프로젝트 회의록 파일 공유: 내가 올린 파일(ownerUid = 나)을 구성원에게 Drive 권한(편집)으로 준다. 상대에게 알림 메일은 보내지 않는다 */
-async function shareFileWith(fileId, emails) {
+async function shareFileWith(fileId, emails) {   // 실패한 이메일 목록을 돌려준다(이미 공유된 경우는 성공으로 본다)
+  const failed = [];
   for (const email of emails) {
     try { await dfetch(`/files/${encodeURIComponent(fileId)}/permissions?sendNotificationEmail=false&fields=id`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ role: 'writer', type: 'user', emailAddress: email }) }); }
-    catch (e) { if (!/already|exists|duplicate/i.test(String(e.message) + String(e.body))) aiLog('warn', 'Drive 공유 실패', { email, ...errInfo(e) }); }
+    catch (e) { if (!/already|exists|duplicate/i.test(String(e.message) + String(e.body))) { failed.push(email); aiLog('warn', 'Drive 공유 실패', { email, file: fileId, ...errInfo(e) }); } }
   }
+  return failed;
 }
 async function shareProjectFiles(p, emails) {
   if (!FB || !user || !emails.length) return;
@@ -7500,8 +7505,9 @@ async function shareProjectFiles(p, emails) {
     await driveAuth(); const a = await fbAuth();
     try { await projMeetSync(await dbList()); } catch {}   // 공유 전에 저장한 회의록도 프로젝트 기록에 넣고 새 구성원까지 공유
     const mine = (await projMeetList(a, p.id)).filter(m => m.ownerUid === a.uid && m.fileId);
-    for (const m of mine) await shareFileWith(m.fileId, emails);
-    aiLog('info', '프로젝트 파일 공유', { project: p.name, files: mine.length, to: emails.length });
+    const bad = new Set(); for (const m of mine) (await shareFileWith(m.fileId, emails)).forEach(e => bad.add(e));
+    aiLog('info', '프로젝트 파일 공유', { project: p.name, files: mine.length, to: emails.length, failed: [...bad] });
+    toast(bad.size ? `파일 공유에 실패한 구성원이 있어요: ${[...bad].join(', ')} (Google 계정 이메일인지 확인 · 설정 → 로그)` : `이 프로젝트의 내 회의록 ${mine.length}건을 ${emails.join(', ')}에게 공유했어요.`, 8000);
   } catch (e) { aiLog('warn', '프로젝트 파일 공유 실패', errInfo(e)); }
 }
 async function unshareProjectFiles(p, email) {
@@ -7738,7 +7744,7 @@ async function projMeetSync(rows) {
   if (!FB || !user || projOff || syncBusy) return 0;
   const mine = rows.filter(m => !m.shared && m.fileId && m.project && projShared(projById(m.project)));
   if (!mine.length) return 0;
-  syncBusy = true; let fixed = 0, shared = 0;
+  syncBusy = true; let fixed = 0, shared = 0, pending = 0, failed = 0, indexFail = 0;
   try {
     const a = await fbAuth(), me = myEmail();
     const canShare = !!(driveTok && driveTok.sub === user.sub && driveTok.exp > Date.now() + 60000);
@@ -7746,19 +7752,28 @@ async function projMeetSync(rows) {
     const byProj = new Map(); mine.forEach(m => byProj.set(m.project, [...(byProj.get(m.project) || []), m]));
     for (const [pid, list] of byProj) {
       const p = projById(pid); let have;
-      try { have = new Map((await projMeetList(a, pid)).map(h => [h.id, h])); } catch (e) { aiLog('warn', '프로젝트 회의록 목록 읽기 실패', { project: p.name, ...errInfo(e) }); continue; }
+      try { have = new Map((await projMeetList(a, pid)).map(h => [h.id, h])); } catch (e) { indexFail += list.length; aiLog('warn', '프로젝트 회의록 목록 읽기 실패(규칙에 projects/{id}/meetings 경로가 있는지, 프로젝트가 계정 DB에 올라갔는지 확인)', { project: p.name, ...errInfo(e) }); continue; }
       const to = [...p.members, p.ownerEmail].filter(e => e && e !== me).sort(), key = to.join(',');
       for (const m of list) {
         const h = have.get(m.id);
         if (!h || h.fileId !== m.fileId || (h.updatedAt || '') !== (m.updatedAt || '') || (h.title || '') !== (m.title || '')) {
           try { await projMeetUpsert(pid, { id: m.id, title: m.title || '', when: m.when || '', duration: +m.duration || 0, bytes: +m.bytes || 0, updatedAt: m.updatedAt || new Date().toISOString(), fileId: m.fileId, name: m.name || '', ownerUid: a.uid, ownerEmail: me }); fixed++; }
-          catch (e) { aiLog('warn', '프로젝트 회의록 기록 실패', { project: p.name, id: m.id, ...errInfo(e) }); }
+          catch (e) { indexFail++; aiLog('warn', '프로젝트 회의록 기록 실패', { project: p.name, id: m.id, ...errInfo(e) }); }
         }
-        if (canShare && to.length && shareMemo[m.fileId] !== key) { await shareFileWith(m.fileId, to); shareMemo[m.fileId] = key; shared++; }
+        if (to.length && shareMemo[m.fileId] !== key) {
+          if (!canShare) { pending++; continue; }
+          const bad = await shareFileWith(m.fileId, to);
+          if (bad.length) failed++; else { shareMemo[m.fileId] = key; shared++; }
+        }
       }
     }
     try { localStorage.setItem(SHARE_KEY, JSON.stringify(shareMemo)); } catch {}
-    if (fixed || shared) aiLog('info', '프로젝트 회의록 목록·공유 보강', { fixed, shared });
+    if (fixed || shared || pending || failed || indexFail) aiLog('info', '프로젝트 회의록 목록·공유 보강', { fixed, shared, pending, failed, indexFail });
+    // 결과를 화면에 알린다: 조용히 건너뛰면 "왜 구성원에게 안 보이는지" 알 수 없다
+    if (indexFail) toast(`프로젝트 회의록 ${indexFail}건을 계정 DB에 기록하지 못했어요. 설정 → 로그를 확인하세요(Firestore 규칙 projects/{id}/meetings).`, 9000);
+    else if (failed) toast(`구성원에게 파일 ${failed}건을 공유하지 못했어요(구성원 이메일이 Google 계정인지 확인). 설정 → 로그 참고.`, 9000);
+    else if (pending) toast(`구성원과 공유할 회의록 파일이 ${pending}건 있어요. 왼쪽 "Drive와 목록 맞추기"를 누르면 Drive에 연결되면서 공유돼요.`, 10000);
+    else if (fixed || shared) toast(`공유 프로젝트 기록을 맞췄어요(기록 ${fixed}건, 파일 공유 ${shared}건).`, 5000);
   } catch (e) { aiLog('warn', '프로젝트 회의록 맞추기 실패', errInfo(e)); }
   finally { syncBusy = false; }
   return fixed;
@@ -8223,9 +8238,14 @@ async function cloudSave({ alsoLocal = false } = {}) {
     S.cloud = { fileId }; S.fileName = base;
     let dbNote = '';
     const proj = projById(S.meta.project);
-    if (FB && proj) { try { const a = await fbAuth(); await projMeetUpsert(proj.id, { ...meta, fileId, name, ownerUid: a.uid, ownerEmail: myEmail() }); if (proj.members.length) { progSet(93, '구성원에게 파일을 공유하는 중'); await shareFileWith(fileId, [...proj.members, proj.ownerEmail].filter(e => e && e !== myEmail())); } } catch (e) { aiLog('warn', '프로젝트 회의록 기록·공유 실패', errInfo(e)); } }
+    if (FB && proj) {
+      try { const a = await fbAuth(); await projMeetUpsert(proj.id, { ...meta, fileId, name, ownerUid: a.uid, ownerEmail: myEmail() }); }
+      catch (e) { aiLog('warn', '프로젝트 회의록 기록 실패', errInfo(e)); dbNote += ' 프로젝트 목록에는 기록하지 못했어요(구성원에게 안 보일 수 있어요 · 설정 → 로그).'; }
+      const to = [...proj.members, proj.ownerEmail].filter(e => e && e !== myEmail());
+      if (to.length) { progSet(93, '구성원에게 파일을 공유하는 중'); try { const bad = await shareFileWith(fileId, to); if (bad.length) dbNote += ` 파일 공유 실패: ${bad.join(', ')}.`; } catch (e) { aiLog('warn', '프로젝트 파일 공유 실패', errInfo(e)); dbNote += ' 구성원에게 파일을 공유하지 못했어요(설정 → 로그).'; } }
+    }
     if (forked) toast('공유받은 파일에는 쓸 권한이 없어 내 Drive에 새 파일로 저장했어요. 프로젝트 구성원에게는 이 새 파일이 보여요.', 8000);
-    if (FB) { progSet(95, '목록에 기록하는 중'); try { await dbUpsert({ ...meta, fileId, name }); } catch (e) { aiLog('warn', '목록 DB 기록 실패(Drive에는 저장됨)', errInfo(e)); dbNote = ' 목록에는 기록하지 못했어요. "회의록 불러오기"의 "Drive와 목록 맞추기"로 맞출 수 있어요.'; } }
+    if (FB) { progSet(95, '목록에 기록하는 중'); try { await dbUpsert({ ...meta, fileId, name }); } catch (e) { aiLog('warn', '목록 DB 기록 실패(Drive에는 저장됨)', errInfo(e)); dbNote += ' 목록에는 기록하지 못했어요. "회의록 불러오기"의 "Drive와 목록 맞추기"로 맞출 수 있어요.'; } }
     markClean();
     aiLog('info', '클라우드 저장 완료', { bytes: blob.size, ms: Math.round(performance.now() - t0), db: FB ? !dbNote : 'off' });
     toast((alsoLocal ? '내 Google Drive에 저장하고 파일도 내려받았어요.' : '내 Google Drive에 저장했어요.') + dbNote, dbNote ? 9000 : 4000);
@@ -8350,6 +8370,7 @@ async function cloudSync() {
       for (const h of have) if (!byId.has(h.id)) { await dbDelete(h.id); removed++; }
     }
     cloudRows = files; renderCloudList(FB ? 'db' : 'drive');
+    if (FB) projMeetSync(files).catch(() => {});   // Drive 토큰이 생겼으니 구성원 파일 공유까지 맞춘다
     toast(FB ? `Drive와 목록을 맞췄어요 (갱신 ${added}건, 정리 ${removed}건).` : 'Drive 목록을 다시 읽었어요.');
   } catch (e) { aiLog('error', '목록 맞추기 실패', errInfo(e)); toast('목록을 맞추지 못했어요: ' + cloudExplain(e), 7000); }
   finally { btn.disabled = false; }
