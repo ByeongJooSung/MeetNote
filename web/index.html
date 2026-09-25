@@ -1444,8 +1444,11 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.28.0';
+const APP_VERSION = '0.28.1';
 const PATCH_NOTES = [
+  { v: '0.28.1', date: '2026-09-26', items: [
+    '휴지통: 기록을 먼저 남기고 Drive 파일을 옮기도록 순서를 바꿨어요(규칙 미갱신 등으로 실패하면 아무것도 바뀌지 않고, 이유를 자세히 알려요).',
+  ] },
   { v: '0.28.0', date: '2026-09-26', items: [
     '휴지통: 회의록을 삭제하면 바로 지우지 않고 휴지통에 30일 보관해요(대시보드 왼쪽 메뉴 → 휴지통). 거기서 복구하거나 영구 삭제할 수 있고, 30일이 지나면 자동으로 영구 삭제돼요. Drive 파일도 Drive 휴지통과 함께 움직여요.',
     '공유 프로젝트의 내 회의록이 삭제되지 않던 문제를 고쳤어요(프로젝트 기록에만 남아 다시 나타나던 것). 휴지통에 넣은 회의록은 구성원에게도 보이지 않아요.',
@@ -8612,11 +8615,11 @@ async function trashMark(m, on) {
 async function cloudDeleteItem(m) {
   if (!(await askConfirm('휴지통으로 옮길까요?', `"${m.title || '제목 없는 회의'}"을(를) 휴지통으로 옮겨요. ${TRASH_DAYS}일 동안 휴지통에서 복구할 수 있고, 그 뒤에는 자동으로 영구 삭제돼요.${m.project && projShared(projById(m.project)) ? ' 프로젝트 구성원에게도 더는 보이지 않아요.' : ''}`, '휴지통으로'))) return;
   try {
-    try { await dfetch(`/files/${encodeURIComponent(m.fileId)}?fields=id`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ trashed: true }) }); } catch (e) { if (e.status !== 404) throw e; }
-    if (FB) await trashMark(m, true); else cloudRows = cloudRows.filter(x => x !== m);   // 목록 DB가 없으면 Drive 휴지통만
+    if (FB) await trashMark(m, true); else cloudRows = cloudRows.filter(x => x !== m);   // 기록부터(실패하면 아무것도 바뀌지 않게). 목록 DB가 없으면 Drive 휴지통만
+    try { await dfetch(`/files/${encodeURIComponent(m.fileId)}?fields=id`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ trashed: true }) }); } catch (e) { if (e.status !== 404) aiLog('warn', 'Drive 휴지통 이동 실패(기록은 휴지통에 있음)', errInfo(e)); }
     if (S.cloud && S.cloud.fileId === m.fileId) S.cloud = null;
     renderCloudList(FB ? 'db' : 'drive'); toast(`휴지통으로 옮겼어요. ${TRASH_DAYS}일 안에 왼쪽 "휴지통"에서 복구할 수 있어요.`, 6000);
-  } catch (e) { aiLog('error', '휴지통 이동 실패', errInfo(e)); toast('휴지통으로 옮기지 못했어요: ' + cloudExplain(e), 7000); }
+  } catch (e) { aiLog('error', '휴지통 이동 실패', errInfo(e)); toast(e && e.status === 403 ? '휴지통으로 옮기지 못했어요(권한 거부). Firestore 규칙의 users/{uid}/meetings 허용 항목에 deletedAt·deletedBy를 추가하고 게시해 주세요(docs/CLOUD-SETUP.md). 회의록은 그대로 있어요.' : '휴지통으로 옮기지 못했어요: ' + cloudExplain(e), 10000); }
 }
 async function cloudRestoreItem(m) {
   try {
