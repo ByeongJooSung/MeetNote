@@ -31,7 +31,7 @@ MeetNote는 서버 없이 동작합니다. 클라우드 저장은 아래처럼 �
        match /users/{uid}/meetings/{id} {
          allow read, delete: if request.auth != null && request.auth.uid == uid;
          allow create, update: if request.auth != null && request.auth.uid == uid
-           && request.resource.data.keys().hasOnly(['title','when','duration','bytes','updatedAt','fileId','name','project','projectName'])
+           && request.resource.data.keys().hasOnly(['title','when','duration','bytes','updatedAt','fileId','name','project','projectName','deletedAt','deletedBy'])
            && request.resource.data.title is string && request.resource.data.title.size() <= 200
            && request.resource.data.fileId is string && request.resource.data.fileId.size() <= 200
            && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 300));
@@ -112,7 +112,7 @@ Google Cloud Console → **사용자 인증 정보 → API 키(Browser key)** �
 
 ## 4. 쓰는 방법
 - **저장 → 클라우드**(또는 "둘 다"): 헤더의 `저장`을 누르면 클라우드 / .mnote 파일 / 둘 다 중 고릅니다. 클라우드를 고르면 처음 한 번 Drive 권한 창이 뜹니다(“이 앱으로 만든 Drive 파일 보기·수정”). 같은 회의를 다시 저장하면 같은 파일을 덮어씁니다.
-- **내 회의록**: 목록에서 열기·삭제. 삭제는 Drive **휴지통**으로 옮기므로 30일 안에 되살릴 수 있습니다.
+- **내 회의록**: 목록에서 열기·삭제. 삭제하면 대시보드 **휴지통**(왼쪽 메뉴)에 30일 보관되고(Drive 파일도 Drive 휴지통으로), 휴지통에서 **복구**하거나 **영구 삭제**할 수 있습니다. 30일이 지나면 자동으로 영구 삭제됩니다(기록에 `deletedAt`·`deletedBy` — 규칙의 hasOnly에 이 두 항목이 있어야 합니다).
 - **Drive와 목록 맞추기**: Drive에서 직접 지웠거나 다른 기기에서 저장해 목록이 어긋났을 때, Drive 폴더를 기준으로 목록을 다시 맞춥니다.
 - 저장 창에서 `.mnote 파일`(내려받기)은 로그인 없이도 쓸 수 있습니다.
 - Drive 권한은 **⚙ 설정 → 계정·클라우드**에서 다시 연결하거나 해제할 수 있습니다. 구글 계정의 https://myaccount.google.com/permissions 에서도 언제든 끊을 수 있습니다.

@@ -146,6 +146,8 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .mem-list .x:hover{color:var(--rec);background:var(--sunk)}
 .mem-list .hint{padding:10px}
 .mem-add{display:flex;gap:6px;margin:4px 0 8px}
+.lnb .nav[aria-pressed="true"]{background:var(--tape-soft);color:var(--tape);font-weight:600}
+.lnb #dashTrashN{display:inline-block;min-width:18px;padding:0 6px;border-radius:999px;background:var(--bg-gray);font-size:11.5px;text-align:center;margin-left:4px}
 .mem-filter{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:6px 9px;background:var(--surface);color:var(--ink);font-size:13px;margin:0 0 6px}
 @media (max-width:560px){.mem-row{flex-wrap:wrap}.mem-row .acts{width:100%;justify-content:flex-end}}
 .mem-add input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--ink)}
@@ -1274,6 +1276,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <button type="button" class="nav" id="dashSettings">설정</button>
     <button type="button" class="nav" id="cloudSync" title="Drive의 MeetNote 폴더를 읽어 목록을 다시 맞춥니다">Drive와 목록 맞추기</button>
     <button type="button" class="nav" id="cloudRefresh">새로고침</button>
+    <button type="button" class="nav" id="dashTrash" aria-pressed="false" title="지운 회의록은 30일 동안 여기 보관되고, 그 뒤 자동으로 영구 삭제돼요">휴지통 <span class="n" id="dashTrashN" hidden></span></button>
     <div class="lnb-spacer"></div>
     <button type="button" class="nav" id="cloudClose">← 편집 화면으로</button>
     <button type="button" class="nav" id="dashSignOut" hidden title="Google 계정에서 로그아웃해요">로그아웃</button>
@@ -1441,8 +1444,13 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.27.1';
+const APP_VERSION = '0.28.0';
 const PATCH_NOTES = [
+  { v: '0.28.0', date: '2026-09-26', items: [
+    '휴지통: 회의록을 삭제하면 바로 지우지 않고 휴지통에 30일 보관해요(대시보드 왼쪽 메뉴 → 휴지통). 거기서 복구하거나 영구 삭제할 수 있고, 30일이 지나면 자동으로 영구 삭제돼요. Drive 파일도 Drive 휴지통과 함께 움직여요.',
+    '공유 프로젝트의 내 회의록이 삭제되지 않던 문제를 고쳤어요(프로젝트 기록에만 남아 다시 나타나던 것). 휴지통에 넣은 회의록은 구성원에게도 보이지 않아요.',
+    '규칙 갱신 필요: 목록 DB 규칙(users/{uid}/meetings)의 허용 항목에 deletedAt·deletedBy를 추가해야 해요(docs/CLOUD-SETUP.md).',
+  ] },
   { v: '0.27.1', date: '2026-09-26', items: [
     '대시보드 목록 보기에 연도 필터를 넣었어요. 회의록이 있는 연도만 보이고 처음엔 가장 최근 연도가 골라져요("전체 연도"도 가능). 달력 보기는 달로 넘기므로 그대로예요.',
   ] },
@@ -7797,7 +7805,10 @@ async function sharedRows(rows) {
       for (const m of await projMeetList(a, p.id)) {
         if (!m.fileId) continue;
         const mine = have.get(m.id);
+        if (!mine && m.deletedAt) continue;                 // 남이 지운 것은 보이지 않는다
+        if (!mine && m.ownerUid === a.uid) { have.set(m.id, m); out.push({ ...m, projectName: p.name, shared: false }); continue; }   // 내가 올린 것인데 내 목록에 없으면(옛 삭제 등) 내 것으로 다룬다
         if (mine) {
+          if (m.deletedAt && !mine.deletedAt) { mine.deletedAt = m.deletedAt; mine.deletedBy = m.deletedBy || ''; }   // 다른 기기에서 휴지통에 넣은 것
           mine.editing = m.editing || ''; mine.editingAt = m.editingAt || '';   // 누가 편집 중인지   // 내가 올린 회의록을 구성원이 고쳐 저장한 경우(같은 파일에 되쓰거나, 권한이 없어 자기 Drive에 새 파일로): 더 새 기록을 따른다
           if (String(m.updatedAt || '') > String(mine.updatedAt || '')) {
             const forked = m.fileId !== mine.fileId;
@@ -7863,11 +7874,11 @@ async function projMeetSync(rows) {
       for (const m of list) {
         const h = have.get(m.id);
         const mineNewer = String(m.updatedAt || '') > String(h && h.updatedAt || '');
-        if (!h || mineNewer || (String(m.updatedAt || '') === String(h.updatedAt || '') && (h.fileId !== m.fileId || (h.title || '') !== (m.title || '')))) {   // 구성원이 더 최근에 고친 기록은 덮지 않는다
-          try { await projMeetUpsert(pid, { id: m.id, title: m.title || '', when: m.when || '', duration: +m.duration || 0, bytes: +m.bytes || 0, updatedAt: m.updatedAt || new Date().toISOString(), fileId: m.fileId, name: m.name || '', ownerUid: a.uid, ownerEmail: me }); fixed++; }
+        if (!h || mineNewer || (String(m.updatedAt || '') === String(h.updatedAt || '') && (h.fileId !== m.fileId || (h.title || '') !== (m.title || '') || String(h.deletedAt || '') !== String(m.deletedAt || '')))) {   // 구성원이 더 최근에 고친 기록은 덮지 않는다
+          try { await projMeetUpsert(pid, { id: m.id, title: m.title || '', when: m.when || '', duration: +m.duration || 0, bytes: +m.bytes || 0, updatedAt: m.updatedAt || new Date().toISOString(), fileId: m.fileId, name: m.name || '', ownerUid: a.uid, ownerEmail: me, deletedAt: m.deletedAt || '', deletedBy: m.deletedBy || '' }); fixed++; }
           catch (e) { indexFail++; aiLog('warn', '프로젝트 회의록 기록 실패', { project: p.name, id: m.id, ...errInfo(e) }); }
         }
-        if (to.length && shareMemo[m.fileId] !== key) {
+        if (to.length && shareMemo[m.fileId] !== key && !m.deletedAt) {
           if (!canShare) { pending++; continue; }
           const bad = await shareFileWith(m.fileId, to);
           if (bad.length) failed++; else { shareMemo[m.fileId] = key; shared++; }
@@ -8391,14 +8402,22 @@ async function cloudLoadList() {
 }
 /* 불러오기 창: 카드 목록(검색·정렬) 또는 달력(날짜를 누르면 그날의 회의). 가로 스크롤이 생기지 않게 제목은 말줄임, 나머지는 줄바꿈 */
 const CLOUD_VIEW_KEY = 'meetnote.cloudView';
-const cloudUi = { view: 'cal', ym: null, day: '', src: 'db', year: null };   // 기본은 달력. year: 목록 보기의 연도(null=아직 안 고름 → 최근 연도, 0=전체)
+const cloudUi = { view: 'cal', ym: null, day: '', src: 'db', year: null, trash: false };   // trash: 휴지통 보기   // 기본은 달력. year: 목록 보기의 연도(null=아직 안 고름 → 최근 연도, 0=전체)
 try { if (localStorage.getItem(CLOUD_VIEW_KEY) === 'list') cloudUi.view = 'list'; } catch {}
 const dayKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const TRASH_DAYS = 30;
+const liveRows = () => cloudRows.filter(m => !m.deletedAt);                       // 휴지통에 있지 않은 것
+const trashRows = () => cloudRows.filter(m => m.deletedAt && !m.shared);         // 내가 지운 것(남이 지운 것은 보이지 않음)
+const trashLeft = m => Math.max(0, Math.ceil((new Date(m.deletedAt).getTime() + TRASH_DAYS * 86400000 - Date.now()) / 86400000));   // 자동 삭제까지 남은 날
 const cloudWhen = m => { for (const v of [m.when, m.updatedAt]) { const d = v ? new Date(v) : null; if (d && !isNaN(d)) return d; } return new Date(0); };
 function cloudItemHtml(m, compact) {
   const d = cloudWhen(m), dt = v => { const t = v ? new Date(v) : null; return t && !isNaN(t) ? t.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) : ''; };
   const meta = [dt(m.when), m.duration ? '녹음 ' + fmt(m.duration) : '', m.bytes ? (m.bytes / 1048576).toFixed(1) + 'MB' : '', dt(m.updatedAt) ? '저장 ' + dt(m.updatedAt) : '', m.shared && m.ownerEmail ? '올린 사람 ' + m.ownerEmail : '', m.editedBy ? '수정 ' + m.editedBy : ''].filter(Boolean);
   const i = cloudRows.indexOf(m), cur = m.id === safeId(S.id);
+  if (m.deletedAt) return `<div class="cl-item" data-trash="${i}" title="휴지통">
+    <span class="cl-date num"><b>${d.getTime() ? d.getDate() : '-'}</b><small>${d.getTime() ? `${d.getFullYear() % 100}.${String(d.getMonth() + 1).padStart(2, '0')}` : ''}</small></span>
+    <span class="cl-main"><span class="cl-title">${m.project ? `<span class="cl-proj">${esc(projName(m.project) || m.projectName || '프로젝트')}</span>` : ''}${esc(m.title || '제목 없는 회의')}</span><span class="cl-meta">${[dt(m.when), `지움 ${dt(m.deletedAt)}`, `${trashLeft(m)}일 뒤 자동 삭제`].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join('<i>·</i>')}</span></span>
+    <span class="cl-act"><button type="button" class="btn" data-crestore="${i}">복구</button><button type="button" class="btn" data-cpurge="${i}" style="color:var(--rec)">영구 삭제</button></span></div>`;
   return `<div class="cl-item${cur ? ' cur' : ''}" role="button" tabindex="0" data-copen="${i}" title="눌러서 열기">
     <span class="cl-date num"><b>${d.getTime() ? d.getDate() : '-'}</b><small>${d.getTime() ? `${d.getFullYear() % 100}.${String(d.getMonth() + 1).padStart(2, '0')}` : ''}</small></span>
     <span class="cl-main"><span class="cl-title">${presOther(m) ? `<span class="cl-shared" style="color:var(--wait);background:var(--bg-yellow)" title="${esc(presOther(m))}">✎ 편집 중</span>` : ''}${m.shared ? `<span class="cl-shared" title="${esc(m.ownerEmail || '')}">공유</span>` : ''}${m.project ? `<span class="cl-proj">${esc(projName(m.project) || m.projectName || '프로젝트')}</span>` : ''}${esc(m.title || '제목 없는 회의')}${cur ? '<em>열려 있음</em>' : ''}</span><span class="cl-meta">${meta.map(x => `<span>${esc(x)}</span>`).join('<i>·</i>')}</span></span>
@@ -8408,19 +8427,25 @@ function renderCloudList(src) {
   if (src) cloudUi.src = src;
   const el = $('#cloudList'), cal = cloudUi.view === 'cal';
   document.querySelectorAll('#cloudViewSeg [data-cview]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cview === cloudUi.view)));
-  $('#cloudCal').hidden = !cal || !cloudRows.length; $('#cloudSort').hidden = cal;
-  renderCloudYear(); $('#cloudYear').hidden = cal || !cloudRows.length;
-  $('#cloudInfo').textContent = `파일: 내 Google Drive의 ${DRIVE_FOLDER} 폴더 · 목록: ${cloudUi.src === 'db' ? '동기화됨' : 'Google Drive'}${cloudRows.length ? ` · ${cloudRows.length}건` : ''}`;
+  const trash = cloudUi.trash, live = liveRows();
+  $('#cloudCal').hidden = trash || !cal || !live.length; $('#cloudSort').hidden = trash || cal;
+  renderCloudYear(); $('#cloudYear').hidden = trash || cal || !live.length; $('#cloudViewSeg').hidden = trash;
+  $('#cloudInfo').textContent = trash ? `휴지통 · 지운 회의록은 ${TRASH_DAYS}일 동안 보관된 뒤 자동으로 영구 삭제돼요. Drive 파일도 Drive 휴지통에 있어요.` : `파일: 내 Google Drive의 ${DRIVE_FOLDER} 폴더 · 목록: ${cloudUi.src === 'db' ? '동기화됨' : 'Google Drive'}${live.length ? ` · ${live.length}건` : ''}`;
   renderCloudProjSel(); renderDashProjs();
+  if (trash) {
+    const pf0 = $('#cloudProj').value, q0 = $('#cloudSearch').value.trim().toLowerCase();
+    const tr = trashRows().filter(m => (pf0 === '' || (pf0 === '__none' ? !m.project : String(m.project || '') === pf0)) && (!q0 || String(m.title || '').toLowerCase().includes(q0))).sort((a, b) => String(b.deletedAt).localeCompare(String(a.deletedAt)));
+    el.style.maxHeight = ''; el.innerHTML = tr.map(m => cloudItemHtml(m)).join('') || '<div class="cloud-empty">휴지통이 비어 있어요.</div>'; return;
+  }
   const q = $('#cloudSearch').value.trim().toLowerCase(), pf = $('#cloudProj').value;
   const pj = pf && pf !== '__none' ? projById(pf) : null;
-  if (pj && !q && !cloudRows.some(m => String(m.project || '') === pf)) {   // 이 프로젝트에 기록된 회의록이 하나도 없을 때(공유받은 쪽이면 왜 안 보이는지) 안내
+  if (pj && !q && !live.some(m => String(m.project || '') === pf)) {   // 이 프로젝트에 기록된 회의록이 하나도 없을 때(공유받은 쪽이면 왜 안 보이는지) 안내
     $('#cloudCal').hidden = true; el.style.maxHeight = '';
     el.innerHTML = `<div class="cloud-empty">${isProjOwner(pj) ? '이 프로젝트에 묶인 회의록이 아직 없어요. 회의를 쓰고 저장할 때 프로젝트를 고르거나, 목록의 프로젝트 선택으로 옮길 수 있어요.' : `"${esc(pj.name)}" 프로젝트에 아직 기록된 회의록이 없어요. 올린 사람(${esc(pj.ownerEmail || '마스터')})이 대시보드를 열거나 회의록을 다시 저장하면 구성원에게 공유되고 여기에 보여요. 그 뒤에 <b>새로고침</b>을 눌러 주세요. 계속 안 보이면 프로젝트 관리 → <b>공유 점검</b>을 눌러 보세요.`}</div>`;
     return;
   }
-  if (!cloudRows.length) { el.innerHTML = `<div class="cloud-empty">${user ? '아직 클라우드에 저장한 회의록이 없어요. 회의를 쓴 뒤 저장에서 <b>클라우드</b>를 고르면 여기에 보여요.' : '로그인하면 클라우드에 저장한 회의록이 보여요.'}</div>`; return; }
-  const rows = cloudRows.filter(m => (pf === '' || (pf === '__none' ? !m.project : String(m.project || '') === pf)) && (!q || String(m.title || '').toLowerCase().includes(q) || String(m.name || '').toLowerCase().includes(q)));
+  if (!live.length) { el.innerHTML = `<div class="cloud-empty">${user ? '아직 클라우드에 저장한 회의록이 없어요. 회의를 쓴 뒤 저장에서 <b>클라우드</b>를 고르면 여기에 보여요.' : '로그인하면 클라우드에 저장한 회의록이 보여요.'}</div>`; return; }
+  const rows = live.filter(m => (pf === '' || (pf === '__none' ? !m.project : String(m.project || '') === pf)) && (!q || String(m.title || '').toLowerCase().includes(q) || String(m.name || '').toLowerCase().includes(q)));
   el.style.maxHeight = '';
   if (!cal) {
     const by = $('#cloudSort').value, yr = cloudUi.year;
@@ -8460,6 +8485,7 @@ async function cloudOpenList({ connect = false } = {}) {
     if (!got && hasDrive) got = { rows: await driveList(), src: 'drive' };
     if (!got) { cloudRows = []; renderDashProjs(); $('#cloudInfo').textContent = user ? '클라우드 목록을 보려면 Google Drive에 연결하세요.' : '로그인하면 클라우드에 저장한 회의록이 여기에 보여요.'; el.innerHTML = `<div class="cloud-empty">${user ? '<button class="btn primary" id="cloudConnect">Google Drive 연결하고 목록 보기</button>' : '로그인하지 않았어요. 위의 <b>.mnote 파일 열기</b>나 <b>새 회의 시작</b>을 누르세요.'}</div>`; return; }
     cloudRows = got.rows; cloudUi.ym = null; renderCloudList(got.src);
+    if (FB) trashAutoPurge().catch(() => {});
   } catch (e) { aiLog('error', '회의록 목록 실패', errInfo(e)); el.innerHTML = `<div class="cloud-empty">목록을 불러오지 못했어요: ${esc(cloudExplain(e))}<br><button class="btn" id="cloudConnect" style="margin-top:8px">다시 시도</button></div>`; }
 }
 /* ---------- 함께 열었을 때: 편집 중 표시(소프트 락) + 저장 시 덮어쓰기 방지 ----------
@@ -8573,14 +8599,44 @@ async function cloudOpenItem(m, retried = false) {
     else { aiLog('error', '클라우드 열기 실패', errInfo(e)); toast('열지 못했어요: ' + cloudExplain(e), 8000); }
   } finally { progAbort = null; progClose(); }
 }
+/* 삭제 = 휴지통(30일): 내 목록과 프로젝트 기록에 deletedAt·deletedBy를 남기고 Drive 파일은 Drive 휴지통으로. 복구는 그 반대, 영구 삭제는 파일·기록을 모두 지운다.
+   30일이 지난 것은 대시보드를 열 때 자동으로 영구 삭제한다(Drive 휴지통도 30일 뒤 비워지므로 파일은 이미 없을 수 있다) */
+async function trashMark(m, on) {
+  const deletedAt = on ? new Date().toISOString() : '', deletedBy = on ? myEmail() : '';
+  if (FB) {
+    try { await dbUpsert({ id: m.id, deletedAt, deletedBy }); } catch (e) { aiLog('warn', '목록 DB 휴지통 표시 실패(규칙에 deletedAt·deletedBy 항목이 있어야 해요)', errInfo(e)); throw e; }
+    if (m.project) { try { await projMeetUpsert(m.project, { id: m.id, deletedAt, deletedBy }); } catch (e) { aiLog('warn', '프로젝트 기록 휴지통 표시 실패', errInfo(e)); } }
+  }
+  m.deletedAt = deletedAt; m.deletedBy = deletedBy;
+}
 async function cloudDeleteItem(m) {
-  if (!(await askConfirm('회의록을 삭제할까요?', `"${m.title || '제목 없는 회의'}"을(를) 목록에서 지우고 Drive 파일은 휴지통으로 옮깁니다. Drive 휴지통에서 30일 안에 되살릴 수 있어요.`, '삭제'))) return;
+  if (!(await askConfirm('휴지통으로 옮길까요?', `"${m.title || '제목 없는 회의'}"을(를) 휴지통으로 옮겨요. ${TRASH_DAYS}일 동안 휴지통에서 복구할 수 있고, 그 뒤에는 자동으로 영구 삭제돼요.${m.project && projShared(projById(m.project)) ? ' 프로젝트 구성원에게도 더는 보이지 않아요.' : ''}`, '휴지통으로'))) return;
   try {
     try { await dfetch(`/files/${encodeURIComponent(m.fileId)}?fields=id`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ trashed: true }) }); } catch (e) { if (e.status !== 404) throw e; }
-    if (FB) { try { await dbDelete(m.id); } catch (e) { aiLog('warn', '목록 DB 삭제 실패', errInfo(e)); } if (m.project) { try { await projMeetDelete(m.project, m.id); } catch {} } }
+    if (FB) await trashMark(m, true); else cloudRows = cloudRows.filter(x => x !== m);   // 목록 DB가 없으면 Drive 휴지통만
     if (S.cloud && S.cloud.fileId === m.fileId) S.cloud = null;
-    cloudRows = cloudRows.filter(x => x !== m); renderCloudList(FB ? 'db' : 'drive'); toast('삭제했어요.');
-  } catch (e) { aiLog('error', '클라우드 삭제 실패', errInfo(e)); toast('삭제하지 못했어요: ' + cloudExplain(e), 7000); }
+    renderCloudList(FB ? 'db' : 'drive'); toast(`휴지통으로 옮겼어요. ${TRASH_DAYS}일 안에 왼쪽 "휴지통"에서 복구할 수 있어요.`, 6000);
+  } catch (e) { aiLog('error', '휴지통 이동 실패', errInfo(e)); toast('휴지통으로 옮기지 못했어요: ' + cloudExplain(e), 7000); }
+}
+async function cloudRestoreItem(m) {
+  try {
+    try { await dfetch(`/files/${encodeURIComponent(m.fileId)}?fields=id`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ trashed: false }) }); } catch (e) { if (e.status === 404) { toast('Drive에 파일이 더는 없어요(Drive 휴지통이 비워진 것 같아요). 기록만 복구해요.', 7000); } else throw e; }
+    await trashMark(m, false); renderCloudList('db'); toast('복구했어요.');
+  } catch (e) { aiLog('error', '복구 실패', errInfo(e)); toast('복구하지 못했어요: ' + cloudExplain(e), 7000); }
+}
+async function cloudPurgeItem(m, { silent = false } = {}) {
+  if (!silent && !(await askConfirm('영구 삭제할까요?', `"${m.title || '제목 없는 회의'}"의 Drive 파일(녹음 포함)과 기록을 완전히 지워요. 되돌릴 수 없어요.`, '영구 삭제'))) return;
+  try {
+    try { await dfetch(`/files/${encodeURIComponent(m.fileId)}`, { method: 'DELETE' }); } catch (e) { if (e.status !== 404 && !silent) throw e; }
+    if (FB) { try { await dbDelete(m.id); } catch (e) { aiLog('warn', '목록 DB 삭제 실패', errInfo(e)); } if (m.project) { try { await projMeetDelete(m.project, m.id); } catch {} } }
+    cloudRows = cloudRows.filter(x => x !== m); if (!silent) { renderCloudList('db'); toast('영구 삭제했어요.'); }
+  } catch (e) { aiLog('error', '영구 삭제 실패', errInfo(e)); if (!silent) toast('영구 삭제하지 못했어요: ' + cloudExplain(e), 7000); }
+}
+async function trashAutoPurge() {   // 30일 지난 것 정리(Drive 토큰이 있을 때만 — 권한 창을 띄우지 않으려고)
+  const old = trashRows().filter(m => trashLeft(m) <= 0); if (!old.length) return;
+  const hasDrive = !!(driveTok && user && driveTok.sub === user.sub && driveTok.exp > Date.now() + 60000); if (!hasDrive) return;
+  for (const m of old) await cloudPurgeItem(m, { silent: true });
+  aiLog('info', '휴지통 자동 정리', { purged: old.length }); renderCloudList('db');
 }
 /* Drive 폴더를 기준으로 목록 DB를 다시 맞춘다: Drive에 있는 것은 기록하고, Drive에 없는 기록은 지운다 */
 async function cloudSync() {
@@ -8590,7 +8646,7 @@ async function cloudSync() {
     const files = await driveList(); let added = 0, removed = 0;
     if (FB) {
       const have = await dbList(); const byId = new Map(files.map(f => [f.id, f]));
-      for (const f of files) { const h = have.find(x => x.id === f.id); if (h && !f.project && h.project) { f.project = h.project; f.projectName = h.projectName || projName(h.project); } if (!h || h.fileId !== f.fileId || h.updatedAt !== f.updatedAt || (h.project || '') !== (f.project || '')) { await dbUpsert(f); added++; } }
+      for (const f of files) { const h = have.find(x => x.id === f.id); if (h && h.deletedAt) { f.deletedAt = h.deletedAt; f.deletedBy = h.deletedBy || ''; } if (h && !f.project && h.project) { f.project = h.project; f.projectName = h.projectName || projName(h.project); } if (!h || h.fileId !== f.fileId || h.updatedAt !== f.updatedAt || (h.project || '') !== (f.project || '')) { await dbUpsert(f); added++; } }
       for (const h of have) if (!byId.has(h.id)) { await dbDelete(h.id); removed++; }
     }
     cloudRows = files; renderCloudList(FB ? 'db' : 'drive');
@@ -8667,21 +8723,23 @@ $('#dashPage').addEventListener('click', e => {
   if (!e.target.closest('#cloudList, #dashRecent')) return;
   if (e.target.closest('[data-cproj]')) return;
   if (e.target.closest('#cloudConnect')) { cloudOpenList({ connect: true }); return; }
-  const o = e.target.closest('[data-copen]'), d = e.target.closest('[data-cdel]');
-  if (d) cloudDeleteItem(cloudRows[+d.dataset.cdel]); else if (o) cloudOpenItem(cloudRows[+o.dataset.copen]);
+  const o = e.target.closest('[data-copen]'), d = e.target.closest('[data-cdel]'), r = e.target.closest('[data-crestore]'), x = e.target.closest('[data-cpurge]');
+  if (r) cloudRestoreItem(cloudRows[+r.dataset.crestore]); else if (x) cloudPurgeItem(cloudRows[+x.dataset.cpurge]);
+  else if (d) cloudDeleteItem(cloudRows[+d.dataset.cdel]); else if (o) cloudOpenItem(cloudRows[+o.dataset.copen]);
 });
 /* 대시보드: 프로젝트 칩(모든 / 미분류(개인) / 프로젝트별, 건수 표시) → #cloudProj 필터. 로그인 뒤·시작 때 한 번 자동으로 연다 */
 function renderDashProjs() {
   const box = $('#dashProjs'); if (!box) return;
-  const cur = $('#cloudProj').value, cnt = id => cloudRows.filter(m => id === '' ? true : id === '__none' ? !m.project : String(m.project || '') === id).length;
+  const cur = $('#cloudProj').value, cnt = id => liveRows().filter(m => id === '' ? true : id === '__none' ? !m.project : String(m.project || '') === id).length;
+  const tn = trashRows().length; $('#dashTrashN').hidden = !tn; $('#dashTrashN').textContent = tn; $('#dashTrash').setAttribute('aria-pressed', String(!!cloudUi.trash));
   const chip = (id, label, extra = '') => `<button type="button" data-dproj="${esc(id)}" aria-pressed="${String(cur === id)}"><span class="nm">${label}</span>${extra}<span class="n">${cnt(id)}</span></button>`;
   box.innerHTML = chip('', '모든 회의록') + chip('__none', '미분류 (개인)') + projList().map(p => chip(p.id, esc(p.name), projShared(p) ? '<span class="sh">공유</span>' : '')).join('');
   $('#dashUser').textContent = user ? (user.email || user.name || '') : '로그인하지 않음 · 파일로 열거나 새 회의를 시작할 수 있어요';
   $('#dashSignOut').hidden = !user;
   const sel = $('#cloudProj'), name = cur === '' ? '모든 회의록' : cur === '__none' ? '미분류 (개인)' : projName(cur) || '프로젝트';
-  $('#cloudTitle').textContent = name; $('#dashCalTitle').textContent = cloudUi.view === 'cal' ? '달력' : '전체 목록';
-  // 현황 카드: 필터 기준 회의록 수 · 이번 달 · 프로젝트 수(공유) · 마지막 저장
-  const rows = cloudRows.filter(m => cur === '' ? true : cur === '__none' ? !m.project : String(m.project || '') === cur);
+  $('#cloudTitle').textContent = cloudUi.trash ? `휴지통 · ${name}` : name; $('#dashCalTitle').textContent = cloudUi.trash ? '휴지통' : cloudUi.view === 'cal' ? '달력' : '전체 목록';
+  // 현황 카드: 필터 기준 회의록 수 · 이번 달 · 프로젝트 수(공유) · 마지막 저장 (휴지통 제외)
+  const rows = liveRows().filter(m => cur === '' ? true : cur === '__none' ? !m.project : String(m.project || '') === cur);
   const now = new Date(), ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const thisMonth = rows.filter(m => dayKey(cloudWhen(m)).startsWith(ym)).length, shared = projList().filter(projShared).length;
   const last = rows.slice().sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))[0];
@@ -8694,6 +8752,7 @@ function renderDashProjs() {
 }
 $('#dashProjs').addEventListener('click', e => { const b = e.target.closest('[data-dproj]'); if (!b) return; $('#cloudProj').value = b.dataset.dproj; cloudUi.ym = null; renderCloudList(); });
 $('#cloudViewSeg').addEventListener('click', () => setTimeout(renderDashProjs, 0));
+$('#dashTrash').addEventListener('click', () => { cloudUi.trash = !cloudUi.trash; renderCloudList(); });
 $('#dashNew').addEventListener('click', async () => { dashClose(); await newMeeting(); });
 $('#dashProjNew').addEventListener('click', async () => { const p = await createProject(); if (p) { renderDashProjs(); toast(`"${p.name}" 프로젝트를 만들었어요. 새 회의를 시작해 이 프로젝트로 지정하세요.`); } });
 $('#dashProjManage').addEventListener('click', () => openProjDlg($('#cloudProj').value && !$('#cloudProj').value.startsWith('__') ? $('#cloudProj').value : ''));
@@ -8715,7 +8774,7 @@ $('#cloudProj').addEventListener('change', () => { cloudUi.ym = null; renderClou
 $('#cloudSort').addEventListener('change', () => renderCloudList());
 /* 목록 보기의 연도 필터: 회의록이 있는 연도만 보이고, 처음엔 가장 최근 연도. 달력 보기에서는 달로 넘기므로 숨긴다 */
 function renderCloudYear() {
-  const sel = $('#cloudYear'); const years = [...new Set(cloudRows.map(m => cloudWhen(m).getFullYear()).filter(y => y > 1970))].sort((a, b) => b - a);
+  const sel = $('#cloudYear'); const years = [...new Set(liveRows().map(m => cloudWhen(m).getFullYear()).filter(y => y > 1970))].sort((a, b) => b - a);
   if (cloudUi.year === null || (cloudUi.year && !years.includes(cloudUi.year))) cloudUi.year = years[0] || 0;   // null = 아직 안 고름 → 최근 연도, 0 = 전체
   sel.innerHTML = `<option value="0">전체 연도</option>` + years.map(y => `<option value="${y}">${y}년</option>`).join('');
   sel.value = String(cloudUi.year || 0);
@@ -8941,7 +9000,7 @@ else if ($('#gate').hidden) setTimeout(openDashboard, 400);   // 게스트·로�
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, dashOpen, dashClose, setReadOnly, askChoice, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, dashOpen, dashClose, setReadOnly, askChoice, set driveTok(v) { driveTok = v; }, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
 applyAuthorDefault(false);
 renderAll();
 selectTab(curTab);
