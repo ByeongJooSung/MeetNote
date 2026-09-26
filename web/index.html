@@ -104,7 +104,8 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .docsheet{max-width:820px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:28px clamp(16px,4vw,40px) 40px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 /* 회의록 시트를 출력물과 1:1로: A4 폭 210mm, 좌우 여백 20mm(본문 170mm), 본문은 출력과 같은 맑은 고딕 10pt·줄간격 160% */
 .docsheet{max-width:210mm;padding:14mm calc(20mm - 1px) 20mm}  /* 테두리 1px만큼 빼서 본문 폭을 정확히 170mm로 */
-@media (min-width:881px){.docsheet{width:210mm;min-width:210mm}}  /* 데스크톱: 창이 좁아도 A4 폭 유지(가로 스크롤) → 줄바꿈이 출력과 항상 같게 */
+@media (min-width:1200px){.docsheet{width:210mm;min-width:210mm}}
+@media (min-width:881px) and (max-width:1199px){.docsheet{width:auto;min-width:0;max-width:210mm;margin:0 auto}}   /* 태블릿·좁은 창: 문서를 화면 폭에 맞춘다 */  /* 데스크톱: 창이 좁아도 A4 폭 유지(가로 스크롤) → 줄바꿈이 출력과 항상 같게 */
 #docEditor,#docReplay{font-family:"Noto Sans KR","Malgun Gothic","맑은 고딕","Apple SD Gothic Neo",sans-serif;font-size:10pt;line-height:1.6}
 #docEditor p,#docReplay p{margin:0}
 #docEditor h1,#docReplay h1{font-size:18pt;line-height:1.6;margin:5px 0 1px}
@@ -357,6 +358,7 @@ aside.side{display:flex;flex-direction:column;min-height:0;background:var(--surf
 .tabs .split-btn{flex:none;border:0;border-left:1px solid var(--line);background:transparent;color:var(--ink2);padding:0 12px;cursor:pointer;font-size:12.5px;white-space:nowrap}
 .tabs .split-btn[aria-pressed="true"]{color:var(--tape);font-weight:600;background:var(--tape-soft)}
 @media (max-width:880px){.tabs .split-btn{display:none}}
+@media (min-width:881px) and (max-width:1199px){main{grid-template-columns:minmax(0,1fr) 8px var(--side-w,42%)}.dochead{grid-template-columns:auto minmax(0,1fr)}.dochead input{min-width:0}}   /* 태블릿: 회의 정보 칸을 한 줄에 하나씩 */
 aside.side.split #paneTr{flex:var(--split,45) 1 0}   /* 위: 전사, 아래: 메모 */
 aside.side.split #paneMemo{flex:calc(100 - var(--split,45)) 1 0}
 .split-bar{flex:none;height:10px;cursor:row-resize;display:flex;align-items:center;justify-content:center;background:var(--sunk);border-top:1px solid var(--line);border-bottom:1px solid var(--line);touch-action:none;outline:none}
@@ -545,15 +547,48 @@ footer.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:
 .card .cloud-list{max-height:none}
 .card .cloud-list.recent{max-height:min(60vh,560px);overflow-y:auto}
 #dashPage .cal-cell{min-height:52px}
-@media (max-width:880px){
+/* 태블릿(641~1024px): 왼쪽 메뉴를 좁게 유지, 카드 2열, 달력·최근 목록은 위아래로 */
+.lnb .nav.lnb-more{display:none}
+@media (max-width:1024px){
+  #dashPage{grid-template-columns:200px minmax(0,1fr)}
+  .lnb{padding:12px 8px}
+  .lnb .nav,.lnb-projs button{font-size:13.5px;padding:7px 8px}
+  .dash-main{padding:14px 16px 24px}
+  .dash-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dash-grid{grid-template-columns:1fr}
+  .dash-tools input{min-width:140px;flex:1 1 140px}
+}
+/* 모바일(≤640px): 왼쪽 메뉴 → 위쪽 띠(로고·새 회의·메뉴 버튼) + 프로젝트 칩 가로 스크롤. 도구는 "메뉴"를 눌러 펼친다 */
+@media (max-width:640px){
   #dashPage{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
-  .lnb{flex-direction:row;flex-wrap:wrap;gap:4px;padding:10px;border-right:0;border-bottom:1px solid var(--line);max-height:46vh}
-  .lnb-brand{padding:0 4px;font-size:15px}.lnb-user{width:100%;padding:0 4px 4px}
-  .lnb-cta{width:auto}.lnb .nav-sec{width:100%;margin:6px 4px 2px}
-  .lnb .nav,.lnb-projs button{width:auto;padding:6px 10px;font-size:13px}
-  .lnb-projs{display:flex;flex-wrap:wrap;gap:4px;width:100%}
-  .lnb-spacer,.lnb-ver{display:none}
-  .dash-main{padding:12px}.dash-grid{grid-template-columns:1fr}
+  .lnb{display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-auto-rows:auto;align-items:center;gap:6px 8px;padding:8px 10px;border-right:0;border-bottom:1px solid var(--line);max-height:none;overflow:visible}
+  .lnb-brand{padding:0;font-size:15px;grid-column:1}
+  .lnb-user{display:none}
+  .lnb-cta{width:auto;margin:0;padding:7px 12px;font-size:13.5px;grid-column:2;grid-row:1}
+  .lnb .nav.lnb-more{display:inline-flex;align-items:center;gap:4px;grid-column:3;grid-row:1;width:auto;padding:7px 10px;font-size:13.5px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+  .lnb .nav-sec{display:none}
+  .lnb-projs{grid-column:1/-1;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0;-webkit-overflow-scrolling:touch}
+  .lnb-projs::-webkit-scrollbar{display:none}
+  .lnb-projs button{width:auto;flex:none;padding:6px 10px;font-size:13px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}
+  .lnb-projs button[aria-pressed="true"]{border-color:var(--tape)}
+  .lnb .nav:not(.lnb-more),.lnb-spacer,.lnb-ver{display:none}
+  .lnb.open .nav:not(.lnb-more){display:flex;grid-column:1/-1;width:100%;padding:9px 10px;font-size:14px;border-top:1px solid var(--line);border-radius:0}
+  .lnb.open .nav-sec{display:block;grid-column:1/-1;margin:8px 4px 0}
+  .lnb.open .nav#cloudClose{border-top:0}
+  .dash-main{padding:12px 12px 24px}
+  .dash-top{margin-bottom:10px}.dash-top h2{font-size:18px}
+  .dash-tools{width:100%}
+  .dash-tools input{min-width:0;flex:1 1 100%}
+  .dash-tools select{flex:1 1 auto;min-width:0}
+  .dash-tools .seg{flex:1 1 100%;display:flex}
+  .dash-tools .seg button{flex:1;padding:7px 4px}
+  #dashBell{order:-1}
+  .dash-cards{gap:8px}
+  .stat{padding:10px 12px}.stat .v{font-size:20px}
+  .card{padding:12px}
+  #dashPage .cal-cell{min-height:44px}
+  .cl-item{padding:8px}
+  .cl-projsel{max-width:120px}
 }
 .cloud-list{display:flex;flex-direction:column;gap:6px;max-height:min(50vh,440px);overflow-y:auto;overflow-x:hidden;margin-top:8px;padding:1px}
 .cl-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -1274,6 +1309,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <div class="lnb-brand"><svg width="24" height="24" viewBox="0 0 22 22" aria-hidden="true"><circle cx="7" cy="11" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="15" cy="11" r="5" fill="none" stroke="var(--tape)" stroke-width="2"/><circle cx="7" cy="11" r="1.5" fill="currentColor"/><circle cx="15" cy="11" r="1.5" fill="var(--tape)"/></svg><b>MeetNote</b></div>
     <div class="lnb-user" id="dashUser"></div>
     <button class="btn primary lnb-cta" id="dashNew">＋ 새 회의 시작</button>
+    <button type="button" class="nav lnb-more" id="lnbMore" aria-expanded="false" aria-controls="dashProjs">메뉴 ▾</button>
     <div class="nav-sec">프로젝트</div>
     <div id="dashProjs" class="lnb-projs"></div>
     <button type="button" class="nav" id="dashProjNew">＋ 새 프로젝트</button>
@@ -1458,8 +1494,12 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.30.0';
+const APP_VERSION = '0.31.0';
 const PATCH_NOTES = [
+  { v: '0.31.0', date: '2026-09-26', items: [
+    '태블릿·모바일 화면 정리: 태블릿(1024px 이하)은 대시보드 왼쪽 메뉴를 좁게 유지하고 현황 카드를 2열로, 달력과 최근 목록을 위아래로 놓아요. 편집 화면은 문서가 화면 폭에 맞게 줄어들고 회의 정보 칸이 한 줄에 하나씩 놓여요.',
+    '모바일(640px 이하)은 대시보드 위쪽에 로고·새 회의·"메뉴" 버튼만 두고 프로젝트는 가로로 넘기는 칩으로, 도구는 메뉴를 눌러 펼쳐요. 검색·달력/목록/휴지통 탭은 폭에 맞춰 늘어나요.',
+  ] },
   { v: '0.30.0', date: '2026-09-26', items: [
     '프로젝트 역할을 마스터 · 운영자 · 구성원으로 정리했어요(옛 "초대 담당자"가 운영자). 마스터: 모든 권한. 운영자(최대 2명): 초대·내보내기·구성원이 올린 회의록 삭제. 구성원: 회의록 보기·작성·수정, 자기가 올린 회의록 삭제. 프로젝트 관리 창에 역할별 권한이 적혀 있어요.',
     '휴지통의 복구·영구 삭제 모두 확인창을 거쳐요.',
@@ -8834,6 +8874,8 @@ function renderDashProjs() {
   $('#dashRecent').innerHTML = recent.map(m => cloudItemHtml(m, true)).join('') || '<div class="cloud-empty">아직 회의록이 없어요. "새 회의 시작"으로 첫 회의록을 만들어 보세요.</div>';
   $('#dashRecentInfo').textContent = rows.length > 8 ? `최근 8건 · 전체 ${rows.length}건은 달력·목록에서` : '';
 }
+$('#lnbMore').addEventListener('click', () => { const l = document.querySelector('#dashPage .lnb'), on = !l.classList.contains('open'); l.classList.toggle('open', on); $('#lnbMore').setAttribute('aria-expanded', String(on)); $('#lnbMore').textContent = on ? '메뉴 ▴' : '메뉴 ▾'; });
+document.querySelector('#dashPage .lnb').addEventListener('click', e => { if (e.target.closest('.nav:not(.lnb-more)')) { const l = e.currentTarget; l.classList.remove('open'); $('#lnbMore').setAttribute('aria-expanded', 'false'); $('#lnbMore').textContent = '메뉴 ▾'; } });   // 메뉴 항목을 고르면 접는다
 $('#dashProjs').addEventListener('click', e => { const b = e.target.closest('[data-dproj]'); if (!b) return; $('#cloudProj').value = b.dataset.dproj; cloudUi.ym = null; renderCloudList(); });
 $('#cloudViewSeg').addEventListener('click', () => setTimeout(renderDashProjs, 0));
 $('#dashNew').addEventListener('click', async () => { dashClose(); await newMeeting(); });
