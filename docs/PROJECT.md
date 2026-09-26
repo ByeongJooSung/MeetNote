@@ -245,3 +245,25 @@ myform: {
 | LM Studio `ErrorDeviceLost` | GPU 런타임 크래시. LM Studio 재시작, 런타임을 CUDA/CPU로, GPU Offload 낮추기 |
 | exe에서만 발언자 단계 멈춤 | OpenMP 충돌·numba 캐시. 최신 diarize.py는 시작 시 환경변수를 자동 설정. `DIARIZER=none`으로 원인 분리 가능 |
 | git push 거부(대용량) | `.venv`·ffmpeg가 커밋됨. `.gitignore` 확인 후 히스토리 재생성(README 참고) |
+
+## 7. 현재 상태·이어서 할 일 (2026-09-26, v0.31.0)
+
+**배포**: `git push`(main) → GitHub Pages 자동 배포 → https://byeongjoosung.github.io/MeetNote/ . 배포 후 `curl …/index.html | grep APP_VERSION`으로 확인. 서비스 워커 때문에 브라우저는 새로고침을 한두 번 해야 새 버전이 뜬다.
+
+**작업 방식**: `web/index.html` 수정은 `E:\Projects_bj\MeetNote\_stale_work_backup\vNNN.py` 같은 패치 스크립트(`rep(anchor, replacement)`, CRLF 유지)로 하고, `python tests/smoke.py`(단위·UI) + `python ../_stale_work_backup/v020_test.py`(로그인·Firestore·Drive 모의: 프로젝트 공유·복구·휴지통·운영자·알림)를 돌린 뒤 버전(`APP_VERSION`)·`PATCH_NOTES`·이 문서를 갱신하고 커밋한다.
+
+**최근 릴리스 요약**
+- v0.23~0.24: 뒤로가기(← 대시보드), 저장 위치 선택(클라우드/.mnote/둘 다), LNB 로그아웃, 구성원 목록형 관리, 프로젝트 복구(`projRecover`), 프로젝트 올리기 크기 제한(원문 제외), 공유 점검(`projDiagnose`).
+- v0.25~0.26: 공유받은 파일 열기(Picker 또는 Drive 권한 허용 `driveWide`), 양방향 수정(`editedBy`).
+- v0.27: 편집 중 표시(소프트 락 `presStart/setReadOnly`) + 저장 시 덮어쓰기 확인(`driveModified`), 목록 연도 필터.
+- v0.28~0.29: 휴지통(30일, `deletedAt/deletedBy`, 복구·영구 삭제·자동 정리), 달력·목록·휴지통 탭, 운영자 권한(`canModerate`).
+- v0.30: 역할(마스터·운영자·구성원) 정리, 복구·영구 삭제 확인창, 프로젝트 알림(`notifCheck`, 🔔).
+- v0.31: 태블릿·모바일 반응형(대시보드 LNB 띠/메뉴 토글, 카드 2열, 편집 화면 문서 폭).
+
+**운영 쪽에서 해 둔 것**: Firestore 규칙은 `docs/CLOUD-SETUP.md` 1-5 최신본이 콘솔에 게시됨(projects·meetings 하위·deletedAt/deletedBy 포함). Google Picker API 사용 설정 + `config.js`의 `pickerKey`. API 키 제한 적용. `adminEmails`는 제거함.
+
+**알려진 제약·다음 후보**
+- 실시간 공동 편집은 미지원(1단계 소프트 락까지). 문단 단위 준실시간 동기화(RTDB 스트리밍)가 다음 단계 후보.
+- 프로젝트 알림은 앱이 열려 있을 때만(3분 폴링). 푸시 알림은 서버가 필요.
+- 운영자의 남의 회의록 삭제는 프로젝트 기록 기준(남의 Drive 파일·목록 DB는 건드릴 수 없음).
+- `drive` 전체 권한은 Google 심사 전엔 "확인되지 않은 앱" 경고(팀 내부용).
