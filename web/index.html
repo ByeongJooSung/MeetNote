@@ -1211,7 +1211,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div id="anaBrowserOpt" class="browser-opt" hidden>
     <label class="field">인식 모델<select id="anaTier">
       <option value="auto">자동 (이 기기에 맞게)</option>
-      <option value="accurate">정확 — large-v3-turbo (WebGPU 필요 · 약 1.5GB, 처음 한 번)</option>
+      <option value="accurate">정확 — large-v3-turbo (약 1.5GB · WebGPU 권장, CPU는 아주 느림)</option>
       <option value="balanced">균형 — small (약 560MB)</option>
       <option value="fast">빠름 — base (약 90MB)</option>
     </select></label>
@@ -1247,7 +1247,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div id="diarBrowserOpt" class="browser-opt" hidden>
     <label class="field">인식 모델<select id="diarTier">
       <option value="auto">자동 (이 기기에 맞게)</option>
-      <option value="accurate">정확 — large-v3-turbo (WebGPU 필요 · 약 1.5GB, 처음 한 번)</option>
+      <option value="accurate">정확 — large-v3-turbo (약 1.5GB · WebGPU 권장, CPU는 아주 느림)</option>
       <option value="balanced">균형 — small (약 560MB)</option>
       <option value="fast">빠름 — base (약 90MB)</option>
     </select></label>
@@ -1494,8 +1494,14 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.31.0';
+const APP_VERSION = '0.32.0';
 const PATCH_NOTES = [
+  { v: '0.32.0', date: '2026-09-29', items: [
+    '브라우저 내장 발언자 구분 개선: 녹음을 10초 창으로 5초씩 옮겨 가며 누가 말하는지 찾아요. 예전에는 10분을 한 번에 봐서 네 명 이상 회의에서 다른 사람을 같은 사람으로 잇거나 사람이 바뀌는 곳을 놓칠 때가 있었어요.',
+    '목소리 특징을 "혼자 말한 소리"만 모아 뽑고, 사람을 묶은 뒤 모든 구간을 가장 가까운 사람에게 다시 배정해요. 한 사람이 이어 말하는 중간에 끼인 한두 단어가 다른 사람으로 떨어져 문단이 쪼개지던 것도 줄였어요.',
+    '발언자 수를 비워 두면 참석자 명단 수(+1명)를 넘지 않게 묶어요. 목소리가 비슷한 한 사람이 여러 명으로 나뉘는 것을 막아요.',
+    '"정확(large-v3-turbo)" 모델을 WebGPU가 없는 PC에서도 고를 수 있어요. CPU에서는 아주 오래 걸리니 분석을 걸어 두고 다른 일을 할 때 쓰세요(자동은 지금처럼 균형 모델).',
+  ] },
   { v: '0.31.0', date: '2026-09-26', items: [
     '태블릿·모바일 화면 정리: 태블릿(1024px 이하)은 대시보드 왼쪽 메뉴를 좁게 유지하고 현황 카드를 2열로, 달력과 최근 목록을 위아래로 놓아요. 편집 화면은 문서가 화면 폭에 맞게 줄어들고 회의 정보 칸이 한 줄에 하나씩 놓여요.',
     '모바일(640px 이하)은 대시보드 위쪽에 로고·새 회의·"메뉴" 버튼만 두고 프로젝트는 가로로 넘기는 칩으로, 도구는 메뉴를 눌러 펼쳐요. 검색·달력/목록/휴지통 탭은 폭에 맞춰 늘어나요.',
@@ -6200,6 +6206,7 @@ if (!['browser', 'py', 'cloud'].includes(diar.mode)) diar.mode = 'browser';
 diar.cloud = Object.assign({ prov: 'clova', url: '', keep: false, vocab: true }, diar.cloud || {});
 if (diar.vocab == null) diar.vocab = true;
 if (!['auto', 'fast', 'balanced', 'accurate'].includes(diar.tier)) diar.tier = 'auto';
+if (!['window', 'long'].includes(diar.algo)) diar.algo = 'window';   // 발언자 구간 찾기: window(10초 창, 기본) / long(예전 10분 창). 화면에는 없고 평가 도구가 비교할 때 바꾼다
 const saveDiar = () => { try { localStorage.setItem(DIAR_KEY, JSON.stringify(diar)); } catch {} prefsTouch(); };
 const cleanBase = v => String(v || '').trim().replace(/\/+$/, '');
 for (const pre of ['diar', 'ana']) {
@@ -6214,7 +6221,7 @@ const TIER_INFO = { fast: { label: '빠름(base)', mb: 90, spd: [1.2, 2.5], gspd
 function resolveTier(device) {
   const t = diar.tier || 'auto';
   if (t === 'auto') return device === 'webgpu' ? (env.mobile ? 'balanced' : 'accurate') : (env.mobile ? 'fast' : 'balanced');
-  if (t === 'accurate' && (device !== 'webgpu' || env.mobile)) return 'balanced';   // 휴대폰은 메모리 때문에 1.5GB 모델을 올리다 멈춘다
+  if (t === 'accurate' && env.mobile) return 'balanced';   // 휴대폰은 메모리 때문에 1.5GB 모델을 올리다 멈춘다. PC CPU는 느려도 직접 고르면 그대로(밤새 돌려 두는 용도)
   return t;
 }
 function browserDiarNote() {
@@ -6223,7 +6230,7 @@ function browserDiarNote() {
   const gpu = !!navigator.gpu, dur = S.duration || (isFinite(audio.duration) ? audio.duration : 0);
   const tier = resolveTier(gpu ? 'webgpu' : 'wasm'), ti = TIER_INFO[tier], sp = gpu ? ti.gspd : ti.spd;
   const est = dur ? `예상 ${Math.max(1, Math.round(dur / 60 * sp[0]))}~${Math.max(2, Math.round(dur / 60 * sp[1]))}분` : '';
-  const down = diar.tier === 'accurate' && (!gpu || env.mobile) ? (env.mobile ? ' 휴대폰에서는 메모리 부족으로 멈춰서 "정확" 모델 대신 균형(small)으로 돌아가요. 더 정확한 결과가 필요하면 PC 서비스나 클라우드 API를 쓰세요.' : ' "정확" 모델은 WebGPU가 있어야 해서 이 기기에서는 균형(small)으로 돌아가요.') : '';
+  const down = diar.tier === 'accurate' && env.mobile ? ' 휴대폰에서는 메모리 부족으로 멈춰서 "정확" 모델 대신 균형(small)으로 돌아가요. 더 정확한 결과가 필요하면 PC 서비스나 클라우드 API를 쓰세요.' : diar.tier === 'accurate' && !gpu ? ' ⚠ WebGPU가 없어 "정확" 모델을 CPU로 돌려요. 가장 정확하지만 아주 오래 걸리니 분석을 걸어 두고 다른 일을 하세요.' : '';
   const warn = env.mobile && dur > 20 * 60 ? ` ⚠ 휴대폰에서 ${Math.round(dur / 60)}분짜리 녹음은 시간이 오래 걸리고 메모리 부족으로 중단될 수 있어요. PC에서 분석하는 것을 권해요.` : '';
   return `${ti.label} 모델(처음 한 번 약 ${ti.mb}MB)을 ${gpu ? 'WebGPU 가속으로' : 'CPU로(WebGPU가 없어 느릴 수 있어요, 최신 Chrome·Edge 권장)'} 돌려요.${est ? ` ${est} 걸려요.` : ''}${down}${warn} 말소리 구간만 골라 인식하고(환청·잘림 감소), 발언자는 목소리 특징을 비교해 녹음 전체에서 같은 사람을 같은 번호로 맞춰요.`;
 }
@@ -6630,7 +6637,7 @@ async function browserSpeakersFor(words, signal, onStage) {
       else if (m.type === 'error') { signal && signal.removeEventListener('abort', stop); rej(new Error(m.message)); }
     };
     w.onerror = ev => rej(new Error(ev.message || '내장 분석 모듈을 불러오지 못했어요.'));
-    w.postMessage({ type: 'diarOnly', audio: pcm, sr, words, numSpeakers: diar.n || 0, device }, [pcm.buffer]);
+    w.postMessage({ type: 'diarOnly', audio: pcm, sr, words, numSpeakers: diar.n || 0, maxSpeakers: speakerCap(), algo: diar.algo, device }, [pcm.buffer]);
   });
 }
 async function diarizeCloud({ title }) {
@@ -6695,7 +6702,7 @@ async function load(device, tier = 'fast') {
    (centroid 연결, 유클리드 거리 기준 0.7046 ≈ 코사인 거리 0.25, 작은 무리는 가까운 큰 무리에 흡수).
    10분 창마다 따로 나온 화자 번호를 녹음 전체에서 같은 사람은 같은 번호로 맞춘다. 발언자 수를 알면 그 수까지만 묶는다 */
 async function embed(audio) { const inp = await embProc(audio); const out = await embModel(inp); const v = Float32Array.from((out.embeddings || out.last_hidden_state).data); let n = 0; for (const x of v) n += x * x; n = Math.sqrt(n) || 1; for (let i = 0; i < v.length; i++) v[i] /= n; return v; }
-async function unifySpeakers(audio, sr, turns, numSpeakers) {
+async function unifySpeakers(audio, sr, turns, numSpeakers, maxSpeakers = 0) {
   // 단위: 발언 구간을 최대 8초로 잘라 각각 특징을 뽑는다(너무 많으면 같은 창·같은 번호끼리 이어 붙여 700개 이하로)
   let units = [];
   for (const t of turns) { const d = t.t1 - t.t0; if (d < 0.6) { units.push({ t0: t.t0, t1: t.t1, spk: t.spk, skip: true }); continue; } const k = Math.max(1, Math.round(d / 8)); for (let i = 0; i < k; i++) units.push({ t0: t.t0 + d * i / k, t1: t.t0 + d * (i + 1) / k, spk: t.spk }); }
@@ -6720,7 +6727,7 @@ async function unifySpeakers(audio, sr, turns, numSpeakers) {
   while (count > target) {
     let bi = -1, bj = -1, bd = Infinity;
     for (let i = 0; i < n; i++) { if (!active[i]) continue; for (let j = i + 1; j < n; j++) { if (!active[j]) continue; const d = M[i * n + j]; if (d < bd) { bd = d; bi = i; bj = j; } } }
-    if (bi < 0 || (!(numSpeakers > 0) && bd > THR)) break;
+    if (bi < 0 || (!(numSpeakers > 0) && bd > THR && !(maxSpeakers > 0 && count > maxSpeakers))) break;   // 기준을 넘어도 최대 인원(참석자 수)보다 많으면 더 묶는다
     const A = cent[bi], B = cent[bj], na = A.members.length, nb = B.members.length; for (let k = 0; k < D; k++) A.v[k] = (A.v[k] * na + B.v[k] * nb) / (na + nb); A.w += B.w; A.members.push(...B.members); active[bj] = false; count--;
     for (let j = 0; j < n; j++) if (active[j] && j !== bi) M[bi * n + j] = M[j * n + bi] = dist(A, cent[j]);
   }
@@ -6739,6 +6746,136 @@ async function unifySpeakers(audio, sr, turns, numSpeakers) {
   return out;
 }
 function overlap(a0, a1, b0, b1) { return Math.max(0, Math.min(a1, b1) - Math.max(a0, b0)); }
+/* 창 단위 발언자 분할(pyannote 3.1과 같은 방식): 10초 창을 5초씩 옮기며 창마다 '누가 말하는지'(한 창에 최대 3명)를 구한다.
+   분할 모델은 10초 조각으로 학습돼 있어, 예전처럼 10분을 한 번에 넣으면 한 창에 3명까지만 구분해 네 명 이상 회의에서 다른 사람을 같은 번호로 잇고 사람이 바뀌는 경계도 놓쳤다.
+   창마다 사람별로 '혼자 말한' 소리만 모아 목소리 특징 단위(units)를 만들고, 창마다 따로인 번호는 unifyWindows가 녹음 전체에서 맞춘다.
+   발언 구간(turns)은 창의 가운데 몫(앞뒤 창과 겹치는 부분의 절반씩)에서만 가져와 이어 붙인다 */
+const SW = 10, SSTEP = 5;
+const POWERSET = [[], [0], [1], [2], [0, 1], [0, 2], [1, 2]];   // pyannote-segmentation-3.0 출력 7종(없음·한 명·두 명 겹침)
+function frameSets(rows, id2label) {
+  const cache = {}, sets = [];
+  for (const r of rows) {
+    let bi = 0; for (let k = 1; k < r.length; k++) if (r[k] > r[bi]) bi = k;
+    if (!cache[bi]) { const lab = id2label[bi]; cache[bi] = lab == null ? (POWERSET[bi] || []) : (String(lab).match(/SPEAKER_[0-9]+/g) || []).map(x => +x.slice(8)); }
+    sets.push(cache[bi]);
+  }
+  return sets;
+}
+async function segmentWindows(audio, sr, onPct) {
+  const dur = audio.length / sr, W = SW * sr, starts = [];
+  if (audio.length < sr * 0.5) return { turns: [], units: [] };
+  if (audio.length <= W) starts.push(0); else { for (let s = 0; s + W < audio.length; s += SSTEP * sr) starts.push(s); starts.push(audio.length - W); }
+  const id2label = (segModel.config && segModel.config.id2label) || {};
+  const turns = [], units = [];
+  for (let i = 0; i < starts.length; i++) {
+    const s0 = starts[i], part = audio.subarray(s0, Math.min(audio.length, s0 + W)), off = s0 / sr;
+    const { logits } = await segModel(await segProc(part));
+    const sets = frameSets(logits.tolist()[0] || [], id2label), nf = sets.length;
+    if (onPct && (i % 10 === 0 || i === starts.length - 1)) onPct((i + 1) / starts.length);
+    if (!nf) continue;
+    const fd = part.length / sr / nf;
+    const lo = i ? (off + (starts[i - 1] + W) / sr) / 2 : 0, hi = i < starts.length - 1 ? (starts[i + 1] / sr + (s0 + W) / sr) / 2 : dur;
+    const solo = {};
+    for (let f = 0; f < nf; f++) if (sets[f].length === 1) (solo[sets[f][0]] = solo[sets[f][0]] || []).push(f);
+    for (const k in solo) {
+      const parts = [];
+      for (const f of solo[k]) { const a = off + f * fd, b = a + fd, p = parts[parts.length - 1]; if (p && a - p[1] < fd * 1.5) p[1] = b; else parts.push([a, b]); }
+      units.push({ lab: i + ':' + k, win: i, parts, clean: solo[k].length * fd });
+    }
+    // 겹쳐 말한 프레임은 바로 앞 프레임의 사람을 이어 간다(번호가 깜박이지 않게). 같은 사람의 0.3초 미만 틈은 한 구간으로
+    let cur = null, prev = -1;
+    for (let f = 0; f < nf; f++) {
+      const tc = off + (f + 0.5) * fd; if (tc < lo || tc >= hi) continue;
+      const st = sets[f]; if (!st.length) { cur = null; prev = -1; continue; }
+      const k = st.includes(prev) ? prev : st[0]; prev = k;
+      const a = Math.max(lo, off + f * fd), b = Math.min(hi, off + (f + 1) * fd), lab = i + ':' + k;
+      if (cur && cur.spk === lab) { cur.t1 = b; continue; }
+      const last = turns[turns.length - 1];
+      if (!cur && last && last.spk === lab && a - last.t1 < 0.3) { cur = last; cur.t1 = b; continue; }
+      cur = { t0: a, t1: b, spk: lab, win: i }; turns.push(cur);
+    }
+  }
+  return { turns, units };
+}
+/* 목소리 특징 군집(centroid 연결, 유클리드 0.7046 ≈ 코사인 0.25 — pyannote 3.1과 같은 기준). labels: 0..K-1 */
+function clusterVecs(vecs, w, numSpeakers, maxSpeakers) {
+  const n = vecs.length, D = vecs[0].length;
+  const cent = vecs.map((v, i) => ({ v: Float32Array.from(v), w: w[i], members: [i] }));
+  const dist = (A, B) => { let d = 0; for (let k = 0; k < D; k++) { const x = A.v[k] - B.v[k]; d += x * x; } return Math.sqrt(d); };
+  const THR = 0.7046, target = numSpeakers > 0 ? numSpeakers : 1;
+  const active = cent.map(() => true); let count = n;
+  const M = new Float32Array(n * n); for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) M[i * n + j] = M[j * n + i] = dist(cent[i], cent[j]);
+  while (count > target) {
+    let bi = -1, bj = -1, bd = Infinity;
+    for (let i = 0; i < n; i++) { if (!active[i]) continue; for (let j = i + 1; j < n; j++) { if (!active[j]) continue; const d = M[i * n + j]; if (d < bd) { bd = d; bi = i; bj = j; } } }
+    if (bi < 0 || (!(numSpeakers > 0) && bd > THR && !(maxSpeakers > 0 && count > maxSpeakers))) break;
+    const A = cent[bi], B = cent[bj], na = A.members.length, nb = B.members.length; for (let k = 0; k < D; k++) A.v[k] = (A.v[k] * na + B.v[k] * nb) / (na + nb); A.w += B.w; A.members.push(...B.members); active[bj] = false; count--;
+    for (let j = 0; j < n; j++) if (active[j] && j !== bi) M[bi * n + j] = M[j * n + bi] = dist(A, cent[j]);
+  }
+  // 작은 무리(발언 10초 미만이거나 단위 3개 미만)는 가장 가까운 무리에 붙인다(잡음·기침·한마디가 한 사람으로 서는 것 방지). 단위가 적은 짧은 녹음(1~2분)에서는 모두 한 사람이 되므로 하지 않는다
+  if (!(numSpeakers > 0) && n >= 20) for (let i = 0; i < n; i++) { if (!active[i] || (cent[i].w >= 10 && cent[i].members.length >= 3) || count <= 1) continue; let bj = -1, bd = Infinity; for (let j = 0; j < n; j++) { if (!active[j] || j === i) continue; const d = M[i * n + j]; if (d < bd) { bd = d; bj = j; } } if (bj >= 0) { cent[bj].members.push(...cent[i].members); cent[bj].w += cent[i].w; active[i] = false; count--; } }
+  const labels = new Array(n); let next = 0;
+  for (let i = 0; i < n; i++) if (active[i]) { const id = next++; for (const m of cent[i].members) labels[m] = id; }
+  return labels;
+}
+/* 창 단위(units)의 번호를 녹음 전체의 사람 번호로: 특징 추출 → 군집으로 사람 중심 구하기 → 모든 단위를 가장 가까운 중심에 다시 배정.
+   다시 배정할 때 한 창 안의 서로 다른 사람은 서로 다른 번호로(pyannote의 제약 배정). 특징을 못 뽑은(혼자 말한 소리가 0.6초 미만) 번호는
+   옆 창에서 같은 시간을 맡은 단위, 없으면 시간이 가장 가까운 구간을 따른다 */
+async function unifyWindows(audio, sr, turns, units, numSpeakers, maxSpeakers) {
+  const real = units.filter(u => u.clean >= 0.6), cap = SW * sr;
+  for (let i = 0; i < real.length; i++) {
+    const u = real[i]; let len = 0; for (const [a, b] of u.parts) len += Math.floor(b * sr) - Math.floor(a * sr);
+    const buf = new Float32Array(Math.min(cap, Math.max(0, len))); let pos = 0;
+    for (const [a, b] of u.parts) { if (pos >= buf.length) break; const s0 = Math.floor(a * sr), s1 = Math.min(audio.length, Math.floor(b * sr), s0 + buf.length - pos); if (s1 > s0) { buf.set(audio.subarray(s0, s1), pos); pos += s1 - s0; } }
+    try { u.v = await embed(buf.subarray(0, pos)); } catch (e) { u.v = null; }
+    if (i % 5 === 0 || i === real.length - 1) post({ type: 'stage', msg: '목소리 특징을 비교하는 중 ' + Math.round((i + 1) / real.length * 100) + '%', pct: 86 + 8 * (i + 1) / real.length });
+  }
+  const ok = real.filter(u => u.v);
+  if (ok.length < 2) { post({ type: 'log', msg: '목소리 특징이 부족해 한 사람으로 둠(' + ok.length + '개)' }); return turns.map(t => ({ t0: t.t0, t1: t.t1, spk: 'u0' })); }
+  // 군집은 혼자 말한 소리가 긴 단위부터 700개까지(계산량 n³), 나머지는 아래 재배정에서 가까운 중심으로
+  const base = ok.slice().sort((a, b) => b.clean - a.clean).slice(0, 700);
+  const labels = clusterVecs(base.map(u => u.v), base.map(u => u.clean * SSTEP / SW), numSpeakers, maxSpeakers);
+  const K = Math.max(...labels) + 1, D = base[0].v.length, cents = Array.from({ length: K }, () => new Float32Array(D));
+  base.forEach((u, i) => { const c = cents[labels[i]]; for (let k = 0; k < D; k++) c[k] += u.v[k]; });
+  for (const c of cents) { let s = 0; for (const x of c) s += x * x; s = Math.sqrt(s) || 1; for (let k = 0; k < D; k++) c[k] /= s; }
+  const byWin = new Map(); for (const u of ok) { if (!byWin.has(u.win)) byWin.set(u.win, []); byWin.get(u.win).push(u); }
+  const map = new Map();
+  for (const us of byWin.values()) {
+    const pairs = []; for (const u of us) for (let c = 0; c < K; c++) { let d = 0; for (let k = 0; k < D; k++) d += u.v[k] * cents[c][k]; pairs.push([d, u, c]); }
+    pairs.sort((a, b) => b[0] - a[0]);
+    const used = new Set(), free = us.length > K;
+    for (const [, u, c] of pairs) { if (map.has(u.lab) || (!free && used.has(c))) continue; map.set(u.lab, c); used.add(c); }
+  }
+  const got = ok.map(u => u.lab);
+  const out = turns.map(t => {
+    let c = map.get(t.spk);
+    if (c == null) { let bo = 0; for (const u of units) { if (Math.abs(u.win - t.win) > 1 || !map.has(u.lab)) continue; let o = 0; for (const [a, b] of u.parts) o += overlap(t.t0, t.t1, a, b); if (o > bo) { bo = o; c = map.get(u.lab); } } }
+    return { t0: t.t0, t1: t.t1, spk: t.spk, c };
+  });
+  for (const t of out) if (t.c == null) { let bd = Infinity; for (const x of out) { if (x.c == null) continue; const d = Math.min(Math.abs(x.t0 - t.t1), Math.abs(t.t0 - x.t1)); if (d < bd) { bd = d; t.c = x.c; } } }
+  const nSpk = new Set(out.map(t => t.c)).size;
+  post({ type: 'log', msg: '화자 통일(창 단위): 창 ' + byWin.size + '개 · 단위 ' + got.length + '개 → 화자 ' + nSpk + '명' + (numSpeakers > 0 ? ' (지정 ' + numSpeakers + '명)' : maxSpeakers > 0 ? ' (최대 ' + maxSpeakers + '명)' : '') });
+  return out.map(t => ({ t0: t.t0, t1: t.t1, spk: 'u' + (t.c == null ? 0 : t.c) }));
+}
+/* 구간 찾기: window(기본, 10초 창) / long(예전 방식, 10분 창 한 번에) — 평가 도구(tests/eval_stt.py)로 두 방식을 비교할 수 있게 남겨 둔다 */
+async function findTurns(audio, sr, algo, onPct) {
+  if (algo !== 'long') return segmentWindows(audio, sr, onPct);
+  const WIN = 600 * sr; let turns = [], base = 0;
+  for (let off = 0; off < audio.length; off += WIN) {
+    const part = audio.subarray(off, Math.min(audio.length, off + WIN));
+    if (part.length < sr * 0.5) break;
+    const t = await segmentSpeakers(part, off / sr, base);
+    const ids = new Set(t.map(x => +x.spk)); base += ids.size ? Math.max(...ids) + 1 - base : 0;
+    turns.push(...t);
+    if (onPct) onPct(Math.min(1, (off + WIN) / audio.length));
+  }
+  return { turns, units: null };
+}
+async function unifyAny(audio, sr, found, numSpeakers, maxSpeakers) {
+  if (!found.units) { try { return await unifySpeakers(audio, sr, found.turns, numSpeakers, maxSpeakers); } catch (err) { post({ type: 'log', msg: '화자 통일 실패(구간별 번호 유지): ' + (err && err.message) }); return found.turns; } }
+  try { return await unifyWindows(audio, sr, found.turns, found.units, numSpeakers, maxSpeakers); }
+  catch (err) { post({ type: 'log', msg: '화자 통일 실패(한 사람으로 둠): ' + (err && err.message) }); return found.turns.map(t => ({ t0: t.t0, t1: t.t1, spk: 'u0' })); }
+}
 /* len초마다 자르되, 경계 앞 5초 안에서 가장 조용한 20ms 지점을 골라 말이 중간에 잘리지 않게 */
 function splitPoints(audio, sr, len) {
   const pts = [0], frame = Math.round(sr * 0.02);
@@ -6793,7 +6930,7 @@ async function liveChunk(d) {
 self.onmessage = async e => {
   if (e.data && e.data.type === 'live') return liveChunk(e.data);
   if (e.data && e.data.type === 'diarOnly') return diarOnly(e.data);
-  const { audio, sr, language, device, tier = 'fast', numSpeakers = 0, doneUntil = 0, prevWords = [] } = e.data;
+  const { audio, sr, language, device, tier = 'fast', numSpeakers = 0, maxSpeakers = 0, algo = 'window', doneUntil = 0, prevWords = [] } = e.data;
   try {
     await load(device, tier);
     post({ type: 'loaded' });
@@ -6802,21 +6939,14 @@ self.onmessage = async e => {
     /* ① 말소리 구간 찾기(VAD)를 먼저: 발언자 구분 모델(pyannote-segmentation)이 프레임마다 '누가 말하는지'를 내므로 그 합집합이 곧 말소리 구간이다.
        Whisper는 무음·잡음에 없는 말을 지어내므로(환청) 말소리 구간만 이어 붙여 인식하고, 나눌 때도 침묵에서만 나눈다. 분할 결과(turns)는 뒤의 화자 배정에 그대로 쓴다 */
     post({ type: 'stage', msg: '말소리 구간을 찾는 중', pct: 8 });
-    const WIN = 600 * sr; let turns = [], base = 0, segOk = true;
+    let found = { turns: [], units: null }, segOk = true;
     try {
-      for (let off = 0; off < audio.length; off += WIN) {
-        const part = audio.subarray(off, Math.min(audio.length, off + WIN));
-        if (part.length < sr * 0.5) break;
-        const t = await segmentSpeakers(part, off / sr, base);
-        const ids = new Set(t.map(x => +x.spk)); base += ids.size ? Math.max(...ids) + 1 - base : 0;
-        turns.push(...t);
-        post({ type: 'stage', msg: '말소리 구간을 찾는 중 ' + Math.min(100, Math.round((off + WIN) / audio.length * 100)) + '%', pct: 8 + Math.min(6, 6 * (off + WIN) / audio.length) });
-      }
+      found = await findTurns(audio, sr, algo, f => post({ type: 'stage', msg: '말소리 구간을 찾는 중 ' + Math.round(f * 100) + '%', pct: 8 + 6 * f }));
     } catch (err) { segOk = false; post({ type: 'log', msg: '말소리 구간 찾기 실패(에너지 기준으로 대신): ' + (err && err.message) }); }
     // 말소리 구간: turns의 합집합에 앞뒤 0.25초 여유, 0.6초보다 짧은 틈은 이어 붙인다. 아무것도 못 찾았으면 옛 방식(에너지 기준)으로
     let regions = [];
-    if (segOk && turns.length) {
-      const iv = turns.map(t => [Math.max(0, t.t0 - 0.25), Math.min(dur, t.t1 + 0.25)]).sort((a, b) => a[0] - b[0]);
+    if (segOk && found.turns.length) {
+      const iv = found.turns.map(t => [Math.max(0, t.t0 - 0.25), Math.min(dur, t.t1 + 0.25)]).sort((a, b) => a[0] - b[0]);
       for (const [a, b] of iv) { const p = regions[regions.length - 1]; if (p && a - p[1] < 0.6) p[1] = Math.max(p[1], b); else regions.push([a, b]); }
       regions = regions.filter(r => r[1] - r[0] >= 0.3);
     }
@@ -6873,29 +7003,23 @@ self.onmessage = async e => {
     words = words.filter(w => w.text && w.text.trim());
     if (legacy) {   // 옛 방식으로 나눴으면 화자 구간은 여기서 구한다
       post({ type: 'stage', msg: '발언자를 나누는 중', pct: 78 });
-      turns = []; base = 0;
-      for (let off = 0; off < audio.length; off += WIN) { const part = audio.subarray(off, Math.min(audio.length, off + WIN)); if (part.length < sr) break; const t = await segmentSpeakers(part, off / sr, base); const ids = new Set(t.map(x => +x.spk)); base += ids.size ? Math.max(...ids) + 1 - base : 0; turns.push(...t); }
+      try { found = await findTurns(audio, sr, algo); } catch (err) { post({ type: 'log', msg: '발언자 구간 찾기 실패(한 사람으로 둠): ' + (err && err.message) }); found = { turns: [], units: null }; }
     }
     post({ type: 'stage', msg: '목소리 특징을 비교하는 중', pct: 84 });
-    try { turns = await unifySpeakers(audio, sr, turns, numSpeakers); } catch (err) { post({ type: 'log', msg: '화자 통일 실패(구간별 번호 유지): ' + (err && err.message) }); }
+    const turns = await unifyAny(audio, sr, found, numSpeakers, maxSpeakers);
     post({ type: 'stage', msg: '정리 중', pct: 95 });
-    post({ type: 'done', result: { segments: assignWords(words, turns), duration: dur, diarizer: 'browser:' + device + ':' + tier } });
+    post({ type: 'done', result: { segments: assignWords(words, turns, !!found.units), duration: dur, diarizer: 'browser:' + device + ':' + tier + ':' + (found.units ? 'window' : 'long') } });
   } catch (err) { post({ type: 'error', message: String(err && err.message || err), stack: err && err.stack }); }
 };
 /* 다른 곳(OpenAI 호환 STT 서버 등)에서 받은 전사에 발언자만 붙인다: 분할 → 임베딩 군집 → 단어 배정 */
 async function diarOnly(d) {
   try {
-    const { audio, sr, words, numSpeakers = 0, device } = d;
+    const { audio, sr, words, numSpeakers = 0, maxSpeakers = 0, algo = 'window', device } = d;
     await loadDiarOnly(device);
     post({ type: 'loaded' });
-    const WIN = 600 * sr; let turns = [], base = 0;
-    for (let off = 0; off < audio.length; off += WIN) {
-      const part = audio.subarray(off, Math.min(audio.length, off + WIN)); if (part.length < sr * 0.5) break;
-      const t = await segmentSpeakers(part, off / sr, base); const ids = new Set(t.map(x => +x.spk)); base += ids.size ? Math.max(...ids) + 1 - base : 0; turns.push(...t);
-      post({ type: 'stage', msg: '발언자를 나누는 중 ' + Math.min(100, Math.round((off + WIN) / audio.length * 100)) + '%', pct: 60 + Math.min(20, 20 * (off + WIN) / audio.length) });
-    }
-    try { turns = await unifySpeakers(audio, sr, turns, numSpeakers); } catch (err) { post({ type: 'log', msg: '화자 통일 실패: ' + (err && err.message) }); }
-    post({ type: 'done', result: { segments: assignWords(words, turns), duration: audio.length / sr } });
+    const found = await findTurns(audio, sr, algo, f => post({ type: 'stage', msg: '발언자를 나누는 중 ' + Math.round(f * 100) + '%', pct: 60 + 20 * f }));
+    const turns = await unifyAny(audio, sr, found, numSpeakers, maxSpeakers);
+    post({ type: 'done', result: { segments: assignWords(words, turns, !!found.units), duration: audio.length / sr, diarizer: 'browser:' + device + ':' + (found.units ? 'window' : 'long') } });
   } catch (err) { post({ type: 'error', message: String(err && err.message || err), stack: err && err.stack }); }
 }
 async function loadDiarOnly(device) {   // 인식 모델 없이 분할·임베딩 모델만
@@ -6904,7 +7028,7 @@ async function loadDiarOnly(device) {   // 인식 모델 없이 분할·임베�
   if (!segModel) { post({ type: 'stage', msg: '발언자 구분 모델을 불러오는 중' }); segProc = await T.AutoProcessor.from_pretrained(${JSON.stringify(SEG_ID)}, { progress_callback: pc('segmentation') }); segModel = await T.AutoModelForAudioFrameClassification.from_pretrained(${JSON.stringify(SEG_ID)}, { device, dtype: 'fp32', progress_callback: pc('segmentation') }); }
   if (!embModel) { post({ type: 'stage', msg: '목소리 특징 모델을 불러오는 중' }); embProc = await T.AutoProcessor.from_pretrained(${JSON.stringify(EMB_ID)}, { progress_callback: pc('embedding') }); embModel = await T.AutoModel.from_pretrained(${JSON.stringify(EMB_ID)}, { device: 'wasm', dtype: 'fp32', progress_callback: pc('embedding') }); }
 }
-function assignWords(words, turns) {
+function assignWords(words, turns, smooth) {
   { let last = null;
     const assigned = words.map(w => {
       let best = null, bo = 0;
@@ -6913,6 +7037,15 @@ function assignWords(words, turns) {
       if (best == null) best = last == null ? '0' : last;
       last = best; return { ...w, spk: best };
     });
+    /* 한 사람이 쉬지 않고 이어 말하는 중간에 끼인 아주 짧은 다른 번호(3단어 이하, 1초 미만, 앞뒤 틈 0.3초 미만)는 앞뒤 사람의 말로 본다.
+       단어 시각의 오차로 문장 가운데 한두 단어가 다른 사람에게 붙어 문단이 쪼개지던 것을 막는다. 쉬었다가 끼어든 짧은 대답("네")은 그대로 둔다 */
+    if (smooth) for (let i = 1; i < assigned.length - 1; i++) {
+      const a = assigned[i], prev = assigned[i - 1]; if (a.spk === prev.spk) continue;
+      let j = i; while (j + 1 < assigned.length && assigned[j + 1].spk === a.spk) j++;
+      const next = assigned[j + 1];
+      if (next && next.spk === prev.spk && j - i < 3 && assigned[j].t1 - a.t0 < 1 && a.t0 - prev.t1 < 0.3 && next.t0 - assigned[j].t1 < 0.3) for (let k = i; k <= j; k++) assigned[k].spk = prev.spk;
+      i = j;
+    }
     const segs = [];
     for (const w of assigned) {
       const cur = segs[segs.length - 1];
@@ -6951,6 +7084,9 @@ async function decodeTo16k(blob, onPct) {
     return { audio: out, sr: 16000, duration: n / 16000 };
   } finally { try { ctx.close(); } catch {} }
 }
+/* 발언자 수를 모를 때의 상한: 참석자 명단이 있으면 그 수 + 1(명단에 없는 발표자 몫). 목소리가 비슷해 한 사람이 여러 명으로 쪼개지는 것을 막는다 */
+const speakerCap = () => { const k = (S.attendees || []).filter(a => a && a.name).length; return k >= 2 ? k + 1 : 0; };
+let diarLastWords = null;   // 마지막 내장 분석의 단어(시각 포함). 평가 도구가 같은 전사로 발언자 구분 방식만 바꿔 비교할 때 쓴다
 const whisperLang = code => ({ ko: 'korean', en: 'english', ja: 'japanese', zh: 'chinese' }[(code || 'ko').slice(0, 2)] || 'korean');
 async function diarizeBrowser({ title }) {
   if (!S.audioBlob) throw new Error('녹음 파일이 없어요. 녹음하거나 파일을 붙인 뒤 실행하세요.');
@@ -6965,7 +7101,7 @@ async function diarizeBrowser({ title }) {
   } catch {}
   try { if (device === 'webgpu' && Date.now() - (+localStorage.getItem(DIAR_CPU_KEY) || 0) < 7 * 864e5) { device = 'wasm'; aiLog('info', '지난번 GPU 무응답 기록이 있어 CPU로 분석'); } } catch {}
   let tier = resolveTier(device);
-  if (diar.tier === 'accurate' && tier !== 'accurate') toast(env.mobile ? '휴대폰에서는 1.5GB "정확" 모델이 메모리 부족으로 멈춰서 균형(small) 모델로 분석해요.' : '"정확" 모델은 WebGPU가 있어야 해서 이 기기에서는 균형(small) 모델로 분석해요.', 7000);
+  if (diar.tier === 'accurate' && tier !== 'accurate') toast('휴대폰에서는 1.5GB "정확" 모델이 메모리 부족으로 멈춰서 균형(small) 모델로 분석해요.', 7000);
   aiLog('info', '내장 발언자 구분 시작', { device, tier, gpu: gpuInfo, bytes: S.audioBlob.size, lang: $('#lang').value, n: diar.n || 'auto' });
   // 저장 공간이 부족해도 브라우저가 모델 캐시를 임의로 지우지 않도록 영구 저장 요청
   try { navigator.storage?.persist?.().then(ok => aiLog('info', '영구 저장소', { granted: ok })); } catch {}
@@ -7010,7 +7146,7 @@ async function diarizeBrowser({ title }) {
             else if (m.type === 'error') { aiLog('error', '워커 오류', { message: m.message, stack: (m.stack || '').split('\n').slice(0, 3).join(' | ') }); rej(new Error(m.message)); }
           };
           w.onerror = ev => { aiLog('error', '워커 로드 실패', { message: ev.message, file: ev.filename, line: ev.lineno }); rej(new Error(ev.message || '내장 분석 모듈을 불러오지 못했어요.')); };
-          w.postMessage({ audio: pcm, sr, language: whisperLang($('#lang').value), device, tier, numSpeakers: diar.n || 0, doneUntil, prevWords: words }, [pcm.buffer]);
+          w.postMessage({ audio: pcm, sr, language: whisperLang($('#lang').value), device, tier, numSpeakers: diar.n || 0, maxSpeakers: speakerCap(), algo: diar.algo, doneUntil, prevWords: words }, [pcm.buffer]);
         })]);
       } catch (e) {
         if (!(e && e.code === 'gpu_stall') || device !== 'webgpu' || cancelled) throw e;
@@ -7022,6 +7158,7 @@ async function diarizeBrowser({ title }) {
       } finally { clearInterval(watch); }
     }
     if (cancelled) throw Object.assign(new Error('취소됨'), { name: 'AbortError' });
+    diarLastWords = words;
     return await applyDiarResult(result, t0);
   } catch (e) {
     if (cancelled) throw Object.assign(new Error('취소됨'), { name: 'AbortError' });
@@ -9125,7 +9262,7 @@ else if ($('#gate').hidden) setTimeout(openDashboard, 400);   // 게스트·로�
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, dashOpen, dashClose, setReadOnly, askChoice, set driveTok(v) { driveTok = v; }, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, browserSpeakersFor, lastWords: () => diarLastWords, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, dashOpen, dashClose, setReadOnly, askChoice, set driveTok(v) { driveTok = v; }, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
 applyAuthorDefault(false);
 renderAll();
 selectTab(curTab);

@@ -120,7 +120,7 @@ ffmpeg는 PATH → exe 옆 `ffmpeg` 폴더 → `imageio-ffmpeg` 동봉본 순으
 - **발언자 구분**(전사 탭): 브라우저 내장(transformers.js, 첫 실행 모델 약 90MB) 또는 PC 서비스(정확). 새 회의에 녹음 파일만 붙이면 분석 여부를 먼저 묻고 진행률 창(백그라운드 가능, 취소 가능)으로 진행한다.
 - **전사 듣기·고치기·검색**(전사 탭): 글자를 누르면(끌어 고르면) 그 자리부터 재생하고(문단 안 위치는 글자 수 비율로 어림, `segTimeAt`), 행·시각을 누르면 그 문단만 처음부터 끝까지 재생한다(`playSegment`, `segStopAt`). 시각 표시는 발언자 이름과 같은 색. 마우스 우클릭 메뉴(`#segMenu`: 문단 수정·여기서 나누기·듣기·삭제), 터치·펜은 길게 누르면 바로 수정(`startSegEdit`; Enter 저장·Esc 취소). 검색창은 낱말(또는 발언자 이름)이 든 문단만 보여 주고 찾은 곳을 표시한다. 검색창 옆 **바꾸기**로 그 낱말을 전사 전체에서 한꺼번에 교체한다(대소문자 무시, 되돌리기 한 번 `trReplaceBackup`). 재생 중에는 문단 강조(`.seg.now`)에 더해 시각 비율로 어림한 **낱말 위치**를 색으로 표시한다(`paintReadPos`: 읽은 낱말 `.read`, 지금 낱말 `.read-cur`; 검색 중·수정 중에는 끔). 녹음 중 실시간 전사(발언자 모름)는 문단을 짧게 끊는다(0.7초·문장 중간 1.8초, 120자·18초: `canMergeSeg`).
 - **전사 파일 가져오기**(전사 탭, 또는 .txt를 화면에 끌어다 놓기): 녹음이 없는 회의에 다른 도구의 전사(.txt)를 올린다. 클로바노트 내보내기를 알아본다 — 음성 기록(참석자+발언)과 AI 요약(주요 주제·다음 할 일·시간대별 요약), 각각 시간 기록 포함/미포함(`parseTranscriptText`). 시간이 없으면 순서만 지키는 가짜 시각을 매기고 `S.trImport.timed=false`로 표시해 화면·프롬프트·내보내기에서 시각을 감춘다(`segTimed()`). 가져온 회의는 녹음·녹음 파일 붙이기가 잠기고 "가져온 전사 지우기"로 되돌린다. 머리말의 제목·일시·길이·참석자는 비어 있는 칸에만 채운다.
-- **브라우저 내장 상세**: 인식 모델 등급(`diar.tier`: 자동/정확 `whisper-large-v3-turbo_timestamped`(WebGPU 전용, encoder fp16 + decoder q4 ≈ 1.5GB)/균형 `whisper-small_timestamped`(≈560MB)/빠름 `whisper-base_timestamped`(≈90MB)). 자동은 WebGPU PC → 정확, WebGPU 휴대폰 → 균형, CPU → 균형(휴대폰은 빠름). `resolveTier`가 정하고 GPU 무응답으로 CPU로 바뀌면 다시 정한다. 녹음 중 실시간 전사는 항상 빠름 모델. 순서: ① pyannote-segmentation을 10분 창으로 먼저 돌려 말소리 구간(VAD)과 화자 구간(turns)을 얻고 ② 말소리 조각만 0.4초 무음으로 이어 붙인 26초 안팎의 인식 구간을 만들어(긴 구간은 가장 조용한 지점에서 나눔) Whisper에 넣고 시각은 map으로 원래 위치로 되돌린다(무음·잡음 환청 감소). 분할 실패 시 옛 에너지 기준으로 대체. ③ 발언자는 turns마다 **WeSpeaker 임베딩**(`onnx-community/wespeaker-voxceleb-resnet34-LM`, wasm)으로 단위(최대 8초)마다 특징을 뽑아 pyannote 3.1과 같은 centroid 군집(단위 벡터 유클리드 거리 0.7046, 작은 무리는 가까운 무리에 흡수)으로 녹음 전체에서 화자를 통일한다(`unifySpeakers`). 발언자 수를 지정하면 그 수까지 묶는다.
+- **브라우저 내장 상세**: 인식 모델 등급(`diar.tier`: 자동/정확 `whisper-large-v3-turbo_timestamped`(WebGPU 권장, encoder fp16 + decoder q4 ≈ 1.5GB. v0.32부터 PC CPU에서도 직접 고르면 q8로 실행 — 아주 느림, 휴대폰은 균형으로 내림)/균형 `whisper-small_timestamped`(≈560MB)/빠름 `whisper-base_timestamped`(≈90MB)). 자동은 WebGPU PC → 정확, WebGPU 휴대폰 → 균형, CPU → 균형(휴대폰은 빠름). `resolveTier`가 정하고 GPU 무응답으로 CPU로 바뀌면 다시 정한다. 녹음 중 실시간 전사는 항상 빠름 모델. 순서: ① pyannote-segmentation을 **10초 창·5초 이동**(v0.32, `segmentWindows`. 예전 10분 창은 `diar.algo='long'`으로 비교용)으로 먼저 돌려 말소리 구간(VAD)과 창별 화자 구간(turns)·창별 '혼자 말한' 소리 묶음(units)을 얻고 ② 말소리 조각만 0.4초 무음으로 이어 붙인 26초 안팎의 인식 구간을 만들어(긴 구간은 가장 조용한 지점에서 나눔) Whisper에 넣고 시각은 map으로 원래 위치로 되돌린다(무음·잡음 환청 감소). 분할 실패 시 옛 에너지 기준으로 대체. ③ 발언자는 창별 units마다 **WeSpeaker 임베딩**(`onnx-community/wespeaker-voxceleb-resnet34-LM`, wasm, 최대 10초)을 뽑아 pyannote 3.1과 같은 centroid 군집(단위 벡터 유클리드 거리 0.7046, 작은 무리는 가까운 무리에 흡수 — 단위 20개 미만인 짧은 녹음은 제외, 긴 것부터 700개까지)으로 사람 중심을 구하고, 모든 unit을 가장 가까운 중심에 다시 배정한다(한 창 안의 서로 다른 사람은 서로 다른 번호로, `unifyWindows`). 발언자 수를 지정하면 그 수까지 묶고, 비우면 참석자 수+1을 상한으로(`speakerCap`). ④ 단어마다 화자를 배정하고 이어 말하는 중간에 끼인 짧은 다른 번호(3단어·1초 미만, 앞뒤 틈 0.3초 미만)는 앞뒤 사람으로 정리한다(`assignWords`). 알고리즘 점검은 `node tests/diar_algo.js`(모델 없이), 실제 정확도는 `python tests/eval_stt.py`(녹음 + 클로바노트 형식 정답 전사 → CER·cpCER·화자정확, `--compare`로 window/long 비교).
 - **클라우드 API**(세 번째 방식, 선택): 네이버 클로바 스피치(클로바노트와 같은 엔진, 발언자 구분·용어 사전 내장. 브라우저에서 직접 부를 수 없어 PC 서비스의 `/cloud/clova`를 거쳐 보냄), OpenAI `gpt-4o-transcribe-diarize`(브라우저 직접. 25MB 초과 시 12분 WAV 구간으로 나누고 앞 구간의 화자 목소리 샘플을 `known_speaker_references`로 넘겨 같은 사람을 이어 줌), AssemblyAI(올리기→작업→상태 조회, `word_boost`), Deepgram Nova-3(`diarize`+`utterances`). **음성 인식 서버(OpenAI 호환, `whisperapi`)**: PC에 띄운 Whisper 서버(whisper.cpp `whisper-server`, speaches, LocalAI)나 OpenAI whisper-1의 `/v1/audio/transcriptions`(verbose_json, prompt=용어 사전)로 글만 받고, 그 글에 브라우저 내장 발언자 구분을 얹는다(워커 `diarOnly` 모드 → `browserSpeakersFor`). 키는 선택. 코드는 `CLOUD_PROV`/`CLOUD_RUN`/`diarizeCloud`. 키는 세션 저장소(또는 '기억' 체크 시 localStorage `meetnote.cloudKeys`)에만 두고 계정에 동기화하지 않는다. 화자 표시는 서비스마다 달라 나온 순서대로 0,1,2…로 맞춘다.
 - 휴대폰에서는 브라우저 내장 '정확' 모델을 균형으로 강제한다(`resolveTier`).
 - **회의 용어 사전**(`meetingVocab`): 참석자·발언자 이름, 참고 자료 이름과 자주 나오는 낱말(영문 약어·고유명사 위주, 최대 40개)을 음성 인식 엔진에 힌트로 준다. PC 서비스는 `vocab` 폼 필드 → faster-whisper `hotwords`/`initial_prompt`, 클로바는 `boostings`, AssemblyAI는 `word_boost`, Deepgram은 영어일 때만 `keyterm`. 분석 창의 체크박스로 끌 수 있다.
@@ -246,7 +246,7 @@ myform: {
 | exe에서만 발언자 단계 멈춤 | OpenMP 충돌·numba 캐시. 최신 diarize.py는 시작 시 환경변수를 자동 설정. `DIARIZER=none`으로 원인 분리 가능 |
 | git push 거부(대용량) | `.venv`·ffmpeg가 커밋됨. `.gitignore` 확인 후 히스토리 재생성(README 참고) |
 
-## 7. 현재 상태·이어서 할 일 (2026-09-26, v0.31.0)
+## 7. 현재 상태·이어서 할 일 (2026-09-29, v0.32.0)
 
 **배포**: `git push`(main) → GitHub Pages 자동 배포 → https://byeongjoosung.github.io/MeetNote/ . 배포 후 `curl …/index.html | grep APP_VERSION`으로 확인. 서비스 워커 때문에 브라우저는 새로고침을 한두 번 해야 새 버전이 뜬다.
 
@@ -259,10 +259,12 @@ myform: {
 - v0.28~0.29: 휴지통(30일, `deletedAt/deletedBy`, 복구·영구 삭제·자동 정리), 달력·목록·휴지통 탭, 운영자 권한(`canModerate`).
 - v0.30: 역할(마스터·운영자·구성원) 정리, 복구·영구 삭제 확인창, 프로젝트 알림(`notifCheck`, 🔔).
 - v0.31: 태블릿·모바일 반응형(대시보드 LNB 띠/메뉴 토글, 카드 2열, 편집 화면 문서 폭).
+- v0.32: 브라우저 내장 발언자 구분을 10초 창 방식으로(`segmentWindows`/`unifyWindows`), 참석자 수 상한, 짧은 끼임 정리, CPU에서도 정확 모델 선택. 평가 도구 `tests/eval_stt.py`·알고리즘 점검 `tests/diar_algo.js` 추가.
 
 **운영 쪽에서 해 둔 것**: Firestore 규칙은 `docs/CLOUD-SETUP.md` 1-5 최신본이 콘솔에 게시됨(projects·meetings 하위·deletedAt/deletedBy 포함). Google Picker API 사용 설정 + `config.js`의 `pickerKey`. API 키 제한 적용. `adminEmails`는 제거함.
 
 **알려진 제약·다음 후보**
+- 인식·발언자 정확도 개선은 `tests/eval_stt.py` 점수로 판단한다(실제 회의 녹음 10분 × 3개 + 정답 전사). 다음 후보: 브라우저 Whisper에 용어 사전 힌트(transformers.js 3.8은 `prompt_ids` 미지원 → `decoder_input_ids`에 `<|startofprev|>` + 용어를 직접 넣어야 함), 녹음 시 잡음 제거·자동 음량(통화용 처리)을 끄는 옵션, 한국어 파인튜닝 Whisper ONNX 모델 등급.
 - 실시간 공동 편집은 미지원(1단계 소프트 락까지). 문단 단위 준실시간 동기화(RTDB 스트리밍)가 다음 단계 후보.
 - 프로젝트 알림은 앱이 열려 있을 때만(3분 폴링). 푸시 알림은 서버가 필요.
 - 운영자의 남의 회의록 삭제는 프로젝트 기록 기준(남의 Drive 파일·목록 DB는 건드릴 수 없음).
