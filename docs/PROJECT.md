@@ -68,7 +68,7 @@ meetnote/
 ### 2.2 서버 (server/diarize.py)
 FastAPI + uvicorn. 역할은 두 가지.
 1. **전사 + 발언자 구분 API**
-   - `POST /jobs` (multipart: audio, lang, num_speakers, vocab) → `{job_id}`; `POST /cloud/clova` (multipart: audio, invoke_url, key, lang, num_speakers, vocab) → 클로바 스피치 응답 그대로; `GET/POST /llm/{path}` → `LLM_BASE/{path}`로 전달(스트리밍 포함, Authorization 통과); `GET/POST /nim/{path}` → `NIM_BASE/{path}`(NVIDIA API, 같은 방식); `GET /jobs/{id}` → `{state, pct, stage, message, result}`; `DELETE /jobs/{id}` 취소
+   - `POST /jobs` (multipart: audio, lang, num_speakers, vocab) → `{job_id}`; `POST /cloud/clova` (multipart: audio, invoke_url, key, lang, num_speakers, vocab) → 클로바 스피치 응답 그대로; `GET/POST /llm/{path}` → `LLM_BASE/{path}`로 전달(스트리밍 포함, Authorization 통과); `GET/POST /nim/{path}` → `NIM_BASE/{path}`(NVIDIA API, 같은 방식); `POST /extract` (multipart: audio) → 녹화(mp4)에서 소리만 m4a; `GET /jobs/{id}` → `{state, pct, stage, message, result}`; `DELETE /jobs/{id}` 취소
    - `POST /diarize` 동기 버전(구버전 호환), `GET /health`
    - 파이프라인: ffmpeg → 16kHz wav → faster-whisper(small, VAD) → 발언자 분리(pyannote 3.1 또는 resemblyzer 임베딩+군집) → 문장에 화자 배정
    - 작업은 한 번에 하나만 실행(작업 잠금), 취소는 문장 경계에서 즉시 반영

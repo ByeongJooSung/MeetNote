@@ -44,6 +44,7 @@ JS 문법은 `node --check`로 확인 가능: `python tests/smoke.py --check-onl
 - 분할·군집을 바꾸면 `node tests/diar_algo.js`(모델 없이 가짜 분할·임베딩으로 알고리즘 점검) → `python tests/eval_stt.py tests/eval_data --compare`(실제 녹음 + 정답 전사로 CER·cpCER·화자정확 비교, 녹음·결과는 커밋하지 않음) → `python tests/diar_two_voices.py`(두 목소리 TTS, Windows) 순으로 확인할 것.
 - 음성 인식에는 `meetingVocab()`(참석자·참고 자료 용어)을 힌트로 보낸다. 새 회의에 녹음 파일만 붙이면 분석 여부를 먼저 묻는다.
 - 서버 작업은 한 번에 하나(`RUN_LOCK`), 취소는 문장 경계에서 반영, 진행률은 `progress(pct, stage, msg)`. 작업 하나 안에서는 녹음을 구간으로 나눠 동시에 전사한다(`plan_chunks`·`PARALLEL`). 화자 군집은 반드시 녹음 전체로 한 번(`cluster_turns`) — 구간별로 군집하면 구간마다 번호가 달라진다. 바꾸면 `server\.venv\Scripts\python tests/server_parallel.py`로 확인.
+- Google Meet 가져오기: Gemini 회의록은 `parseGemini`(마크다운·Docs API 글 공통, "회의 일정:" 머리줄로 회의 구분) → `geminiResult` → `applyTranscriptImport`(클로바노트와 공용). 문서 링크는 `gdocRead`(Docs API `includeTabsContent`, 꺼져 있으면 Drive 내보내기), 권한이 없으면 `driveGrant`(Drive 권한 또는 Picker). Gemini 스크립트(`S.trImport.src === 'gemini'`)만 녹화를 함께 붙일 수 있다(`trLock`). 녹화 mp4는 `attachRecording` → PC 서비스 `/extract`로 소리만. 바꾸면 `python tests/gemini_import.py`.
 - NVIDIA API 엔진(`ai.provider === 'nvidia'`)은 OpenAI 호환이라 `callOpenAI`를 그대로 쓰되, 브라우저 CORS가 막혀 PC 서비스 `/nim` 프록시를 거친다(`nimBase`). 키는 `llmToken`(보안 토큰 칸)에 두고 prefs 동기화·로그에 넣지 말 것.
 - exe에서는 OpenMP 충돌 방지 환경변수(`KMP_DUPLICATE_LIB_OK` 등)를 서버가 스스로 설정한다.
 

@@ -46,4 +46,5 @@ HF_TOKEN=hf_xxx python diarize.py       # Windows PowerShell: $env:HF_TOKEN="hf_
 ## API
 - `POST /jobs` (multipart: audio, lang=ko, num_speakers?) → `{job_id}` — 진행률 보고 방식(앱 기본)
 - `GET /jobs/{id}` → `{state, pct, stage, message, result?}` · `DELETE /jobs/{id}` 취소
+- `POST /extract` (multipart: audio=녹화 mp4 등) → 소리만 모노 AAC m4a(64kbps) — 앱의 구글 미트 녹화 붙이기
 - `POST /diarize` 동기 방식 → `{segments:[{t0,t1,text,spk}]}` · `GET /health`

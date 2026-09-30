@@ -935,8 +935,9 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
         <label class="chk"><input type="checkbox" id="trOn" checked> 실시간 전사</label>
         <button class="btn" id="diarBtn" title="녹음을 분석해 발언자를 나눕니다">발언자 구분</button>
         <button class="btn" id="mapBtn" title="분석된 화자를 참석자와 연결합니다">참석자 매핑</button>
-        <button class="btn" id="trImportBtn" title="녹음 없이 전사 파일(클로바노트 .txt 등)을 올려 전사로 씁니다">전사 파일 가져오기</button>
-        <input id="trInput" type="file" accept=".txt,text/plain" hidden>
+        <button class="btn" id="trImportBtn" title="녹음 없이 전사 파일(클로바노트 .txt, Gemini 회의록 .md 등)을 올려 전사로 씁니다">전사 파일 가져오기</button>
+        <input id="trInput" type="file" accept=".txt,.md,text/plain,text/markdown" multiple hidden>
+        <button class="btn" id="meetBtn" title="Google Meet 회의: Gemini 회의록 문서 링크(스크립트·요약)와 녹화 파일을 가져옵니다">Google Meet 가져오기</button>
         <button class="btn primary" id="trToDoc" title="전사 내용을 바탕으로 AI가 회의록을 작성해 왼쪽 '회의 내용'에 넣습니다 (메모가 있으면 함께 반영)">전사로 회의록 작성</button>
         <button class="btn" id="draftOptBtn2" title="타임라인 시간 표시, 이번 회의의 추가 지시(템플릿 저장·불러오기)">작성 옵션</button>
         <select id="lang" aria-label="전사 언어">
@@ -994,7 +995,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <button id="recBtn" class="recbtn" data-state="idle"><span class="rdot"></span><span id="recLbl">녹음 시작</span></button>
     <button id="stopBtn" class="btn" disabled>정지</button>
     <button id="attachBtn" class="btn" hidden title="휴대폰 녹음 앱 등으로 따로 녹음한 파일을 이 회의에 붙입니다">녹음 파일 붙이기</button>
-    <input id="audioInput" type="file" accept="audio/*,audio/mp4,audio/x-m4a,audio/m4a,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm,.3gp,.amr,.caf" hidden>
+    <input id="audioInput" type="file" accept="audio/*,audio/mp4,audio/x-m4a,audio/m4a,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm,.3gp,.amr,.caf,video/mp4,video/webm,video/quicktime,.mp4,.mov" hidden>
     <div class="clock"><span id="timer" class="num">00:00</span><span id="recState"></span></div>
   </div>
   <div class="reel-wrap">
@@ -1427,6 +1428,19 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div class="dlg-actions"><button class="btn" id="saveDlgCancel">취소</button><button class="btn primary" id="saveDlgGo">저장</button></div>
 </dialog>
 
+<dialog id="meetDlg" aria-labelledby="meetDlgTitle">
+  <h2 id="meetDlgTitle">Google Meet 회의 가져오기</h2>
+  <p class="hint">Gemini가 작성한 회의록 문서의 링크를 넣으면 그 회의의 <b>스크립트</b>(발언자·시각)를 전사로, <b>요약·다음 단계</b>를 메모로 가져와요. 문서에 회의가 여럿이면 가져올 회의 시간대를 고를 수 있어요. Google 로그인이 필요해요.</p>
+  <label class="field">Gemini 회의록 문서 링크<input id="meetDoc" placeholder="https://docs.google.com/document/d/…" autocomplete="off" spellcheck="false" inputmode="url"></label>
+  <label class="field">녹화 파일 (선택) — Drive 링크<input id="meetRec" placeholder="https://drive.google.com/file/d/… (Meet Recordings 폴더의 mp4)" autocomplete="off" spellcheck="false" inputmode="url"></label>
+  <div class="row"><button type="button" class="btn" id="meetRecPick">PC에서 녹화 파일 고르기</button><span class="hint" id="meetRecName"></span></div>
+  <input id="meetRecFile" type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,audio/*,.m4a,.mp3,.wav" hidden>
+  <p class="hint">녹화 파일은 소리만 뽑아 붙여요(PC 서비스가 켜져 있으면 작은 m4a로 바꿔 저장 용량을 줄여요). 스크립트와 녹화가 함께 있으면 전사는 스크립트를 쓰고, 녹화는 재생·따라 쓰기에 써요.</p>
+  <div class="dlg-actions">
+    <button class="btn" id="meetNo">취소</button>
+    <button class="btn primary" id="meetYes">가져오기</button>
+  </div>
+</dialog>
 <dialog id="textDlg" aria-labelledby="textDlgTitle">
   <h2 id="textDlgTitle">이름</h2>
   <label class="field"><span id="textDlgLabel"></span><input id="textDlgInput" autocomplete="off" spellcheck="false"></label>
@@ -1495,8 +1509,13 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.33.1';
+const APP_VERSION = '0.34.0';
 const PATCH_NOTES = [
+  { v: '0.34.0', date: '2026-09-30', items: [
+    '전사 탭에 "Google Meet 가져오기"를 추가했어요. Gemini가 작성한 회의록 문서의 링크를 넣으면 그 회의의 스크립트(발언자·시각)를 전사로, 요약·다음 단계·상세정보를 메모로 가져오고 회의 일시도 채워요. 문서에 회의가 여럿이면 가져올 시간대를 고를 수 있어요(Google 로그인 필요).',
+    '구글 미트 녹화(mp4)를 붙일 수 있어요: Drive 링크나 PC 파일로 넣으면 PC 서비스가 소리만 작은 m4a로 뽑아 붙여요(1시간 약 29MB). Gemini 스크립트와 녹화를 함께 쓰면 전사는 스크립트로, 녹화는 재생·따라 쓰기에 써요.',
+    '전사 파일 가져오기에서 Gemini 회의록을 내려받은 .md(스크립트·요약 두 파일을 한 번에)도 읽어요.',
+  ] },
   { v: '0.33.1', date: '2026-09-30', items: [
     'NVIDIA API: 서버 주소에 https://integrate.api.nvidia.com(/v1)을 그대로 넣어도, 켜져 있는 PC 서비스(localhost:8765 등)를 찾아 자동으로 그 경유 주소(…/nim)로 바꿔요. PC 서비스가 꺼져 있으면 켜는 방법을 안내해요.',
     'AI 서버 주소 끝의 /v1은 자동으로 떼요(문서의 base_url을 그대로 붙여 넣어도 동작).',
@@ -3446,8 +3465,8 @@ function syncButtons() {
   rb.disabled = rec.state === 'stopping' || (rec.state === 'idle' && (!!S.audioBlob || S.clockOnly || !!S.trImport));
   rb.title = (rec.state === 'idle' && S.trImport) ? TR_IMPORT_LOCK : (rec.state === 'idle' && S.audioBlob) ? '녹음이 이미 있어요. 새 회의에서 다시 녹음하세요.' : (rec.state === 'idle' && S.clockOnly) ? '시계로 기록한 회의예요. 녹음 파일을 붙이거나 새 회의를 시작하세요.' : '';
   $('#attachBtn').hidden = !(rec.state === 'idle' && !S.audioBlob);
-  $('#attachBtn').disabled = !!S.trImport; $('#attachBtn').title = S.trImport ? TR_IMPORT_LOCK : '휴대폰 녹음 앱 등으로 따로 녹음한 파일(m4a·mp3·wav)을 이 회의에 붙입니다.';
-  $('#trImportBtn').hidden = !(rec.state === 'idle' && !S.audioBlob); $('#diarBtn').disabled = !!S.trImport;
+  $('#attachBtn').disabled = trLock(); $('#attachBtn').title = trLock() ? TR_IMPORT_LOCK : '휴대폰 녹음 앱 등으로 따로 녹음한 파일(m4a·mp3·wav)이나 구글 미트 녹화(mp4)를 이 회의에 붙입니다.';
+  $('#trImportBtn').hidden = !(rec.state === 'idle' && !S.audioBlob); $('#meetBtn').hidden = rec.state !== 'idle'; $('#diarBtn').disabled = !!S.trImport;
   $('#stopBtn').disabled = !(rec.state === 'recording' || rec.state === 'paused');
   st.className = rec.state === 'recording' ? 'live' : '';
   st.textContent = rec.state === 'recording' ? (rec.mode === 'clock' ? '시계 기록 중' : '녹음 중') : rec.state === 'paused' ? '일시정지됨' : (S.audioBlob ? (audio.paused ? '녹음 있음' : '재생 중') : S.clockOnly ? '녹음 파일 필요' : '녹음 전');
@@ -3470,16 +3489,49 @@ function syncButtons() {
 }
 
 /* ---------- attach external recording & sync ---------- */
-const EXT_MIME = { m4a: 'audio/mp4', mp4: 'audio/mp4', mp3: 'audio/mpeg', wav: 'audio/wav', aac: 'audio/aac', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', webm: 'audio/webm', '3gp': 'audio/3gpp', amr: 'audio/amr', caf: 'audio/x-caf' };
+const EXT_MIME = { m4a: 'audio/mp4', mp4: 'audio/mp4', mov: 'video/quicktime', mp3: 'audio/mpeg', wav: 'audio/wav', aac: 'audio/aac', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', webm: 'audio/webm', '3gp': 'audio/3gpp', amr: 'audio/amr', caf: 'audio/x-caf' };
 const fileExt = name => { const m = /\.([a-z0-9]{2,5})$/i.exec(name || ''); return m ? m[1].toLowerCase() : ''; };
 let attachPending = false;
 $('#attachBtn').addEventListener('click', () => $('#audioInput').click());
-$('#audioInput').addEventListener('change', e => { attachAudio(e.target.files[0]); e.target.value = ''; });
+$('#audioInput').addEventListener('change', e => { attachRecording(e.target.files[0]); e.target.value = ''; });
+function attachBlocked() {
+  if (trLock()) return TR_IMPORT_LOCK;
+  if (rec.state !== 'idle') return '기록을 정지한 뒤 붙여 주세요.';
+  if (S.audioBlob) return '이 회의에는 이미 녹음이 있어요.';
+  return '';
+}
+const isVideoFile = f => /^video\//.test(f.type || '') || /^(mp4|mov|mkv)$/.test(fileExt(f.name || '')) && !/^audio\//.test(f.type || '');
+/* 녹화 파일(구글 미트 mp4 등): 영상까지 .mnote에 넣으면 수백 MB가 되므로 PC 서비스가 있으면 소리만 작은 m4a로 뽑아 붙인다(없으면 원본 그대로 — 재생·분석은 된다) */
+async function attachRecording(file) {
+  if (!file) return;
+  const why = attachBlocked(); if (why) { toast(why, 6000); return; }
+  if (isVideoFile(file)) {
+    const small = await extractAudio(file);
+    if (small) file = small;
+    else if (file.size > 150 * 1048576) toast(`녹화 파일(${Math.round(file.size / 1048576)}MB)을 그대로 붙였어요. 회의 파일(.mnote)이 그만큼 커져요. PC 서비스를 켜 두면 소리만 뽑아 작게 붙여요.`, 9000);
+  }
+  attachAudio(file);
+}
+async function extractAudio(file) {
+  const base = await findPcService('extract'); if (!base) return null;
+  const ctl = new AbortController(); progAbort = () => ctl.abort();
+  progOpen('녹화에서 소리만 뽑는 중', { local: true }); progSet(null, `PC 서비스로 보내는 중 (${Math.round(file.size / 1048576)}MB)`);
+  try {
+    const fd = new FormData(); fd.append('audio', file, file.name || 'recording.mp4');
+    const r = await fetch(base + '/extract', { method: 'POST', body: fd, signal: ctl.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + (await r.text().catch(() => '')).slice(0, 200));
+    progSet(90, '소리 파일을 받는 중');
+    const blob = await r.blob();
+    aiLog('info', '녹화에서 소리 추출', { from: file.size, to: blob.size, base });
+    return new File([blob], String(file.name || 'recording').replace(/\.[^.]+$/, '') + '.m4a', { type: 'audio/mp4' });
+  } catch (e) {
+    if (e.name === 'AbortError') { toast('소리 뽑기를 취소하고 녹화 파일을 그대로 붙여요.'); return null; }
+    aiLog('warn', '녹화 소리 추출 실패 → 원본 사용', errInfo(e)); toast('PC 서비스에서 소리를 뽑지 못해 녹화 파일을 그대로 붙여요: ' + (e.message || e), 7000); return null;
+  } finally { progClose(); progAbort = null; }
+}
 function attachAudio(file) {
   if (!file) return;
-  if (S.trImport) { toast(TR_IMPORT_LOCK, 6000); return; }
-  if (rec.state !== 'idle') { toast('기록을 정지한 뒤 붙여 주세요.'); return; }
-  if (S.audioBlob) { toast('이 회의에는 이미 녹음이 있어요.'); return; }
+  const why = attachBlocked(); if (why) { toast(why, 6000); return; }
   const ext = fileExt(file.name);
   const type = file.type || EXT_MIME[ext] || '';
   if (!/^(audio|video)\//.test(type) && !EXT_MIME[ext]) { toast('오디오 파일(m4a, mp3, wav 등)을 골라 주세요.'); return; }
@@ -3488,7 +3540,7 @@ function attachAudio(file) {
   S.audioImported = true;
   attachPending = true;
   setAudio(file);
-  markDirty(); syncButtons(); renderTimeline();
+  markDirty(); syncButtons(); renderTimeline(); renderTrImportInfo();
   const hasTimes = S.blocks.some(r => r.t != null) || S.segments.length;
   const fresh = !hasTimes && !S.segments.length && !S.blocks.some(r => r.hist.some(x => x.v));
   const ready = () => {
@@ -3657,6 +3709,7 @@ function pushSegment(g) {
    - 각각 '시간 기록 포함' 여부가 다르다 → 시간이 있으면 그대로 쓰고, 없으면 순서만 지키는 가짜 시각을 매기고(trImport.timed=false) 화면·프롬프트·내보내기에서 시각을 감춘다
    - 가져온 뒤에는 녹음·녹음 파일 붙이기를 막는다(시간축이 서로 맞지 않는다). '가져온 전사 지우기'로 되돌린다 */
 const TR_IMPORT_LOCK = '전사 파일을 가져온 회의라 녹음을 함께 쓸 수 없어요. 녹음을 쓰려면 전사 탭에서 "가져온 전사 지우기"를 누르세요.';
+function trLock() { return !!S.trImport && S.trImport.src !== 'gemini'; }   // (함수 선언: 위쪽 syncButtons가 먼저 불러도 되게) Gemini 스크립트는 같은 미트 회의의 녹화와 시간축이 같아 녹화를 붙일 수 있다(새 녹음은 여전히 막음)
 const segTimed = () => !(S.trImport && S.trImport.timed === false);
 const CLOCK_RE = /(\d{1,3}:\d{2}(?::\d{2})?)/.source;
 const clockSec = v => { const p = String(v).split(':').map(Number); return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p[0] * 60 + p[1]; };   // 클로바는 1시간이 넘어도 mm:ss(예: 109:09)로 적는다
@@ -3731,41 +3784,168 @@ async function readTextFile(file) {
   if ((text.match(/\uFFFD/g) || []).length > 5) { try { text = new TextDecoder('euc-kr').decode(buf); } catch {} }   // 옛 메모장(ANSI)으로 저장한 파일
   return text;
 }
+/* ---------- Google Meet: Gemini가 작성한 회의록(메모 탭: 요약·다음 단계·상세정보) + 스크립트 탭 ----------
+   문서 링크(Docs API의 탭 내용)와 내려받은 .md/.txt를 같은 방식으로 읽는다: 마크다운 기호(#, **, \ 이스케이프, 링크)를 걷어낸 줄 단위.
+   - "회의 일정: 2026년 9월 30일 10:33 KST"(스크립트 탭은 "… - 스크립트")가 회의 하나. 한 문서에 여러 회의(탭)가 있으면 시간대별로 묶는다
+   - 스크립트: "00:02:26" 줄이 구간 시작, "이름：발언"(전각·반각 콜론)이 발언. 구간 안 발언의 시각은 다음 구간까지 글자 수 비율로 나눈다
+   - 끝 줄 "00:25:34 후 스크립트 작성이 종료되었습니다." = 회의 길이 */
+const GM_CLOCK = /^(\d{1,2}):(\d{2}):(\d{2})$/;
+const gmClock = m => +m[1] * 3600 + +m[2] * 60 + +m[3];
+function gmLines(raw) {
+  return String(raw || '').replace(/^﻿/, '').replace(/\r/g, '').split('\n').map(l => l
+    .replace(/\\([\\\-\[\]*_#.()!`>+~|])/g, '$1').replace(/\*\*|__/g, '')
+    .replace(/\[([^\]]*)\]\((?:[^()]|\([^)]*\))*\)/g, '$1')   // [00:00:04](?tab=…) → 00:00:04
+    .replace(/^#{1,6}\s*/, '').replace(/ /g, ' ').trim().replace(/^[*_](?!\s)(.*?)[*_]$/, '$1'));   // 마지막: 기울임(*안내 문구*) 벗기기
+}
+function gmHeader(l) {   // → { key, when, label, part } | null
+  let m = l.match(/^(?:회의 일정|회의)\s*:\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*(\d{1,2}):(\d{2})\s*([A-Z]{2,5})?\s*(?:[-–]\s*(.+))?$/);
+  if (!m) m = l.match(/^Meeting\s+(?:started|scheduled)?\s*(?:on|at)?\s*:?\s*(\d{4})[\/.-](\d{1,2})[\/.-](\d{1,2})\s+(\d{1,2}):(\d{2})\s*([A-Z]{2,5})?\s*(?:[-–]\s*(.+))?$/i);
+  if (!m) return null;
+  const [y, mo, d, h, mi] = m.slice(1, 6).map(Number), tz = m[6] || '';
+  const off = { KST: 9, JST: 9, UTC: 0, GMT: 0 }[tz];
+  const dt = off != null ? new Date(Date.UTC(y, mo - 1, d, h - off, mi)) : new Date(y, mo - 1, d, h, mi);
+  const p2 = n => String(n).padStart(2, '0');
+  return { key: `${y}-${p2(mo)}-${p2(d)} ${p2(h)}:${p2(mi)}`, when: isNaN(dt) ? '' : dt.toISOString(), label: `${y}년 ${mo}월 ${d}일 ${p2(h)}:${p2(mi)}${tz ? ' ' + tz : ''}`, part: /스크립트|transcript/i.test(m[7] || '') ? 'transcript' : '' };
+}
+const GM_SKIP = /^(Gemini가 작성한 회의록이 정확한지|이 특정 메모의 품질|수정 가능한 이 스크립트는|회의 기록\s*스크립트|Meeting records|You should review Gemini|This editable transcript|How is the quality|Please provide feedback)/i;
+function parseGemini(raw, tabId = '') {
+  const lines = gmLines(raw);
+  const sessions = new Map(); let ses = null, mode = '', blockT = null, last = null, clocks = 0, says = 0;
+  const get = h => { if (!sessions.has(h.key)) sessions.set(h.key, { key: h.key, when: h.when, label: h.label, tabs: [], utts: [], end: 0, overview: [], todos: [], details: [] }); return sessions.get(h.key); };
+  const anon = () => ses || (ses = get({ key: '', when: '', label: '' }));
+  for (const l of lines) {
+    if (!l || GM_SKIP.test(l)) continue;
+    const h = gmHeader(l);
+    if (h) { ses = get(h); if (tabId && !ses.tabs.includes(tabId)) ses.tabs.push(tabId); mode = h.part; blockT = null; last = null; continue; }
+    const end = l.match(/^(\d{1,2}):(\d{2}):(\d{2})\s*(?:후 스크립트 작성이 종료|.*(?:transcription ended|Transcription ended))/);
+    if (end) { anon().end = gmClock(end); mode = ''; last = null; continue; }
+    const c = l.match(GM_CLOCK);
+    if (c) { anon(); mode = 'transcript'; blockT = gmClock(c); last = null; clocks++; continue; }
+    if (/^(요약|Summary)$/i.test(l)) { anon(); mode = 'overview'; continue; }
+    if (/^(다음 단계|추천 다음 단계|Next steps|Suggested next steps)$/i.test(l)) { anon(); mode = 'todos'; continue; }
+    if (/^(상세정보|세부정보|세부 정보|Details)$/i.test(l)) { anon(); mode = 'details'; continue; }
+    if (/^(스크립트|Transcript)$/i.test(l)) { anon(); mode = 'transcript'; continue; }
+    if (/^\d{1,2}월\s*\d{1,2},\s*\d{4}$|^[A-Z][a-z]{2,8} \d{1,2}, \d{4}$/.test(l)) continue;   // 문서 맨 위 날짜 줄
+    if (mode === 'transcript') {
+      const u = l.match(/^([^：:]{1,30}?)\s*[：:]\s*(.*)$/);
+      if (u && !/[.?!。]/.test(u[1]) && u[1].split(/\s+/).length <= 4) { last = { spk: u[1].trim(), text: u[2].trim(), t: blockT }; anon().utts.push(last); says++; }
+      else if (last) last.text += ' ' + l;
+      continue;
+    }
+    const item = l.replace(/^(?:[-*•]\s+)?(?:\[[ xX]?\]\s*)?/, '');
+    if (mode === 'todos') anon().todos.push(item);
+    else if (mode === 'details') anon().details.push(item);
+    else if (mode === 'overview') anon().overview.push(item);
+  }
+  const list = [...sessions.values()].filter(s => s.utts.length || s.overview.length || s.todos.length || s.details.length);
+  if (!list.length || (!list.some(s => s.key) && !(clocks >= 2 && says >= 5))) return null;
+  return list;
+}
+/* 회의 하나(여러 탭을 합친 것) → parseTranscriptText와 같은 모양 + memo(메모에 넣을 요약 묶음) */
+function geminiResult(s) {
+  const out = { src: 'gemini', kind: 'transcript', timed: true, title: '', when: s.when || '', duration: 0, people: [], segs: [], topics: [], todos: [], memo: [], label: s.label };
+  if (s.utts.length) {
+    const blocks = []; for (const u of s.utts) { const b = blocks[blocks.length - 1]; if (b && b.t === u.t) b.us.push(u); else blocks.push({ t: u.t == null ? (b ? b.t : 0) : u.t, us: [u] }); }
+    blocks.forEach((b, k) => {
+      const chars = b.us.reduce((n, u) => n + u.text.length + 4, 0) || 1;
+      const nx = blocks[k + 1], stop = nx && nx.t > b.t ? nx.t : Math.max(s.end || 0, b.t + chars / 6);
+      let acc = 0;
+      for (const u of b.us) { const t0 = b.t + (stop - b.t) * acc / chars; acc += u.text.length + 4; out.segs.push({ spk: u.spk, text: u.text, t0: +t0.toFixed(2), t1: +(b.t + (stop - b.t) * acc / chars).toFixed(2) }); }
+    });
+    out.people = [...new Set(s.utts.map(u => u.spk))];
+  } else {   // 스크립트 없이 요약만: 상세정보 항목(시각 포함)을 전사 줄로
+    out.kind = 'summary';
+    const rows = s.details.length ? s.details : s.overview;
+    const at = x => { const m = x.match(/(\d{1,2}):(\d{2}):(\d{2})/); return m ? gmClock(m) : null; };
+    out.timed = rows.length > 0 && rows.every(x => at(x) != null);
+    rows.forEach((x, k) => { const t0 = at(x); out.segs.push({ text: x, ...(out.timed ? { t0, t1: Math.max(t0 + 1, at(rows[k + 1] || '') || (s.end || t0 + 60)) } : {}) }); });
+    if (!out.timed) fakeTimes(out);
+  }
+  out.duration = Math.ceil(Math.max(s.end || 0, out.segs.length ? out.segs[out.segs.length - 1].t1 : 0));
+  out.todos = s.todos.slice();
+  if (s.overview.length) out.memo.push({ h: '요약 (Gemini)', paras: s.overview });
+  if (s.todos.length) out.memo.push({ h: '다음 단계', items: s.todos });
+  if (s.details.length && s.utts.length) out.memo.push({ h: '상세정보', items: s.details });
+  return out;
+}
+function fakeTimes(out) {   // 순서를 지키기 위한 가짜 시각: 전체 길이(머리말의 녹음 길이, 없으면 글자 수로 어림)를 글자 수 비율로 나눈다
+  const total = out.segs.reduce((n, g) => n + g.text.length + 8, 0) || 1, dur = out.duration || Math.max(60, total / 6); let acc = 0;
+  out.segs.forEach(g => { g.t0 = +(dur * acc / total).toFixed(2); acc += g.text.length + 8; g.t1 = +(dur * acc / total).toFixed(2); });
+}
+/* 여러 회의가 있으면 고른다(문서 링크의 tab=… 이 가리키는 회의가 있으면 그것) */
+async function pickGeminiSession(list, tabWant) {
+  const real = list.filter(s => s.key);
+  const pool = real.length ? real : list;
+  if (pool.length === 1) return pool[0];
+  const hit = tabWant && pool.find(s => s.tabs.includes(tabWant)); if (hit) return hit;
+  pool.sort((a, b) => b.key.localeCompare(a.key));
+  const id = await askChoice('가져올 회의를 고르세요', `이 문서에 회의가 ${pool.length}개 있어요. 가져올 회의 시간대를 고르세요.`, pool.slice(0, 8).map((s, i) => ({ id: String(i), label: `${s.label}${s.utts.length ? ' · 스크립트' : ''}${s.overview.length || s.todos.length ? ' · 요약' : ''}`, primary: i === 0 })));
+  return id == null ? null : pool[+id];
+}
+async function importTranscriptFiles(files) {
+  files = [...(files || [])].filter(Boolean); if (!files.length) return;
+  if (files.length === 1) return importTranscriptFile(files[0]);
+  // 여러 파일(예: Gemini 회의록 .md 두 개 — 스크립트·요약): 합쳐서 한 번에 읽는다
+  if (files.some(f => f.size > 5 * 1048576)) { toast('파일이 너무 커요(5MB 이하만 가져올 수 있어요).'); return; }
+  const texts = []; for (const f of files) texts.push(await readTextFile(f));
+  const list = parseGemini(texts.join('\n\n'));
+  if (!list) { toast('여러 파일은 Gemini 회의록(스크립트·요약)일 때만 한 번에 가져올 수 있어요. 파일을 하나씩 골라 주세요.', 7000); return; }
+  const s = await pickGeminiSession(list); if (!s) return;
+  await applyTranscriptImport(geminiResult(s), files.map(f => f.name).join(', '));
+}
 async function importTranscriptFile(file) {
   if (!file) return;
   if (rec.state !== 'idle') { toast('기록을 정지한 뒤 가져와 주세요.'); return; }
-  if (S.audioBlob) { toast('이 회의에는 녹음이 있어요. 전사 파일은 녹음이 없는 회의에서만 가져올 수 있어요(녹음은 "발언자 구분"으로 전사하세요).', 7000); return; }
-  if (file.size > 5 * 1048576) { toast('파일이 너무 커요(5MB 이하의 .txt만 가져올 수 있어요).'); return; }
-  let p; try { p = parseTranscriptText(await readTextFile(file)); } catch (e) { aiLog('error', '전사 파일 읽기 실패', errInfo(e)); toast('전사 파일을 읽지 못했어요: ' + (e && e.message || e), 6000); return; }
-  if (!p.segs.length) { toast('이 파일에서 전사 내용을 찾지 못했어요. 클로바노트에서 내려받은 .txt(음성 기록 또는 AI 요약)인지 확인해 주세요.', 7000); return; }
-  if (S.segments.length && !(await askConfirm('전사를 바꿀까요?', `지금 있는 전사 ${S.segments.length}개가 가져온 파일의 내용으로 바뀝니다.`, '가져오기'))) return;
-  S.segments = p.segs.map(g => ({ t0: g.t0, t1: g.t1, text: g.text, ...(g.spk ? { spk: g.spk } : {}) }));
-  S.trImport = { src: p.src, kind: p.kind, timed: p.timed, name: String(file.name || '').slice(0, 120) };
+  if (file.size > 5 * 1048576) { toast('파일이 너무 커요(5MB 이하의 .txt·.md만 가져올 수 있어요).'); return; }
+  let p; try {
+    const text = await readTextFile(file), gm = parseGemini(text);
+    if (gm) { const s = await pickGeminiSession(gm); if (!s) return; p = geminiResult(s); } else p = parseTranscriptText(text);
+  } catch (e) { aiLog('error', '전사 파일 읽기 실패', errInfo(e)); toast('전사 파일을 읽지 못했어요: ' + (e && e.message || e), 6000); return; }
+  await applyTranscriptImport(p, file.name);
+}
+async function applyTranscriptImport(p, name) {
+  if (rec.state !== 'idle') { toast('기록을 정지한 뒤 가져와 주세요.'); return false; }
+  const gem = p.src === 'gemini';
+  if (S.audioBlob && !gem) { toast('이 회의에는 녹음이 있어요. 전사 파일은 녹음이 없는 회의에서만 가져올 수 있어요(녹음은 "발언자 구분"으로 전사하세요). Gemini 회의록은 녹화와 함께 가져올 수 있어요.', 8000); return false; }
+  if (!p.segs.length && !(p.memo && p.memo.length)) { toast('이 파일에서 전사 내용을 찾지 못했어요. 클로바노트 .txt(음성 기록·AI 요약)나 Gemini 회의록(.md·문서 링크)인지 확인해 주세요.', 7000); return false; }
+  // Gemini 요약만 가져왔는데 이미 같은 회의의 Gemini 스크립트가 전사로 있으면 전사는 두고 요약만 메모로
+  const keepTr = gem && p.kind === 'summary' && S.trImport && S.trImport.src === 'gemini' && S.trImport.kind === 'transcript' && S.segments.length;
+  if (!keepTr && p.segs.length) {
+    if (S.segments.length && !(await askConfirm('전사를 바꿀까요?', `지금 있는 전사 ${S.segments.length}개가 가져온 내용으로 바뀝니다.`, '가져오기'))) return false;
+    S.segments = p.segs.map(g => ({ t0: g.t0, t1: g.t1, text: g.text, ...(g.spk ? { spk: g.spk } : {}) }));
+    S.trImport = { src: p.src, kind: p.kind, timed: p.timed, name: String(name || '').slice(0, 120) };
+  }
   // 비어 있는 회의 정보는 파일 머리말로 채운다(이미 적은 값은 건드리지 않는다)
   if (!S.title && p.title) { S.title = p.title.slice(0, 120); $('#title').value = S.title; $('#docTitle').textContent = S.title; document.title = S.title + ' · MeetNote'; }
   if (!S.meta.when && p.when) S.meta.when = p.when;
   if (!S.duration && p.duration) S.duration = p.duration;
   const names = p.people.filter(n => !/^(참석자|화자|발언자|Speaker)\s*\d+$/i.test(n));
-  for (const name of names) if (!S.attendees.some(a => (a.name || '').trim() === name)) S.attendees.push({ org: '', name: name.slice(0, 40), title: '' });
+  for (const nm of names) if (!S.attendees.some(a => (a.name || '').trim() === nm)) S.attendees.push({ org: '', name: nm.slice(0, 40), title: '' });
   markDirty(); renderMeta(); renderTranscript(); renderTimeline(); syncButtons(); selectTab('tr');
-  aiLog('info', '전사 파일 가져오기', { src: p.src, kind: p.kind, timed: p.timed, segments: p.segs.length, duration: p.duration });
-  toast(`${p.src === 'clova' ? '클로바노트 ' : ''}${p.kind === 'summary' ? 'AI 요약' : '전사'} ${p.segs.length}줄을 가져왔어요 (${p.timed ? '시간 기록 포함' : '시간 기록 없음 · 시각 표시는 생략'}).`, 6000);
-  if ((p.topics.length || p.todos.length) && !replayOn && await askConfirm('요약도 메모에 넣을까요?', `파일에 들어 있는 "주요 주제" ${p.topics.length}개와 "다음 할 일" ${p.todos.length}개를 메모 탭에 넣어 둘 수 있어요. AI 회의록을 쓸 때 메모는 꼭 반영됩니다.`, '메모에 넣기')) {
-    const ul = items => `<ul>${items.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
-    const html = (p.topics.length ? `<h3>주요 주제</h3>${ul(p.topics)}` : '') + (p.todos.length ? `<h3>다음 할 일</h3>${ul(p.todos)}` : '');
+  aiLog('info', '전사 가져오기', { src: p.src, kind: p.kind, timed: p.timed, segments: p.segs.length, duration: p.duration, keepTranscript: !!keepTr, when: p.when || undefined });
+  const what = gem ? `Gemini ${p.kind === 'summary' ? '요약' : '스크립트'}` : `${p.src === 'clova' ? '클로바노트 ' : ''}${p.kind === 'summary' ? 'AI 요약' : '전사'}`;
+  if (!keepTr) toast(`${what} ${p.segs.length}줄을 가져왔어요${p.label ? ` (${p.label})` : ''} · ${p.timed ? '시간 기록 포함' : '시간 기록 없음 · 시각 표시는 생략'}.`, 6000);
+  const sections = p.memo && p.memo.length ? p.memo : [...(p.topics.length ? [{ h: '주요 주제', items: p.topics }] : []), ...(p.todos.length ? [{ h: '다음 할 일', items: p.todos }] : [])];
+  const count = sections.map(x => `"${x.h}" ${(x.items || x.paras).length}개`).join(', ');
+  if (sections.length && !replayOn && (keepTr || await askConfirm('요약도 메모에 넣을까요?', `${count}를 메모 탭에 넣어 둘 수 있어요. AI 회의록을 쓸 때 메모는 꼭 반영됩니다.`, '메모에 넣기'))) {
+    const html = sections.map(x => `<h3>${esc(x.h)}</h3>` + (x.items ? `<ul>${x.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>` : x.paras.map(t => `<p>${esc(t)}</p>`).join(''))).join('');
     withEditor(memoEditor, () => { const last = memoEditor.lastElementChild; if (last && last.tagName === 'P' && !hasContent(last)) last.remove(); memoEditor.append(...templ(html).childNodes); });
     trackBlocks(memoTrack, { structural: true });
     for (const el of memoEditor.children) { const r = recMap.get(el.dataset.id); if (r && r.t === 0) r.t = null; }   // 녹음이 없는 회의라 방금 넣은 메모의 시점(00:00)은 의미가 없다
     markDirty(); scheduleGutter(); renderTimeline();
+    if (keepTr) toast(`Gemini 요약(${count})을 메모에 넣었어요.`, 5000);
   }
+  return true;
 }
 function renderTrImportInfo() {
   const box = $('#trImportInfo'), im = S.trImport; box.hidden = !im;
   $('#trImportBtn').textContent = im ? '다른 전사 파일 가져오기' : '전사 파일 가져오기';
-  if (im) $('#trImportText').textContent = `${im.src === 'clova' ? '클로바노트' : '텍스트'} ${im.kind === 'summary' ? 'AI 요약' : '전사'}을 가져왔어요${im.name ? ` (${im.name})` : ''} · ${im.timed ? '시간 기록 포함' : '시간 기록 없음'} · 녹음·녹음 파일 붙이기는 쓸 수 없어요.`;
+  const src = im && (im.src === 'clova' ? '클로바노트' : im.src === 'gemini' ? 'Google Meet(Gemini)' : '텍스트');
+  const what = im && (im.kind === 'summary' ? (im.src === 'gemini' ? '요약' : 'AI 요약') : im.src === 'gemini' ? '스크립트' : '전사');
+  if (im) $('#trImportText').textContent = `${src} ${what}${what === '스크립트' ? '를' : '을'} 가져왔어요${im.name ? ` (${im.name})` : ''} · ${im.timed ? '시간 기록 포함' : '시간 기록 없음'} · ${im.src === 'gemini' ? (S.audioBlob ? '녹화와 함께 쓰는 중이에요(시각이 어긋나면 "싱크 조정").' : '같은 회의의 녹화(mp4)를 붙일 수 있어요.') : '녹음·녹음 파일 붙이기는 쓸 수 없어요.'}`;
 }
 $('#trImportBtn').addEventListener('click', () => $('#trInput').click());
-$('#trInput').addEventListener('change', e => { importTranscriptFile(e.target.files[0]); e.target.value = ''; });
+$('#trInput').addEventListener('change', e => { importTranscriptFiles(e.target.files); e.target.value = ''; });
 $('#trImportClear').addEventListener('click', async () => {
   if (!(await askConfirm('가져온 전사를 지울까요?', '파일에서 가져온 전사를 모두 지우고, 다시 녹음하거나 녹음 파일을 붙일 수 있게 합니다. 메모와 회의 내용은 그대로예요.', '지우기'))) return;
   S.segments = []; S.trImport = null; S.duration = 0; markDirty(); renderTranscript(); renderTimeline(); syncButtons();
@@ -5197,13 +5377,20 @@ const nimDirect = b => /integrate\.api\.nvidia\.com/i.test(b);
 /* NVIDIA 주소를 직접 넣었으면(브라우저에서는 CORS로 막힘) 켜져 있는 PC 서비스(/health에 nim:true)를 찾아 그 /nim으로 바꾼다 */
 async function nimRoute() {
   if (ai.provider !== 'nvidia' || !nimDirect(localBase())) return;
+  const c = await findPcService('nim');
+  if (!c) throw Object.assign(new Error('PC 서비스를 찾지 못했어요.'), { code: 'nim_nopc' });
+  const tok = llmToken(), kept = llmTokenKept(); ai.base = c + '/nim'; $('#aiBase').value = ai.base; saveAI(); if (tok) setLlmToken(tok, kept);   // 키는 주소별로 보관되므로 새 주소로 옮긴다
+  aiLog('info', 'NVIDIA: PC 서비스 프록시로 전환', { base: ai.base });
+}
+/* 켜져 있는 PC 서비스 찾기: 이 페이지를 연 서버 → 발언자 구분에 넣은 주소 → localhost:8765. /health에 feature(nim·extract 등)가 true인 첫 주소 */
+async function findPcService(feature) {
   const cands = [...new Set([diar.embedded ? location.origin : '', diar.base, 'http://localhost:8765', 'http://127.0.0.1:8765'].filter(Boolean).map(normBase))];
   for (const c of cands) {
     const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 2500);
-    try { const j = await (await fetch(c + '/health', { signal: ctl.signal })).json(); if (j && j.nim) { const tok = llmToken(), kept = llmTokenKept(); ai.base = c + '/nim'; $('#aiBase').value = ai.base; saveAI(); if (tok) setLlmToken(tok, kept); /* 키는 주소별로 보관되므로 새 주소로 옮긴다 */ aiLog('info', 'NVIDIA: PC 서비스 프록시로 전환', { base: ai.base }); return; } if (j && j.ok) aiLog('warn', 'PC 서비스가 예전 버전이라 /nim이 없음', { base: c }); }
+    try { const j = await (await fetch(c + '/health', { signal: ctl.signal })).json(); if (j && j[feature]) return c; if (j && j.ok) aiLog('warn', `PC 서비스가 예전 버전이라 ${feature} 기능이 없음`, { base: c }); }
     catch {} finally { clearTimeout(tm); }
   }
-  throw Object.assign(new Error('PC 서비스를 찾지 못했어요.'), { code: 'nim_nopc' });
+  return '';
 }
 const curModel = () => isLocal(ai.provider) ? (ai.model || '').trim() : '';
 const providerLabel = () => ai.provider === 'auto' ? 'Claude' : ai.provider === 'anthropic' ? 'Anthropic API' : PROVIDER_DEF[ai.provider].label;
@@ -8856,6 +9043,124 @@ async function pickerGrant(m) {   // 구성원이 파일 선택창에서 이 파
     picker.setVisible(true);
   });
 }
+/* ---------- Google Meet 가져오기: Gemini 회의록 문서 링크 + 녹화 파일(Drive 링크 또는 PC 파일) ----------
+   문서는 Docs API(탭 내용 포함)로 읽는다. 프로젝트에서 Docs API가 꺼져 있으면 Drive 내보내기(text/plain)로 대신 읽는다(첫 탭만 나올 수 있음).
+   기본 Drive 권한(drive.file)으로는 이 앱이 만들지 않은 문서를 못 읽으므로, 한 번 Drive 권한을 허용하거나 파일 선택창에서 골라야 한다 */
+const GDOC_RE = /docs\.google\.com\/document\/(?:u\/\d+\/)?d\/([\w-]{20,})/, GFILE_RE = /drive\.google\.com\/(?:file\/(?:u\/\d+\/)?d\/|open\?id=|uc\?(?:[^#]*&)?id=)([\w-]{20,})/;
+let meetRecFile = null;
+$('#meetBtn').addEventListener('click', () => { meetRecFile = null; $('#meetRecName').textContent = ''; $('#meetDoc').value = ''; $('#meetRec').value = ''; try { $('#meetDlg').showModal(); $('#meetDoc').focus(); } catch {} });
+$('#meetNo').addEventListener('click', () => $('#meetDlg').close());
+$('#meetRecPick').addEventListener('click', () => $('#meetRecFile').click());
+$('#meetRecFile').addEventListener('change', e => { meetRecFile = e.target.files[0] || null; $('#meetRecName').textContent = meetRecFile ? `${meetRecFile.name} (${Math.round(meetRecFile.size / 1048576)}MB)` : ''; e.target.value = ''; });
+$('#meetYes').addEventListener('click', async () => {
+  const docUrl = $('#meetDoc').value.trim(), recUrl = $('#meetRec').value.trim(), file = meetRecFile;
+  const dm = docUrl && docUrl.match(GDOC_RE), fm = recUrl && recUrl.match(GFILE_RE);
+  if (docUrl && !dm) { toast('Google 문서 링크(https://docs.google.com/document/d/…)를 넣어 주세요.'); return; }
+  if (recUrl && !fm) { toast('녹화 파일은 Google Drive 파일 링크(https://drive.google.com/file/d/…)를 넣어 주세요.'); return; }
+  if (!dm && !fm && !file) { toast('문서 링크나 녹화 파일을 하나 이상 넣어 주세요.'); return; }
+  if (rec.state !== 'idle') { toast('기록을 정지한 뒤 가져와 주세요.'); return; }
+  $('#meetDlg').close();
+  try {
+    if (dm || fm) await driveAuth();   // 누른 직후에 권한 창을 띄워야 팝업이 막히지 않는다
+    if (dm && (await importGeminiDoc(dm[1], (docUrl.match(/[?&#]tab=([\w.-]+)/) || [])[1] || '')) === false) return;
+    const f = fm ? await driveDownload(fm[1]) : file;
+    if (f) await attachRecording(f);
+  } catch (e) {
+    aiLog('error', 'Google Meet 가져오기 실패', errInfo(e));
+    toast(e.code === 'login' ? 'Google 로그인이 필요해요. 오른쪽 위에서 로그인한 뒤 다시 시도하세요.' : 'Google Meet 가져오기 실패: ' + (e.message || e), 9000);
+  }
+});
+async function importGeminiDoc(id, tab) {
+  progAbort = null; progOpen('Gemini 회의록을 읽는 중', { local: true }); progSet(null, 'Google 문서를 불러오는 중');
+  let doc; try { doc = await gdocRead(id); } finally { progClose(); }
+  const byKey = new Map(), anon = [];
+  for (const t of doc.tabs) for (const s of parseGemini(t.text, t.id) || []) {
+    if (!s.key) { anon.push(s); continue; }
+    const m = byKey.get(s.key); if (!m) { byKey.set(s.key, s); continue; }
+    m.tabs.push(...s.tabs); m.utts.push(...s.utts); m.end = Math.max(m.end, s.end); m.overview.push(...s.overview); m.todos.push(...s.todos); m.details.push(...s.details);
+  }
+  const keyed = [...byKey.values()];
+  if (keyed.length === 1) for (const a of anon) { const m = keyed[0]; m.utts.push(...a.utts); m.end = Math.max(m.end, a.end); m.overview.push(...a.overview); m.todos.push(...a.todos); m.details.push(...a.details); }
+  const list = keyed.length ? keyed : anon;
+  aiLog('info', 'Gemini 문서 읽음', { tabs: doc.tabs.length, sessions: list.length, exported: !!doc.exported, tab: tab || undefined });
+  if (!list.length) { toast(`"${doc.title || '문서'}"에서 Gemini 회의록(스크립트·요약)을 찾지 못했어요. Google Meet에서 Gemini가 작성한 회의록 문서의 링크인지 확인하세요.`, 8000); return false; }
+  const s = await pickGeminiSession(list, tab); if (!s) return false;
+  const p = geminiResult(s);
+  p.title = String(doc.title || '').replace(/\s*[-–]\s*(Gemini|Notes by Gemini|Gemini가).*$/i, '').replace(/\s*[-–]?\s*\d{4}[\/.년-]\s?\d{1,2}.*$/, '').replace(/^회의 일정\s*:.*$/, '').trim();
+  const ok = await applyTranscriptImport(p, doc.title || 'Google 문서');
+  if (ok && doc.exported && p.kind === 'summary') toast('문서의 첫 탭(요약)만 읽었어요. 스크립트 탭까지 읽으려면 Google Cloud 콘솔에서 이 앱 프로젝트의 "Google Docs API"를 사용 설정하세요.', 10000);
+  return ok;
+}
+function docBodyText(body) {
+  const out = [];
+  const run = x => x.textRun ? x.textRun.content : x.person ? (x.person.personProperties && (x.person.personProperties.name || x.person.personProperties.email)) || '' : x.richLink ? (x.richLink.richLinkProperties && x.richLink.richLinkProperties.title) || '' : x.dateElement ? (x.dateElement.dateElementProperties && x.dateElement.dateElementProperties.displayText) || '' : '';
+  const walk = content => (content || []).forEach(el => {
+    if (el.paragraph) { const t = (el.paragraph.elements || []).map(run).join('').replace(/\n$/, ''), lv = /HEADING_(\d)/.exec((el.paragraph.paragraphStyle || {}).namedStyleType || ''); out.push((lv ? '#'.repeat(+lv[1]) + ' ' : '') + (el.paragraph.bullet ? '- ' : '') + t); }
+    else if (el.table) (el.table.tableRows || []).forEach(r => (r.tableCells || []).forEach(c => walk(c.content)));
+  });
+  walk(body && body.content);
+  return out.join('\n');
+}
+async function gdocRead(id, retried = false) {
+  const tok = await driveAuth();
+  const r = await fetch(`https://docs.googleapis.com/v1/documents/${encodeURIComponent(id)}?includeTabsContent=true`, { headers: { authorization: 'Bearer ' + tok } });
+  if (r.status === 401 && !retried) { driveTok = null; return gdocRead(id, true); }
+  if (r.ok) {
+    const d = await r.json(), tabs = [];
+    const walk = ts => (ts || []).forEach(t => { tabs.push({ id: (t.tabProperties || {}).tabId || '', title: (t.tabProperties || {}).title || '', text: docBodyText(t.documentTab && t.documentTab.body) }); walk(t.childTabs); });
+    walk(d.tabs); if (!tabs.length && d.body) tabs.push({ id: '', title: '', text: docBodyText(d.body) });
+    return { title: d.title || '', tabs };
+  }
+  const body = await r.text().catch(() => '');
+  if (r.status === 403 && /SERVICE_DISABLED|has not been used|is disabled|accessNotConfigured/i.test(body)) {   // Docs API가 꺼진 프로젝트 → Drive 내보내기
+    aiLog('warn', 'Docs API가 꺼져 있어 Drive 내보내기로 읽음', { body: body.slice(0, 200) });
+    const meta = await dfetch(`/files/${encodeURIComponent(id)}?fields=name&supportsAllDrives=true`);
+    const x = await fetch(`${EP.drive}/files/${encodeURIComponent(id)}/export?mimeType=text/plain`, { headers: { authorization: 'Bearer ' + tok } });
+    if (!x.ok) throw cerr('http', `Google 문서를 내보내지 못했어요 (HTTP ${x.status}).`, { status: x.status });
+    return { title: meta.name || '', tabs: [{ id: '', title: '', text: await x.text() }], exported: true };
+  }
+  if ((r.status === 403 || r.status === 404) && !retried && await driveGrant(id, '문서')) return gdocRead(id, true);
+  throw cerr('http', r.status === 404 ? '문서를 찾을 수 없어요. 링크가 맞는지, 이 Google 계정으로 열 수 있는 문서인지 확인하세요.' : r.status === 403 ? '이 문서를 읽을 권한이 없어요. 문서 소유자에게 공유를 요청하거나, 이 앱에 Drive 권한을 허용해 주세요.' : `Google 문서를 읽지 못했어요 (HTTP ${r.status}).`, { status: r.status, body: body.slice(0, 300) });
+}
+/* 이 앱이 만들지 않은 파일(Gemini 회의록·미트 녹화) 읽기 권한: Drive 권한을 한 번 허용(계정에 기억)하거나 파일 선택창에서 그 파일을 고른다 */
+async function driveGrant(id, what) {
+  const c = await askChoice(`이 ${what}를 읽을 권한이 필요해요`, `이 앱은 기본으로 "이 앱으로 만들거나 연 파일"만 읽을 수 있어요. 링크의 ${what}를 읽으려면 ① Google Drive 권한을 한 번 허용하거나(이 계정에 기억돼 다음부터 링크만 넣으면 바로 열려요. Google이 "확인되지 않은 앱" 화면을 보이면 고급 → 이동) ② 파일 선택창에서 그 ${what}를 한 번 골라 주세요.`, [{ id: 'wide', label: 'Drive 권한 허용', primary: true }, { id: 'pick', label: '파일 선택창에서 고르기' }, { id: 'no', label: '취소' }]);
+  if (c === 'wide') {
+    try { await driveAuth({ wide: true }); if (driveTok && driveTok.wide) { try { localStorage.setItem(DRIVE_WIDE_KEY, user.sub); } catch {} return true; } toast('Drive 권한이 허용되지 않았어요. 파일 선택창에서 골라 주세요.', 5000); }
+    catch (e) { toast('Drive 권한을 받지 못했어요: ' + (e.message || e), 6000); }
+  }
+  if (c === 'wide' || c === 'pick') return pickDriveFile(id, what);
+  return false;
+}
+async function pickDriveFile(id, what) {
+  if (!pickerAppId() || !pickerKey()) { toast('파일 선택창을 쓰려면 config.js에 Google 클라이언트 ID와 firebase.apiKey(또는 pickerKey)가 필요해요.', 8000); return false; }
+  try { await loadPicker(); } catch (e) { toast(String(e.message || e), 6000); return false; }
+  const tok = await driveAuth();
+  return new Promise(res => {
+    const view = new google.picker.DocsView(google.picker.ViewId.DOCS).setIncludeFolders(false).setMode(google.picker.DocsViewMode.LIST);
+    if (view.setFileIds) view.setFileIds(id);   // 링크의 파일만 보이게(지원하는 Picker 버전)
+    const picker = new google.picker.PickerBuilder().setAppId(pickerAppId()).setOAuthToken(tok).setDeveloperKey(pickerKey()).setTitle(`링크의 ${what} 선택`).addView(view).setLocale('ko')
+      .setCallback(d => { if (d.action === google.picker.Action.PICKED) { const ids = (d.docs || []).map(x => x.id); aiLog('info', 'Drive 파일 권한 부여(Picker)', { picked: ids, want: id }); if (!ids.includes(id)) toast(`고른 파일이 링크의 ${what}와 달라요. 링크의 파일로 다시 시도할게요.`, 5000); res(true); } else if (d.action === google.picker.Action.CANCEL) res(false); }).build();
+    picker.setVisible(true);
+  });
+}
+async function driveDownload(id, retried = false) {
+  let meta;
+  try { meta = await dfetch(`/files/${encodeURIComponent(id)}?fields=name,mimeType,size&supportsAllDrives=true`); }
+  catch (e) { if ((e.status === 403 || e.status === 404) && !retried && await driveGrant(id, '녹화 파일')) return driveDownload(id, true); throw e.status === 404 ? cerr('http', '녹화 파일을 찾을 수 없어요. 링크가 맞는지, 이 계정으로 열 수 있는 파일인지 확인하세요.', { status: 404 }) : e; }
+  if (!/^(video|audio)\//.test(meta.mimeType || '')) throw cerr('type', `녹화(동영상·소리) 파일이 아니에요: ${meta.name} (${meta.mimeType})`);
+  const tok = await driveAuth(), ctl = new AbortController(); progAbort = () => ctl.abort();
+  progOpen('Drive에서 녹화 파일을 받는 중', { local: true }); progSet(null, meta.name || '녹화 파일');
+  try {
+    const r = await fetch(`${EP.drive}/files/${encodeURIComponent(id)}?alt=media&supportsAllDrives=true`, { headers: { authorization: 'Bearer ' + tok }, signal: ctl.signal });
+    if (!r.ok) throw cerr('http', `녹화 파일을 받지 못했어요 (HTTP ${r.status}).`, { status: r.status });
+    const total = +meta.size || +r.headers.get('content-length') || 0, reader = r.body.getReader(), parts = []; let got = 0;
+    for (;;) { const { value, done } = await reader.read(); if (done) break; parts.push(value); got += value.length; progSet(total ? got / total * 100 : null, `${Math.round(got / 1048576)}MB${total ? ' / ' + Math.round(total / 1048576) + 'MB' : ''} 받는 중`); }
+    aiLog('info', 'Drive 녹화 파일 받음', { bytes: got, mime: meta.mimeType });
+    return new File(parts, meta.name || 'recording.mp4', { type: meta.mimeType });
+  } catch (e) { if (e.name === 'AbortError') { toast('녹화 파일 받기를 취소했어요.'); return null; } throw e; }
+  finally { progClose(); progAbort = null; }
+}
 async function cloudOpenItem(m, retried = false) {
   if (rec.state !== 'idle') { toast('녹음 중에는 열 수 없어요.'); return; }
   const ctl = new AbortController(); let lockedBy = '';
@@ -9304,7 +9609,7 @@ else if ($('#gate').hidden) setTimeout(openDashboard, 400);   // 게스트·로�
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, browserSpeakersFor, lastWords: () => diarLastWords, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, dashOpen, dashClose, setReadOnly, askChoice, set driveTok(v) { driveTok = v; }, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { parseGemini, geminiResult, docBodyText, mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, browserSpeakersFor, lastWords: () => diarLastWords, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, dashOpen, dashClose, setReadOnly, askChoice, set driveTok(v) { driveTok = v; }, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
 applyAuthorDefault(false);
 renderAll();
 selectTab(curTab);
