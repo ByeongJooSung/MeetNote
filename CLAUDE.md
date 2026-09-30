@@ -43,7 +43,8 @@ JS 문법은 `node --check`로 확인 가능: `python tests/smoke.py --check-onl
 - 브라우저 내장 분석의 모델 등급은 `WHISPER_TIERS`/`resolveTier`. 발언자 구간은 워커의 `findTurns`: 기본 `window`(`segmentWindows` 10초 창·5초 이동 → `unifyWindows` 혼자 말한 소리로 WeSpeaker 임베딩 + centroid 군집 + 창 안 제약 재배정), 예전 방식 `long`(10분 창 + `unifySpeakers`)은 비교용(`diar.algo`). 발언자 수를 모르면 참석자 수+1이 상한(`speakerCap`). 단어 배정 `assignWords`(짧은 끼임 정리).
 - 분할·군집을 바꾸면 `node tests/diar_algo.js`(모델 없이 가짜 분할·임베딩으로 알고리즘 점검) → `python tests/eval_stt.py tests/eval_data --compare`(실제 녹음 + 정답 전사로 CER·cpCER·화자정확 비교, 녹음·결과는 커밋하지 않음) → `python tests/diar_two_voices.py`(두 목소리 TTS, Windows) 순으로 확인할 것.
 - 음성 인식에는 `meetingVocab()`(참석자·참고 자료 용어)을 힌트로 보낸다. 새 회의에 녹음 파일만 붙이면 분석 여부를 먼저 묻는다.
-- 서버 작업은 한 번에 하나(`RUN_LOCK`), 취소는 문장 경계에서 반영, 진행률은 `progress(pct, stage, msg)`.
+- 서버 작업은 한 번에 하나(`RUN_LOCK`), 취소는 문장 경계에서 반영, 진행률은 `progress(pct, stage, msg)`. 작업 하나 안에서는 녹음을 구간으로 나눠 동시에 전사한다(`plan_chunks`·`PARALLEL`). 화자 군집은 반드시 녹음 전체로 한 번(`cluster_turns`) — 구간별로 군집하면 구간마다 번호가 달라진다. 바꾸면 `server\.venv\Scripts\python tests/server_parallel.py`로 확인.
+- NVIDIA API 엔진(`ai.provider === 'nvidia'`)은 OpenAI 호환이라 `callOpenAI`를 그대로 쓰되, 브라우저 CORS가 막혀 PC 서비스 `/nim` 프록시를 거친다(`nimBase`). 키는 `llmToken`(보안 토큰 칸)에 두고 prefs 동기화·로그에 넣지 말 것.
 - exe에서는 OpenMP 충돌 방지 환경변수(`KMP_DUPLICATE_LIB_OK` 등)를 서버가 스스로 설정한다.
 
 ## 자주 하는 작업

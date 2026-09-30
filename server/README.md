@@ -36,7 +36,12 @@ HF_TOKEN=hf_xxx python diarize.py       # Windows PowerShell: $env:HF_TOKEN="hf_
 ```
 
 ## 옵션(환경변수)
-`WHISPER_MODEL`(tiny/base/small/medium/large-v3/large-v3-turbo), `DEVICE`(auto/cpu/cuda), `COMPUTE`(int8/float16), `PORT`(8765)
+`WHISPER_MODEL`(tiny/base/small/medium/large-v3/large-v3-turbo), `DEVICE`(auto/cpu/cuda), `COMPUTE`(int8/float16), `PORT`(8765),
+`PARALLEL`(auto/1/동시 구간 수 — 녹음을 구간으로 나눠 동시에 전사, 1이면 끄기), `CPU_THREADS`(구간당 스레드), `NIM_BASE`(NVIDIA API 프록시 대상)
+
+## NVIDIA API (AI 회의록 엔진)
+앱의 설정 → AI 엔진 → **NVIDIA API**. NVIDIA API(integrate.api.nvidia.com)는 브라우저 호출(CORS)을 막아 이 서버의 `/nim/*`가 대신 부른다.
+앱의 서버 주소는 `http://localhost:8765/nim`(PC 서비스를 연결해 두면 자동). 키(`nvapi-…`)는 Authorization 헤더로 전달만 하고 저장하지 않는다.
 
 ## API
 - `POST /jobs` (multipart: audio, lang=ko, num_speakers?) → `{job_id}` — 진행률 보고 방식(앱 기본)

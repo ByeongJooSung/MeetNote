@@ -68,7 +68,7 @@ meetnote/
 ### 2.2 서버 (server/diarize.py)
 FastAPI + uvicorn. 역할은 두 가지.
 1. **전사 + 발언자 구분 API**
-   - `POST /jobs` (multipart: audio, lang, num_speakers, vocab) → `{job_id}`; `POST /cloud/clova` (multipart: audio, invoke_url, key, lang, num_speakers, vocab) → 클로바 스피치 응답 그대로; `GET/POST /llm/{path}` → `LLM_BASE/{path}`로 전달(스트리밍 포함, Authorization 통과); `GET /jobs/{id}` → `{state, pct, stage, message, result}`; `DELETE /jobs/{id}` 취소
+   - `POST /jobs` (multipart: audio, lang, num_speakers, vocab) → `{job_id}`; `POST /cloud/clova` (multipart: audio, invoke_url, key, lang, num_speakers, vocab) → 클로바 스피치 응답 그대로; `GET/POST /llm/{path}` → `LLM_BASE/{path}`로 전달(스트리밍 포함, Authorization 통과); `GET/POST /nim/{path}` → `NIM_BASE/{path}`(NVIDIA API, 같은 방식); `GET /jobs/{id}` → `{state, pct, stage, message, result}`; `DELETE /jobs/{id}` 취소
    - `POST /diarize` 동기 버전(구버전 호환), `GET /health`
    - 파이프라인: ffmpeg → 16kHz wav → faster-whisper(small, VAD) → 발언자 분리(pyannote 3.1 또는 resemblyzer 임베딩+군집) → 문장에 화자 배정
    - 작업은 한 번에 하나만 실행(작업 잠금), 취소는 문장 경계에서 즉시 반영
@@ -176,6 +176,11 @@ window.MEETNOTE_CONFIG = {
 | `CLOVA_SPEECH_URL` / `CLOVA_SPEECH_KEY` | 없음 | 클로바 스피치 프록시 기본값(브라우저에서 보낸 값이 우선) |
 | `CLOUD_TIMEOUT` | 1800 | 클로바 스피치 동기 인식 대기(초) |
 | `LLM_BASE` | http://localhost:1234 | `/llm/*` 프록시가 대신 부를 로컬 LLM 서버(Ollama면 http://localhost:11434) |
+| `NIM_BASE` | https://integrate.api.nvidia.com | `/nim/*` 프록시가 대신 부를 NVIDIA API(브라우저 CORS 차단 회피). 키는 요청의 Authorization을 그대로 전달 |
+| `PARALLEL` | auto | 동시에 전사할 구간 수. auto = CPU는 코어÷4(최대 4), GPU는 2. `1`이면 예전처럼 한 번에 |
+| `CPU_THREADS` | 자동 | 구간 하나가 쓰는 CPU 스레드(기본 코어÷동시 구간 수) |
+
+**구간 병렬 처리**(`run_pipeline`): `plan_chunks`가 녹음을 동시 구간 수의 약 3배 개수로 나눈다(구간 45초~10분, 목표 지점 ±20초 안에서 가장 조용한 0.25초에서 자름). 구간마다 스레드에서 전사(`WhisperModel(num_workers=…)`로 동시 실행)하고, 끝나는 대로 그 구간 문장의 목소리 특징을 뽑는다(`embed_segments`: 문장들의 1.6초 조각을 묶어 한 번에 신경망에 넣음). 군집(`cluster_turns`)은 마지막에 녹음 전체로 한 번 → 구간이 달라도 같은 사람은 같은 번호. pyannote는 녹음 전체가 필요해 전사와 동시에 별도 스레드에서 돈다. 실측(Core Ultra 7 255H, small, 7분 녹음): 한 번에 54.8초 → 병렬 37.3초(1.47배). CPU는 코어를 나눠 쓰는 구조라 이득이 1.3~2배 정도이고 NVIDIA GPU(`DEVICE=cuda`)가 훨씬 크다. 점검: `server\.venv\Scripts\python tests/server_parallel.py`.
 
 ### 4.3 설정 저장(localStorage + 계정 DB 동기화)
 설정은 브라우저 localStorage에 두고, 로그인 상태면 `prefsTouch()` → `prefsPush()`로 Firestore `users/{uid}/settings/prefs`에 올려 다른 기기에서도 이어 쓴다(`prefsLocal`/`prefsPull`). 동기화 대상: 발언자 분석·AI 엔진·다듬기 옵션, AI 작성 설정(`meetnote.draftOpt`: 분량·문체·표 정리·시간 표시·공통 지시), 추가 지시 템플릿(`meetnote.draftTpls`), 작성자(`meetnote.author`). 보안 토큰·API 키는 올리지 않는다.
