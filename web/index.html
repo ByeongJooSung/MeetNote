@@ -1495,8 +1495,12 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.33.0';
+const APP_VERSION = '0.33.1';
 const PATCH_NOTES = [
+  { v: '0.33.1', date: '2026-09-30', items: [
+    'NVIDIA API: 서버 주소에 https://integrate.api.nvidia.com(/v1)을 그대로 넣어도, 켜져 있는 PC 서비스(localhost:8765 등)를 찾아 자동으로 그 경유 주소(…/nim)로 바꿔요. PC 서비스가 꺼져 있으면 켜는 방법을 안내해요.',
+    'AI 서버 주소 끝의 /v1은 자동으로 떼요(문서의 base_url을 그대로 붙여 넣어도 동작).',
+  ] },
   { v: '0.33.0', date: '2026-09-30', items: [
     'AI 엔진에 NVIDIA API(build.nvidia.com · NIM)를 추가했어요. 설정 → AI 엔진에서 고르고 NVIDIA API 키(nvapi-…)를 넣으면 목록에서 모델을 골라 회의록 초안을 쓸 수 있어요. NVIDIA API는 브라우저에서 바로 부를 수 없어 PC 서비스가 대신 불러요(서버 주소 "PC 서비스 주소/nim"). 회사 GPU에 띄운 NIM 서버 주소도 넣을 수 있어요.',
     'PC 서비스 분석이 빨라졌어요: 녹음을 조용한 지점에서 여러 구간으로 나눠 동시에 전사하고, 구간 전사가 끝나는 대로 목소리 특징도 바로 뽑아요. 발언자는 마지막에 녹음 전체를 한 번에 묶어 구간이 달라도 같은 사람은 같은 발언자로 나와요. pyannote(HF 토큰)를 쓰면 발언자 분석이 전사와 동시에 돌아가요.',
@@ -5187,14 +5191,27 @@ function nimBase() {
 }
 const NIM_SKIP = /embed|guard|safety|reward|parse|clip|detector|deplot|retriev|translate|calibration|code|coder|starcoder|diffusion|kosmos|fuyu|synthetic|vila|neva/i;   // 대화용이 아닌 모델(임베딩·안전 분류·코드 등)
 const isLocal = p => p === 'lmstudio' || p === 'ollama' || p === 'openai' || p === 'nvidia';
-const localBase = () => (ai.base || $('#aiBase').value.trim() || PROVIDER_DEF[ai.provider]?.base || '').replace(/\/+$/, '');
+const normBase = v => String(v || '').trim().replace(/\/+$/, '').replace(/\/v1$/i, '');   // 요청 때 /v1/…을 붙이므로 주소 끝의 /v1은 뗀다(NVIDIA·OpenAI 문서의 base_url을 그대로 붙여 넣는 경우)
+const localBase = () => normBase(ai.base || $('#aiBase').value.trim() || PROVIDER_DEF[ai.provider]?.base || '');
+const nimDirect = b => /integrate\.api\.nvidia\.com/i.test(b);
+/* NVIDIA 주소를 직접 넣었으면(브라우저에서는 CORS로 막힘) 켜져 있는 PC 서비스(/health에 nim:true)를 찾아 그 /nim으로 바꾼다 */
+async function nimRoute() {
+  if (ai.provider !== 'nvidia' || !nimDirect(localBase())) return;
+  const cands = [...new Set([diar.embedded ? location.origin : '', diar.base, 'http://localhost:8765', 'http://127.0.0.1:8765'].filter(Boolean).map(normBase))];
+  for (const c of cands) {
+    const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 2500);
+    try { const j = await (await fetch(c + '/health', { signal: ctl.signal })).json(); if (j && j.nim) { const tok = llmToken(), kept = llmTokenKept(); ai.base = c + '/nim'; $('#aiBase').value = ai.base; saveAI(); if (tok) setLlmToken(tok, kept); /* 키는 주소별로 보관되므로 새 주소로 옮긴다 */ aiLog('info', 'NVIDIA: PC 서비스 프록시로 전환', { base: ai.base }); return; } if (j && j.ok) aiLog('warn', 'PC 서비스가 예전 버전이라 /nim이 없음', { base: c }); }
+    catch {} finally { clearTimeout(tm); }
+  }
+  throw Object.assign(new Error('PC 서비스를 찾지 못했어요.'), { code: 'nim_nopc' });
+}
 const curModel = () => isLocal(ai.provider) ? (ai.model || '').trim() : '';
 const providerLabel = () => ai.provider === 'auto' ? 'Claude' : ai.provider === 'anthropic' ? 'Anthropic API' : PROVIDER_DEF[ai.provider].label;
 function inClaudeSandbox() { return framed && !!window.claude; }
 function localHint() {
   const b = localBase();
   if (inClaudeSandbox()) return 'Claude 화면 안에 들어간 페이지는 보안 정책 때문에 로컬 서버를 부를 수 없어요. GitHub Pages 등에 배포한 주소나 PC의 localhost로 여세요.';
-  if (ai.provider === 'nvidia') return /integrate\.api\.nvidia\.com/.test(b) ? 'NVIDIA API는 브라우저에서 바로 부를 수 없어요(CORS). PC 서비스(python diarize.py 또는 MeetNote.exe)를 켜고 발언자 구분을 "PC 서비스"로 연결한 뒤, 서버 주소를 "PC 서비스 주소/nim"(예: http://localhost:8765/nim)으로 바꾸세요.' : /\/nim$/.test(b) ? 'PC 서비스가 켜져 있는지, 최신 버전(/nim 지원)인지 확인하세요. PC 서비스가 인터넷(integrate.api.nvidia.com)에 연결돼 있어야 해요.' : 'NIM 서버가 켜져 있는지, 주소·포트가 맞는지 확인하세요.';
+  if (ai.provider === 'nvidia') return nimDirect(b) ? 'NVIDIA API는 브라우저에서 바로 부를 수 없어(CORS) PC 서비스가 대신 불러야 하는데, 켜져 있는 PC 서비스를 찾지 못했어요(http://localhost:8765). PC에서 PC 서비스(저장소 폴더에서 "cd server; python diarize.py" 또는 최신 MeetNote.exe)를 켠 뒤 다시 "연결 확인 · 모델 불러오기"를 누르세요. 다른 PC·포트라면 서버 주소를 "PC 서비스 주소/nim"으로 넣으세요.' : /\/nim$/.test(b) ? 'PC 서비스가 켜져 있는지, 최신 버전(v0.33.0 이상, /nim 지원)인지 확인하세요. PC 서비스가 인터넷(integrate.api.nvidia.com)에 연결돼 있어야 해요.' : 'NIM 서버가 켜져 있는지, 주소·포트가 맞는지 확인하세요.';
   if (env.mobile && /localhost|127\.0\.0\.1/.test(b)) return `휴대폰에서 localhost는 휴대폰 자신을 가리켜서 PC의 서버에 닿지 않아요. ① PC 브라우저에서 쓰거나 ② PC에서 "npx cloudflared tunnel --url ${b}"로 https 주소를 만들어 서버 주소에 넣으세요(서버의 CORS 허용 필요). 또는 PC에서 server\\tunnel.ps1을 실행해 나온 https 주소 + "/llm"을 넣으세요(설정의 "휴대폰·다른 기기에서 쓰기"). 휴대폰만 쓴다면 엔진을 Anthropic API 키로 바꾸는 것이 가장 간단해요.`;
   if (/^https:/.test(location.protocol) && /^http:\/\//.test(b) && !/localhost|127\.0\.0\.1/.test(b)) return 'https 페이지에서는 http 주소의 서버(LAN IP)를 부를 수 없어요(혼합 콘텐츠 · iPhone·Android 모두). PC에서 server\\tunnel.ps1을 실행해 나온 https 주소에 "/llm"을 붙여 서버 주소로 넣으세요(설정의 "휴대폰·다른 기기에서 쓰기" 참고). PC 브라우저라면 localhost 주소를 쓰세요.';
   return '서버가 켜져 있는지, CORS가 허용됐는지(LM Studio: Enable CORS, Ollama: OLLAMA_ORIGINS=*) 확인하세요.';
@@ -5337,7 +5354,7 @@ $('#aiProvider').addEventListener('change', e => {
   aiLog('info', '엔진 변경', { engine: ai.provider });
   $('#aiConn').hidden = true; renderAIDlg(); renderAIStatus();
 });
-$('#aiBase').addEventListener('change', e => { ai.base = e.target.value.trim().replace(/\/+$/, ''); ai.models = []; ai.model = ''; saveAI(); renderModelSel(); $('#aiConn').hidden = true; });
+$('#aiBase').addEventListener('change', e => { ai.base = normBase(e.target.value); e.target.value = ai.base; ai.models = []; ai.model = ''; saveAI(); renderModelSel(); $('#aiConn').hidden = true; });
 $('#aiModelSel').addEventListener('change', e => {
   const v = e.target.value;
   $('#aiModelCustomRow').hidden = v !== '__custom';
@@ -5347,7 +5364,7 @@ $('#aiModelSel').addEventListener('change', e => {
 $('#aiModel').addEventListener('change', e => { ai.model = e.target.value.trim(); saveAI(); aiLog('info', '모델 직접 입력', { model: ai.model }); renderAIStatus(); });
 async function fetchModels() {
   const btn = $('#aiModels'); btn.disabled = true;
-  ai.base = ($('#aiBase').value.trim() || PROVIDER_DEF[ai.provider].base).replace(/\/+$/, ''); $('#aiBase').value = ai.base;
+  ai.base = normBase($('#aiBase').value.trim() || PROVIDER_DEF[ai.provider].base); $('#aiBase').value = ai.base;
   saveLlmToken();   // 주소를 바꾼 뒤에도 입력한 토큰이 새 주소에 묶이게
   setConn('wait', '연결하는 중…');
   const t0 = performance.now();
@@ -5363,6 +5380,7 @@ async function fetchModels() {
   };
   try {
     if (inClaudeSandbox()) throw Object.assign(new Error('Claude 화면 안에서는 외부 서버 호출이 차단돼요.'), { code: 'sandbox' });
+    await nimRoute();
     let ids = [];
     try { const d = await tryGet('/v1/models'); ids = (d.data || d.models || []).map(m => m.id || m.name).filter(Boolean); }
     catch (e1) {
@@ -5483,6 +5501,7 @@ async function callOpenAI(prompt, signal, onText, sysPrompt, maxTokens, opts = {
   }
 }
 async function callOpenAIOnce(prompt, signal, onText, sysPrompt, maxTokens, opts = {}) {
+  if (!inClaudeSandbox()) await nimRoute();
   const base = localBase(), model = curModel();
   if (inClaudeSandbox()) throw Object.assign(new Error('Claude 화면 안에서는 로컬 서버를 부를 수 없어요.'), { code: 'sandbox' });
   if (!base) throw new Error('서버 주소를 입력하세요.');
