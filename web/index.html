@@ -958,6 +958,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
       <div class="tr-search"><input id="trSearch" type="search" placeholder="전사에서 검색 — 그 낱말이 들어간 문단만 보기" aria-label="전사 검색" autocomplete="off"><span id="trSearchInfo" class="hint"></span><button type="button" class="btn" id="trReplaceToggle" title="찾은 낱말을 다른 낱말로 한꺼번에 바꿔요(잘못 전사된 고유명사 고치기)">바꾸기</button></div>
       <div class="tr-replace" id="trReplaceRow" hidden><input id="trReplace" placeholder="바꿀 낱말 (예: 케이 체사르 → K-CHESAR)" aria-label="바꿀 낱말" autocomplete="off"><button type="button" class="btn primary" id="trReplaceAll">모두 바꾸기</button><button type="button" class="btn" id="trReplaceUndo" hidden>되돌리기</button></div>
       <div id="trImportInfo" class="tr-import" hidden><span id="trImportText"></span><button type="button" class="link" id="trImportClear">가져온 전사 지우기</button></div>
+      <div id="vocabSug" class="tr-import" hidden><span id="vocabSugText"></span><button type="button" class="btn primary" id="vocabSugYes">용어 사전에 넣기</button><button type="button" class="link" id="vocabSugNo">아니요</button></div>
       <div id="segList"></div>
       <p id="interim" class="interim"></p>
     </section>
@@ -1104,6 +1105,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <button type="button" role="tab" data-set="ai" aria-selected="true">AI 엔진</button>
     <button type="button" role="tab" data-set="draft" aria-selected="false">AI 작성</button>
     <button type="button" role="tab" data-set="author" aria-selected="false">작성자</button>
+    <button type="button" role="tab" data-set="vocab" aria-selected="false">용어 사전</button>
     <button type="button" role="tab" data-set="log" aria-selected="false">로그</button>
     <button type="button" role="tab" data-set="acct" aria-selected="false">계정·클라우드</button>
     <button type="button" role="tab" data-set="about" aria-selected="false">버전 정보</button>
@@ -1166,6 +1168,13 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <label class="field">공통 지시 (모든 회의에 적용 · 선택)<textarea id="draftExtra" rows="4" maxlength="800" placeholder="모든 회의록에 늘 적용할 지시를 적으세요.&#10;예) 우리 팀 용어: 'PG사'는 결제대행사, 'QA'는 품질검증&#10;예) 일정은 'M월 D일' 형식으로 통일"></textarea></label>
   <details style="margin:6px 0"><summary class="hint" style="cursor:pointer">AI에 보낼 지시문 미리 보기</summary><pre id="draftPreview" style="max-height:220px;overflow:auto;white-space:pre-wrap;font-size:12px"></pre></details>
   <div class="row" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button class="btn" id="draftOptReset">기본값</button><span class="hint" id="draftOptState" style="flex:1"></span><button class="btn primary" id="draftOptOk">저장</button></div>
+  </div>
+  <div id="setVocab" hidden>
+  <p>자주 잘못 알아듣는 낱말을 정리해 두면 <b>전사가 들어오는 즉시</b>(녹음 중 실시간 전사, 발언자 구분 분석, 전사 파일 가져오기 모두) 바른 표기로 바꿔요. 바른 표기는 음성 인식에 <b>힌트로 먼저</b> 전달돼 처음부터 그렇게 알아듣도록 도와요. 로그인하면 계정에 저장돼 다른 기기에서도 이어져요.</p>
+  <label class="field">한 줄에 하나: <code>바른 표기 = 잘못 나오는 표기, 표기, …</code> (<code>=</code> 없이 낱말만 적으면 인식 힌트로만 써요)
+    <textarea id="vocabText" rows="10" spellcheck="false" placeholder="ANYID = aid, 에이아이디, 애니아이디, 애니 아이디&#10;K-CHESAR = 케이 체사르, 케이체사르&#10;화학물질안전원"></textarea></label>
+  <p class="hint">영문 표기는 대소문자를 가리지 않고 <b>낱말 단위</b>로만 바꿔요(예: aid는 바꾸지만 said·aide는 그대로). 한글 표기는 뒤에 붙은 조사째 바꿔요(에이아이디가 → ANYID가). 전사에서 낱말을 직접 고치거나 "모두 바꾸기"를 하면 사전에 넣을지 물어봐요.</p>
+  <div class="row"><button type="button" class="btn primary" id="vocabSave">저장</button><button type="button" class="btn" id="vocabApply" title="지금 열린 회의의 전사 전체에 사전을 적용해요">지금 전사에 적용</button><span class="hint" id="vocabState"></span></div>
   </div>
   <div id="setAuthor" hidden>
     <p>새 회의를 시작하면 회의 정보의 <b>작성자</b> 칸에 채워지고 <b>참석자</b>에도 들어가요. 내보낸 문서의 작성자 칸에는 소속과 이름이 두 줄로 적힙니다. 회의마다 직접 고칠 수도 있습니다. 로그인하면 계정에 저장됩니다.</p>
@@ -1530,8 +1539,13 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.35.1';
+const APP_VERSION = '0.36.0';
 const PATCH_NOTES = [
+  { v: '0.36.0', date: '2026-10-12', items: [
+    '용어 사전(설정 → 용어 사전): "ANYID = aid, 에이아이디, 애니 아이디"처럼 정리해 두면 전사가 들어오는 즉시(녹음 중 실시간 전사, 발언자 구분 분석, 전사 가져오기) 바른 표기로 바꿔요. 영문은 낱말 단위로만(said는 그대로), 한글은 조사째 바꿔요. 계정에 저장돼 다른 기기에서도 이어져요.',
+    '사전의 바른 표기는 음성 인식에 힌트로 먼저 전달돼 처음부터 그렇게 알아듣도록 도와요.',
+    '앞에서 고친 것을 뒤에서도: 전사 문단에서 낱말을 고치거나 "모두 바꾸기"를 하면 "다음부터 자동으로 고칠까요?"를 물어요. 넣으면 지금 전사의 같은 표기도 함께 고쳐요.',
+  ] },
   { v: '0.35.1', date: '2026-10-12', items: [
     'NVIDIA API 키: 예제 코드의 "Authorization: Bearer nvapi-…" 줄이나 따옴표째 붙여 넣어도 키(nvapi-…)만 남겨요. nvapi-로 시작하지 않는 값은 보내기 전에 알려 줘요(NVIDIA가 401 "Invalid JWT serialization"으로 거절하던 경우).',
   ] },
@@ -3671,7 +3685,54 @@ $('#docReplayChk').addEventListener('change', e => {
    ① 같은 구절이 3번 넘게 연달아 나오면 한 번으로 접는다  ② 글자 종류가 너무 적은 긴 구간(ㅋㅋㅋ…, 아아아…)은 버린다
    ③ 회의와 무관한 상투 문구만으로 된 구간(유튜브·방송 자막에서 배운 문장)은 버린다 */
 const HALLU = [/시청해\s*주셔서\s*감사합니다/, /구독과?\s*좋아요/, /다음\s*(영상|시간)에(서)?\s*(만나요|뵙겠습니다)/, /(MBC|KBS|SBS|YTN|JTBC)\s*뉴스/, /자막\s*(제공|제작|협찬)/, /한글\s*자막/, /자막\s*by/i, /이\s*영상은\s*.*(제공|후원)/, /영상\s*편집/, /^[\s.…·,!?~♪-]*$/];
+/* ---------- 용어 사전(교정): 한 줄에 "바른 표기 = 잘못 나오는 표기, …" ----------
+   - 설정 → 용어 사전. 사용자 전역 설정이라 localStorage + 계정(prefs) 동기화
+   - 잘못된 표기는 전사가 들어오는 즉시 바뀐다(cleanSegText: 실시간 전사·발언자 구분 결과 공통, 가져오기·중간 글자도). 바른 표기는 인식 힌트(meetingVocab) 맨 앞
+   - 영문 표기: 대소문자 무시 + 낱말 경계(aid는 바꾸고 said는 그대로). 한글 등: 띄어쓰기 차이만 허용하고 그대로 바꿈(뒤 조사는 남음) */
+const VOCAB_KEY = 'meetnote.vocab', VOCAB_MAX = 10000;
+let vocabText = ''; try { vocabText = (localStorage.getItem(VOCAB_KEY) || '').slice(0, VOCAB_MAX); } catch {}
+let vocabRx = null;
+function parseVocab(txt) {
+  const rules = [];
+  for (const raw of String(txt || '').split('\n')) {
+    const l = raw.replace(/#.*$/, '').trim(); if (!l) continue;
+    const m = l.match(/^(.+?)\s*(?:=|←|<-)\s*(.*)$/);
+    const to = (m ? m[1] : l).trim().slice(0, 60); if (!to) continue;
+    const from = m ? [...new Set(m[2].split(/[,，;]/).map(x => x.trim()).filter(x => x && x.length <= 40 && x !== to))] : [];
+    rules.push({ to, from });
+    if (rules.length >= 300) break;
+  }
+  return rules;
+}
+const vocabTerms = () => parseVocab(vocabText).map(r => r.to);
+function vocabRules() {
+  if (vocabRx) return vocabRx;
+  const list = [];
+  for (const r of parseVocab(vocabText)) for (const f of r.from) {
+    const body = f.split(/\s+/).map(escRe).join('\\s*');
+    const latin = /^[A-Za-z0-9][A-Za-z0-9 .\-_]*$/.test(f);
+    try { list.push({ len: f.length, to: r.to, re: latin ? new RegExp(`(?<![A-Za-z0-9])${body}(?![A-Za-z0-9])`, 'gi') : new RegExp(body, 'g') }); } catch {}
+  }
+  return (vocabRx = list.sort((a, b) => b.len - a.len));   // 긴 표기부터(애니 아이디 → 아이디보다 먼저)
+}
+function applyVocab(t) { if (!t || !vocabText) return t; for (const r of vocabRules()) t = t.replace(r.re, r.to); return t; }
+const vocabSummary = () => { const rs = parseVocab(vocabText), n = rs.reduce((k, r) => k + r.from.length, 0); return rs.length ? `${rs.length}개 용어 · 교정 표기 ${n}개` : '아직 비어 있어요.'; };
+function setVocab(txt) { vocabText = String(txt || '').slice(0, VOCAB_MAX); vocabRx = null; try { if (vocabText) localStorage.setItem(VOCAB_KEY, vocabText); else localStorage.removeItem(VOCAB_KEY); } catch {} prefsTouch(); }
+function addVocabRule(to, from) {   // 같은 바른 표기 줄이 있으면 그 줄에 덧붙이고, 없으면 새 줄
+  const lines = vocabText ? vocabText.split('\n') : [];
+  const k = lines.findIndex(l => { const m = l.replace(/#.*$/, '').match(/^(.+?)\s*(?:=|←|<-)/); return (m ? m[1] : l.replace(/#.*$/, '')).trim() === to; });
+  if (k >= 0) { const r = parseVocab(lines[k])[0]; if (r && r.from.includes(from)) return false; lines[k] = /=|←|<-/.test(lines[k]) ? lines[k].replace(/\s*$/, '') + (r && r.from.length ? ', ' : ' ') + from : `${to} = ${from}`; }
+  else lines.push(`${to} = ${from}`);
+  setVocab(lines.join('\n')); aiLog('info', '용어 사전에 추가', { to, from }); return true;
+}
+function applyVocabAll() {   // 지금 회의의 전사 전체에 사전 적용 → 바뀐 문단 수
+  let n = 0; for (const g of S.segments) { const t = applyVocab(g.text); if (t !== g.text) { g.text = t; n++; } }
+  if (n) { markDirty(); renderTranscript(); } return n;
+}
 function cleanSegText(text) {
+  const t = cleanSegText0(text); return t ? applyVocab(t) : t;
+}
+function cleanSegText0(text) {
   let t = String(text || '').replace(/\s+/g, ' ').trim(); if (!t) return '';
   // 소리 설명 자막: [음악], [박수], [뚜껑을 닫는 중], (웃음), ♪ … — 말이 아니라 모델이 잡음에 붙인 설명이다
   t = t.replace(/\[[^\]]{0,40}\]/g, ' ').replace(/\((?:[^)]{0,20}(?:음악|박수|웃음|침묵|소리|기침|한숨|잡음|music|applause|laughter|noise|silence)[^)]{0,20})\)/gi, ' ').replace(/[♪♫♬]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -3944,7 +4005,7 @@ async function applyTranscriptImport(p, name) {
   const keepTr = gem && p.kind === 'summary' && S.trImport && S.trImport.src === 'gemini' && S.trImport.kind === 'transcript' && S.segments.length;
   if (!keepTr && p.segs.length) {
     if (S.segments.length && !(await askConfirm('전사를 바꿀까요?', `지금 있는 전사 ${S.segments.length}개가 가져온 내용으로 바뀝니다.`, '가져오기'))) return false;
-    S.segments = p.segs.map(g => ({ t0: g.t0, t1: g.t1, text: g.text, ...(g.spk ? { spk: g.spk } : {}) }));
+    S.segments = p.segs.map(g => ({ t0: g.t0, t1: g.t1, text: applyVocab(g.text), ...(g.spk ? { spk: g.spk } : {}) }));   // 가져온 전사에도 용어 사전
     S.trImport = { src: p.src, kind: p.kind, timed: p.timed, name: String(name || '').slice(0, 120) };
   }
   // 비어 있는 회의 정보는 파일 머리말로 채운다(이미 적은 값은 건드리지 않는다)
@@ -3986,7 +4047,7 @@ $('#trImportClear').addEventListener('click', async () => {
 /* ---------- live transcription (Web Speech API) ---------- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recog = null, recogWanted = false, segStart = null;
-function setInterim(t) { $('#interim').textContent = t; }
+function setInterim(t) { $('#interim').textContent = t ? applyVocab(t) : t; }
 /* 방식: 휴대폰(안드로이드)은 녹음과 브라우저 음성 인식이 마이크를 함께 쓰지 못해 글자가 나오지 않는 경우가 많다
    → 자동일 때 휴대폰은 기기 내 Whisper로, PC는 브라우저 음성 인식으로 */
 let srBroken = false;   // 이 기기에서 브라우저 음성 인식이 녹음과 같이 못 돈 적이 있으면 기기 내 인식으로
@@ -4215,6 +4276,7 @@ function endSegEdit(save) {
   if (save && g && text && text !== orig) {
     g.text = (g.text !== orig && g.text.startsWith(orig) ? text + g.text.slice(orig.length) : text).slice(0, 5000);   // 수정하는 사이(녹음 중) 뒤에 붙은 말은 살린다
     markDirty(); aiLog('info', '전사 문단 수정', { i, before: orig.length, after: g.text.length });
+    suggestVocab(orig, text);
   } else if (save && g && !text) toast('내용이 비어 있어 바꾸지 않았어요. 지우려면 우클릭 → 문단 삭제를 쓰세요.', 5000);
   renderTranscript(); if (pending) renderTimeline();
 }
@@ -4281,6 +4343,45 @@ $('#trReplaceAll').addEventListener('click', async () => {
   markDirty(); aiLog('info', '전사 일괄 바꾸기', { from: q, to, matches: n, paragraphs: changed });
   $('#trSearch').value = to.trim() && !/^\s*$/.test(to) ? to.trim() : ''; renderTranscript(); $('#trReplaceUndo').hidden = false;
   toast(`${n}곳(${changed}문단)을 바꿨어요.`);
+  if (to.trim() && q.length <= 40 && to.trim().length <= 60) showVocabSug(to.trim(), q);   // 앞으로 들어오는 전사도 자동으로
+});
+/* 전사를 고치면(문단 수정·모두 바꾸기) 그 고침을 용어 사전에 넣을지 묻는다 → 넣으면 뒤에 들어오는 전사(녹음 중 실시간 포함)도 자동으로 고쳐진다.
+   문단 수정은 바뀐 낱말 1~3개만 골라낸다(앞뒤 같은 낱말·같은 조사 제외). 큰 수정·문장 고쳐 쓰기는 묻지 않는다 */
+let vocabSug = null;
+function suggestVocab(a, b) {
+  const A = a.split(/\s+/), B = b.split(/\s+/); let p = 0, s = 0;
+  while (p < A.length && p < B.length && A[p] === B[p]) p++;
+  while (s < A.length - p && s < B.length - p && A[A.length - 1 - s] === B[B.length - 1 - s]) s++;
+  const x = A.slice(p, A.length - s), y = B.slice(p, B.length - s);
+  if (!x.length || !y.length || x.length > 3 || y.length > 3) return;
+  let from = x.join(' '), to = y.join(' ');
+  let k = 0; while (k < from.length && k < to.length && from[from.length - 1 - k] === to[to.length - 1 - k] && /[가-힣]/.test(from[from.length - 1 - k])) k++;   // 같은 조사(가·는·를 …)는 뗀다
+  if (k && k < from.length && k < to.length) { from = from.slice(0, -k); to = to.slice(0, -k); }
+  from = from.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''); to = to.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');   // 앞뒤 문장부호
+  if (!from || !to || from === to || from.length > 40 || to.length > 60 || from.length < 2) return;
+  if (parseVocab(vocabText).some(r => r.to === to && r.from.includes(from))) return;
+  showVocabSug(to, from);
+}
+function showVocabSug(to, from) {
+  vocabSug = { to, from };
+  const n = S.segments.reduce((k, g) => k + (g.text.match(new RegExp(escRe(from), 'gi')) || []).length, 0);
+  $('#vocabSugText').textContent = `“${from}” → “${to}”: 다음부터 전사에 나오면 자동으로 고칠까요?${n ? ` (지금 전사에 남은 ${n}곳도 함께)` : ''}`;
+  $('#vocabSug').hidden = false;
+}
+$('#vocabSugYes').addEventListener('click', () => {
+  if (!vocabSug) return; const { to, from } = vocabSug; vocabSug = null; $('#vocabSug').hidden = true;
+  addVocabRule(to, from); const n = applyVocabAll();
+  toast(`용어 사전에 넣었어요: ${from} → ${to}${n ? ` · 지금 전사 ${n}문단도 고쳤어요` : ''}. 설정 → 용어 사전에서 고칠 수 있어요.`, 6000);
+});
+$('#vocabSugNo').addEventListener('click', () => { vocabSug = null; $('#vocabSug').hidden = true; });
+$('#vocabSave').addEventListener('click', () => {
+  setVocab($('#vocabText').value); $('#vocabText').value = vocabText;
+  $('#vocabState').textContent = '저장했어요 · ' + vocabSummary(); aiLog('info', '용어 사전 저장', { summary: vocabSummary() });
+});
+$('#vocabApply').addEventListener('click', () => {
+  setVocab($('#vocabText').value);
+  if (!S.segments.length) { $('#vocabState').textContent = '저장했어요. 지금 회의에는 전사가 없어요.'; return; }
+  const n = applyVocabAll(); $('#vocabState').textContent = n ? `저장하고 전사 ${n}문단을 고쳤어요.` : '저장했어요. 고칠 곳이 없었어요.';
 });
 $('#trReplaceUndo').addEventListener('click', () => {
   if (!trReplaceBackup || trReplaceBackup.length !== S.segments.length) { toast('되돌릴 내용이 없어요.'); $('#trReplaceUndo').hidden = true; return; }
@@ -5500,7 +5601,8 @@ function renderAIStatus() {
 }
 function showSetTab(tab) {
   document.querySelectorAll('.set-tabs [data-set]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.set === tab)));
-  $('#setView').hidden = tab !== 'view'; $('#setAi').hidden = tab !== 'ai'; $('#setDraft').hidden = tab !== 'draft'; $('#setAuthor').hidden = tab !== 'author'; $('#setAbout').hidden = tab !== 'about'; $('#setLog').hidden = tab !== 'log'; $('#setAcct').hidden = tab !== 'acct';
+  $('#setView').hidden = tab !== 'view'; $('#setAi').hidden = tab !== 'ai'; $('#setDraft').hidden = tab !== 'draft'; $('#setAuthor').hidden = tab !== 'author'; $('#setAbout').hidden = tab !== 'about'; $('#setLog').hidden = tab !== 'log'; $('#setAcct').hidden = tab !== 'acct'; $('#setVocab').hidden = tab !== 'vocab';
+  if (tab === 'vocab') { $('#vocabText').value = vocabText; $('#vocabState').textContent = vocabSummary(); }
   if (tab === 'view') renderViewSettings();
   if (tab === 'draft') renderDraftSettings();
   if (tab === 'author') renderAuthorBox();
@@ -6781,6 +6883,7 @@ const VOCAB_STOP = new Set(['있는', '하는', '대한', '경우', '이런', '�
 function meetingVocab(max = 40) {
   const seen = new Set(), out = [];
   const add = t => { t = String(t || '').replace(/\s+/g, ' ').trim(); if (t.length < 2 || t.length > 30 || seen.has(t) || VOCAB_STOP.has(t)) return; seen.add(t); out.push(t); };
+  vocabTerms().slice(0, Math.ceil(max / 2)).forEach(add);   // 용어 사전의 바른 표기가 먼저(자리의 절반까지)
   S.attendees.forEach(a => { add(a.name); add(a.org); });
   Object.values(S.speakers || {}).forEach(add);
   S.refs.forEach(r => add(r.name));
@@ -8815,7 +8918,7 @@ $('#adminTabs').addEventListener('click', e => { const b = e.target.closest('[da
 /* 내 설정 동기화: 발언자 분석(방식·PC 서비스 주소·발언자 수), AI 엔진(종류·주소·모델), 다듬기 옵션, AI 작성 설정(시간 표시·표 정리 포함)·추가 지시 템플릿·작성자를 계정에 저장해 다른 기기·브라우저에서도 이어 쓴다.
    보안 토큰·API 키는 넣지 않는다. 규칙에 settings 경로가 없으면(403) 이 브라우저에만 기억한다 */
 const prefsDoc = a => `${EP.fs}/projects/${encodeURIComponent(FB.projectId)}/databases/(default)/documents/users/${encodeURIComponent(a.uid)}/settings/prefs`;
-const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0, vocab: diar.vocab !== false, cloudProv: diar.cloud.prov, tier: diar.tier }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, tables: draftOpt.tables, times: draftOpt.times, source: draftOpt.source, sections: draftOpt.sections, extra: draftOpt.extra }, tpls: draftTpls, author: { org: authorPref.org, name: authorPref.name, title: authorPref.title } });
+const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0, vocab: diar.vocab !== false, cloudProv: diar.cloud.prov, tier: diar.tier }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, tables: draftOpt.tables, times: draftOpt.times, source: draftOpt.source, sections: draftOpt.sections, extra: draftOpt.extra }, tpls: draftTpls, author: { org: authorPref.org, name: authorPref.name, title: authorPref.title }, vocab: vocabText });
 const prefs403 = e => { if (e && e.status === 403) { prefsOff = true; aiLog('warn', '설정 동기화 꺼짐: 목록 DB 규칙에 settings 경로가 없어요(이 브라우저에만 기억)'); renderCloudState(); return true; } return false; };
 async function prefsPush() {
   if (!FB || !user || prefsOff) return;
@@ -8848,6 +8951,7 @@ async function prefsPull() {
       }
       if (o.refine) { normRefine(o.refine); try { localStorage.setItem(REFINE_KEY, JSON.stringify({ len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra })); } catch {} }
       if (o.draft) { normDraftOpt(o.draft, draftOpt); try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draftOpt)); } catch {} if ($('#aiEditArea').hidden) renderMd(S.minutes); }
+      if (typeof o.vocab === 'string') { vocabText = o.vocab.slice(0, VOCAB_MAX); vocabRx = null; try { if (vocabText) localStorage.setItem(VOCAB_KEY, vocabText); else localStorage.removeItem(VOCAB_KEY); } catch {} }
       if (Array.isArray(o.tpls)) { draftTpls = normTpls(o.tpls); try { localStorage.setItem(DRAFT_TPL_KEY, JSON.stringify(draftTpls)); } catch {} }
       if (o.author) { normAuthor(o.author); try { localStorage.setItem(AUTHOR_KEY, JSON.stringify(authorPref)); } catch {} applyAuthorDefault(false); }
       try { localStorage.setItem(PREFS_AT, String(f.updatedAt)); } catch {}
@@ -9782,7 +9886,7 @@ else if ($('#gate').hidden) setTimeout(openDashboard, 400);   // 게스트·로�
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { parseGemini, geminiResult, docBodyText, mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, browserSpeakersFor, lastWords: () => diarLastWords, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, dashOpen, dashClose, setReadOnly, askChoice, set driveTok(v) { driveTok = v; }, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { applyVocab, suggestVocab, meetingVocab, get vocabText() { return vocabText; }, parseGemini, geminiResult, docBodyText, mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, browserSpeakersFor, lastWords: () => diarLastWords, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, dashOpen, dashClose, setReadOnly, askChoice, set driveTok(v) { driveTok = v; }, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
 applyAuthorDefault(false);
 renderAll();
 selectTab(curTab);
