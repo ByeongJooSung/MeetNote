@@ -15,5 +15,9 @@ window.MEETNOTE_CONFIG = {
 
   // 공유받은 회의록 열기(Google 파일 선택창)용 API 키. Google Picker API를 사용 설정한 프로젝트의 브라우저 키.
   // 비우면 firebase.apiKey를 씁니다. 프로젝트 번호는 googleClientId 앞의 숫자를 쓰며, 다르면 googleAppId: "번호" 를 넣으세요.
-  pickerKey: "AIzaSyB9awVQZfT6JfGFjklfdhCoWY1V5c5ZlT0"
+  pickerKey: "AIzaSyB9awVQZfT6JfGFjklfdhCoWY1V5c5ZlT0",
+
+  // 관리자(대시보드의 "관리자 페이지": 가입 사용자·프로젝트·접속 이력). 화면 표시용이며, 실제로 읽을 수 있는지는
+  // Firestore 규칙(firestore.rules의 isAdmin)이 정합니다 — 바꾸면 두 곳을 함께 고치세요.
+  adminEmails: ["tjdqudwn@gmail.com"]
 };

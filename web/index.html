@@ -662,6 +662,14 @@ dialog textarea{width:100%;border:1px solid var(--line);border-radius:8px;paddin
 .set-tabs button{border:0;background:none;padding:8px 12px;font-size:14px;color:var(--ink2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
 .set-tabs button[aria-selected="true"]{color:var(--tape);border-bottom-color:var(--tape);font-weight:600}
 #setLog #aiLogView{max-height:min(52vh,420px)}
+#adminDlg{width:min(980px,calc((100vw - 32px) / var(--ui,1)));max-width:none}
+.adm-body{max-height:min(60vh,560px);overflow:auto;border:1px solid var(--line);border-radius:8px}
+.adm-body table{width:100%;border-collapse:collapse;font-size:13px}
+.adm-body th,.adm-body td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;white-space:nowrap}
+.adm-body td.wrap{white-space:normal;min-width:180px}
+.adm-body th{position:sticky;top:0;background:var(--surface);z-index:1;color:var(--ink2);font-weight:600}
+.adm-body .muted{color:var(--ink2)}
+.adm-body .empty{padding:24px;text-align:center;color:var(--ink2)}
 
 .reel{position:relative;height:40px;background:var(--sunk);border-radius:8px;cursor:pointer;overflow:hidden}
 .reel.locked{cursor:default}
@@ -1321,6 +1329,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <button type="button" class="nav" id="dashSettings">설정</button>
     <button type="button" class="nav" id="cloudSync" title="Drive의 MeetNote 폴더를 읽어 목록을 다시 맞춥니다">Drive와 목록 맞추기</button>
     <button type="button" class="nav" id="cloudRefresh">새로고침</button>
+    <button type="button" class="nav" id="adminOpen" hidden title="가입한 사용자·프로젝트·접속 이력(관리자 전용)">관리자 페이지</button>
     <div class="lnb-spacer"></div>
     <button type="button" class="nav" id="cloudClose">← 편집 화면으로</button>
     <button type="button" class="nav" id="dashSignOut" hidden title="Google 계정에서 로그아웃해요">로그아웃</button>
@@ -1428,6 +1437,18 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div class="dlg-actions"><button class="btn" id="saveDlgCancel">취소</button><button class="btn primary" id="saveDlgGo">저장</button></div>
 </dialog>
 
+<dialog id="adminDlg" class="wide" aria-labelledby="adminTitle">
+  <h2 id="adminTitle">관리자 페이지</h2>
+  <p class="hint" id="adminNote">가입한 사용자·프로젝트·접속 이력이에요. 이 화면과 데이터는 관리자 계정만 볼 수 있어요(계정 DB 규칙으로 막혀 있어요).</p>
+  <div class="set-tabs" role="tablist" id="adminTabs">
+    <button type="button" data-adm="users" aria-selected="true">사용자 <span id="admUsersN"></span></button>
+    <button type="button" data-adm="projects" aria-selected="false">프로젝트 <span id="admProjN"></span></button>
+    <button type="button" data-adm="logins" aria-selected="false">접속 이력 <span id="admLoginN"></span></button>
+  </div>
+  <div class="row" style="margin:8px 0"><input id="admSearch" type="search" placeholder="이메일·이름·프로젝트 검색" autocomplete="off" style="flex:1"><button type="button" class="btn" id="admReload">새로고침</button></div>
+  <div id="admBody" class="adm-body"></div>
+  <div class="dlg-actions"><button class="btn" id="adminClose">닫기</button></div>
+</dialog>
 <dialog id="meetDlg" aria-labelledby="meetDlgTitle">
   <h2 id="meetDlgTitle">Google Meet 회의 가져오기</h2>
   <p class="hint">Gemini가 작성한 회의록 문서의 링크를 넣으면 그 회의의 <b>스크립트</b>(발언자·시각)를 전사로, <b>요약·다음 단계</b>를 메모로 가져와요. 문서에 회의가 여럿이면 가져올 회의 시간대를 고를 수 있어요. Google 로그인이 필요해요.</p>
@@ -1509,8 +1530,12 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.34.1';
+const APP_VERSION = '0.35.0';
 const PATCH_NOTES = [
+  { v: '0.35.0', date: '2026-10-12', items: [
+    '프로젝트는 초대받은 계정에만 보여요. 같은 PC·브라우저에서 다른 계정으로 로그인하면 이전 계정의 프로젝트가 보이던 문제를 고쳤어요(브라우저에도 계정별로 따로 보관). 내보내진 프로젝트는 목록에서 빠져요.',
+    '관리자 페이지(관리자 계정 전용, 대시보드 왼쪽 메뉴): 가입한 사용자(처음·마지막 접속, 접속 수, 회의록 수, 참여 프로젝트), 전체 프로젝트(마스터·구성원·회의록 수), 접속 이력을 볼 수 있어요.',
+  ] },
   { v: '0.34.1', date: '2026-09-30', items: [
     'NVIDIA API 키를 서버 주소와 상관없이 하나로 기억해요. 키를 넣은 뒤 서버 주소가 PC 서비스(/nim)로 바뀌어도 키가 빠져 401 오류가 나던 문제를 고쳤어요. 키가 없으면 보내기 전에 알려 줘요.',
     'Google Meet 가져오기: 앱 프로젝트에 Google Docs API가 꺼져 있을 때도 문서 읽기 권한(Drive 권한 허용 또는 파일 선택창)을 물어요. 예전에는 "파일을 찾을 수 없음"으로 끝났어요.',
@@ -7868,17 +7893,46 @@ const refsRule = () => !S.refs.length ? '' : `- <참고 자료>는 회의 안건
    - 참고 문서: 파일 → 글(extractRef) → AI 요약(≤ 2,500자) → 통합 참조 문서(merged)에 AI로 머지. .md는 요약 없이 그대로. AI가 없으면 요약 대신 앞부분, 머지는 이어 붙이기
    - 회의록 작성 시 projBlock/projRule로 붙인다. 회의에 직접 올린 참고 자료(S.refs)가 우선 */
 const PROJ_KEY = 'meetnote.projects', PROJ_SUM_MAX = 2500, PROJ_MERGED_MAX = 30000, PROJ_RAW_MAX = 60000;
-let projects = [];
-try { projects = JSON.parse(localStorage.getItem(PROJ_KEY) || '[]'); if (!Array.isArray(projects)) projects = []; } catch {}
+let projects = [], projSub = '';   // projSub: 지금 projects를 불러온 계정(Google sub). 비어 있으면 로그인 전(게스트)
+/* 프로젝트는 브라우저에 계정마다 따로 보관한다(meetnote.projects.<sub>). 예전에는 한 목록을 모든 계정이 같이 써서,
+   같은 브라우저에서 다른 계정으로 로그인하면 초대받지 않은 프로젝트가 보였다. 게스트는 PROJ_KEY 그대로 */
+const projKeyFor = sub => sub ? PROJ_KEY + '.' + sub : PROJ_KEY;
+const storeProjects = () => {
+  try {
+    let out = projects;
+    if (!projSub) {   // 게스트 목록(PROJ_KEY)에는 아직 계정으로 옮기지 않은 예전 프로젝트가 섞여 있다 → 지우지 않고 그대로 둔다
+      let legacy = []; try { legacy = JSON.parse(localStorage.getItem(PROJ_KEY) || '[]'); } catch {}
+      out = [...(Array.isArray(legacy) ? legacy : []).filter(x => x && (x.owner || x.ownerEmail || (Array.isArray(x.members) && x.members.length)) && !projects.some(p => p.id === x.id)), ...projects];
+    }
+    localStorage.setItem(projKeyFor(projSub), JSON.stringify(out));
+  } catch (e) { aiLog('warn', '프로젝트 저장 실패(브라우저 저장 공간)', errInfo(e)); }
+};
+function projLoad(u) {   // u: { sub, email } | null — 계정이 바뀔 때마다 그 계정의 목록으로 바꾼다
+  projSub = u && u.sub || '';
+  let list = null; try { list = JSON.parse(localStorage.getItem(projKeyFor(projSub)) || 'null'); } catch {}
+  if (!Array.isArray(list) && projSub) {   // 이 계정으로 처음: 예전 공용 목록에서 이 계정이 소유자·구성원인 것만 가져온다(나머지는 서버에서 내 것만 다시 받는다)
+    const me = String(u.email || '').toLowerCase(), has = a => Array.isArray(a) && a.some(m => String(m || '').toLowerCase() === me);
+    let legacy = []; try { legacy = JSON.parse(localStorage.getItem(PROJ_KEY) || '[]'); } catch {} if (!Array.isArray(legacy)) legacy = [];
+    const mine = x => x && me && (String(x.ownerEmail || '').toLowerCase() === me || has(x.members) || has(x.inviters));
+    list = legacy.filter(mine);
+    try {
+      localStorage.setItem(projKeyFor(projSub), JSON.stringify(list));
+      const ownerOnly = legacy.filter(x => x && !(String(x.ownerEmail || '').toLowerCase() === me));   // 내가 마스터인 것은 공용 목록에서 뺀다(다른 계정 것은 그 계정이 로그인할 때 옮긴다)
+      if (ownerOnly.length !== legacy.length) localStorage.setItem(PROJ_KEY, JSON.stringify(ownerOnly));
+    } catch {}
+  }
+  if (!projSub && Array.isArray(list)) list = list.filter(x => x && !x.owner && !x.ownerEmail && !(Array.isArray(x.members) && x.members.length));   // 게스트: 로그인 없이 만든(주인 없는) 프로젝트만
+  projects = (Array.isArray(list) ? list : []).map(normProj);
+}
 const projId = id => String(id || '').replace(/[^\w-]/g, '').slice(0, 60) || uid();   // safeId는 아래(클라우드)에서 정의되므로 시작 시점에는 쓸 수 없다
 const normProj = p => ({ id: projId(p.id), name: String(p.name || '이름 없는 프로젝트').slice(0, 60), desc: String(p.desc || '').slice(0, 600), refs: (Array.isArray(p.refs) ? p.refs : []).map(r => ({ id: projId(r.id), name: String(r.name || '문서').slice(0, 60), kind: String(r.kind || 'txt').slice(0, 6), chars: +r.chars || 0, summary: String(r.summary || '').slice(0, PROJ_SUM_MAX + 500), raw: typeof r.raw === 'string' ? r.raw.slice(0, PROJ_RAW_MAX) : '', addedAt: String(r.addedAt || '').slice(0, 30), status: r.status === 'error' ? 'error' : 'ok' })), merged: String(p.merged || '').slice(0, PROJ_MERGED_MAX), updatedAt: String(p.updatedAt || '').slice(0, 30), deleted: !!p.deleted, owner: String(p.owner || '').slice(0, 80), ownerEmail: String(p.ownerEmail || '').toLowerCase().slice(0, 120), members: [...new Set((Array.isArray(p.members) ? p.members : []).map(m => String(m || '').toLowerCase().trim()).filter(m => /^[^\s@]+@[^\s@]+$/.test(m)))].slice(0, 50), inviters: [...new Set((Array.isArray(p.inviters) ? p.inviters : []).map(m => String(m || '').toLowerCase().trim()).filter(Boolean))].slice(0, 2) });
-projects = projects.map(normProj);
+try { const u = JSON.parse(localStorage.getItem('meetnote.user') || 'null'); projLoad(u && u.exp * 1000 > Date.now() ? u : null); } catch { projLoad(null); }   // 로그인 정보(USER_KEY)는 아래에서 다시 읽는다
 const projById = id => projects.find(p => p.id === id && !p.deleted) || null;
 const projName = id => (projById(id) || {}).name || '';
 const projList = () => projects.filter(p => !p.deleted).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 function saveProjects(p) {
   if (p) p.updatedAt = new Date().toISOString();
-  try { localStorage.setItem(PROJ_KEY, JSON.stringify(projects)); } catch (e) { aiLog('warn', '프로젝트 저장 실패(브라우저 저장 공간)', errInfo(e)); }
+  storeProjects();
   if (p) projPush(p).catch(() => {});
   renderProjSel(); renderCloudProjSel();
 }
@@ -8023,7 +8077,7 @@ $('#projMemHint').addEventListener('click', async e => {
   if (!e.target.closest('#projLeave')) return; const p = projById(projCur); if (!p) return;
   if (!(await askConfirm('프로젝트에서 나갈까요?', `"${p.name}" 프로젝트와 그 회의록 목록이 더 이상 보이지 않아요. 마스터가 다시 초대하면 돌아올 수 있어요.`, '나가기'))) return;
   p.members = p.members.filter(m => m !== myEmail()); p.inviters = p.inviters.filter(m => m !== myEmail()); await projPush(p).catch(() => {});
-  projects = projects.filter(x => x.id !== p.id); try { localStorage.setItem(PROJ_KEY, JSON.stringify(projects)); } catch {}
+  projects = projects.filter(x => x.id !== p.id); storeProjects();
   if (S.meta.project === p.id) { S.meta.project = ''; markDirty(); }
   projCur = ''; renderProjSel(); renderCloudProjSel(); renderProjDlg(); toast('프로젝트에서 나갔어요.');
 });
@@ -8210,6 +8264,10 @@ async function projPull() {
     // 새 위치: 내가 구성원인 프로젝트(memberEmails) + 내가 소유자인 프로젝트(owner == uid; ownerEmail이 비어 memberEmails에 내가 없던 옛 프로젝트도 이렇게 찾는다)
     const rows = await fsQuery(a, fsRoot(), 'projects', 'memberEmails', myEmail());
     try { for (const r of await fsQuery(a, fsRoot(), 'projects', 'owner', a.uid, 'EQUAL')) if (!rows.some(x => x.id === r.id)) rows.push(r); } catch (e) { aiLog('warn', '내 소유 프로젝트 조회 실패', errInfo(e)); }
+    // 서버가 더는 나에게 주지 않는 남의 프로젝트(내보내졌거나 초대받지 않은 것)는 브라우저에서도 지운다. 내가 마스터인 것은 올리기 전일 수 있어 둔다
+    const seen = new Set(rows.map(r => r.id)), before = projects.length;
+    projects = projects.filter(p => seen.has(p.id) || isProjOwner(p));
+    if (projects.length !== before) { changed++; aiLog('info', '초대가 없는 프로젝트를 이 계정 목록에서 뺌', { removed: before - projects.length }); }
     for (const row of rows) {
       let remote = null; try { remote = normProj(JSON.parse(row.json || '{}')); } catch {} if (!remote) continue;
       remote.id = row.id; if (row.owner) remote.owner = row.owner; if (row.ownerEmail) remote.ownerEmail = String(row.ownerEmail).toLowerCase();
@@ -8230,7 +8288,7 @@ async function projPull() {
       } catch (e) { if (!(e && e.status === 403)) aiLog('warn', '옛 프로젝트 위치 읽기 실패', errInfo(e)); }
     }
     for (const p of projects) if (!p.deleted && ((!p.owner && (!p.ownerEmail || p.ownerEmail === myEmail())) || p.owner === a.uid)) projPush(p).catch(() => {});   // 로그인 전 만든 것·내 것은 올린다
-    if (changed) { try { localStorage.setItem(PROJ_KEY, JSON.stringify(projects)); } catch {} renderProjSel(); renderCloudProjSel(); aiLog('info', '계정의 프로젝트를 불러옴', { changed }); }
+    if (changed) { storeProjects(); renderProjSel(); renderCloudProjSel(); aiLog('info', '계정의 프로젝트를 불러옴', { changed }); }
   } catch (e) { if (e && e.status === 403) { projOff = true; aiLog('warn', '프로젝트 동기화 꺼짐(규칙에 projects 경로 없음 · docs/CLOUD-SETUP.md)', errInfo(e)); toast('계정 DB에서 프로젝트를 읽지 못했어요(권한 거부). Firestore 규칙에 projects 경로가 있는지 확인하세요(docs/CLOUD-SETUP.md). 이 세션에서는 프로젝트가 브라우저에만 저장돼요.', 10000); } else if (e.code !== 'relogin') aiLog('warn', '프로젝트 불러오기 실패', errInfo(e)); }
 }
 /* 프로젝트 회의록 목록(projects/{pid}/meetings): 구성원 모두가 읽고, 각자 올린 회의록을 기록한다 */
@@ -8299,7 +8357,7 @@ async function projRecover(rows) {
     projects.push(remote); n++; aiLog('info', '프로젝트 복구', { id, name: remote.name, from: remote.refs.length || remote.merged ? 'db' : 'name' });
     projPush(remote).catch(() => {});
   }
-  try { localStorage.setItem(PROJ_KEY, JSON.stringify(projects)); } catch {}
+  storeProjects();
   if (n) { renderProjSel(); renderCloudProjSel(); toast(`회의록이 가리키는 프로젝트 ${n}개를 되살렸어요.`, 6000); }
   return n;
 }
@@ -8471,7 +8529,8 @@ try { const c = JSON.parse(localStorage.getItem(CRED_KEY) || 'null'); if (c && u
 // 배포 설정(config.js)에 클라이언트 ID가 있으면 그 설정이 우선: 브라우저에 저장된 값으로 '로그인 필수'를 끌 수 없다
 const CFG_LOCKED = !!CFG.googleClientId;
 try { const g = JSON.parse(localStorage.getItem(GCLIENT_KEY) || 'null'); if (g && g.id && !CFG_LOCKED) { CFG.googleClientId = g.id; if (typeof g.require === 'boolean') CFG.requireLogin = g.require; } } catch {}
-const isAdmin = () => !!(user && user.email && (CFG.adminEmails || []).map(x => String(x).toLowerCase()).includes(user.email.toLowerCase()));   // 화면 표시용(실제 권한은 서버 규칙이 결정)
+const isAdminEmail = e => !!e && (CFG.adminEmails || []).map(x => String(x).toLowerCase()).includes(String(e).toLowerCase());
+const isAdmin = () => !!(user && isAdminEmail(user.email));   // 화면 표시용(실제 권한은 서버 규칙이 결정)
 const authPossible = () => /^https?:$/.test(location.protocol) && !inClaude;
 const authEnabled = () => !!CFG.googleClientId && authPossible();
 let gsiLoaded = false, gsiInit = false;
@@ -8515,10 +8574,11 @@ function onGoogleCredential(resp) {
   try {
     const c = decodeJwt(resp.credential), again = !!user && user.sub === c.sub;
     user = { sub: c.sub, name: c.name, email: c.email, picture: c.picture, exp: c.exp, iat: c.iat };
+    if (projSub !== user.sub) { projLoad(user); renderProjSel(); renderCloudProjSel(); }   // 다른 계정: 그 계정의 프로젝트만
     lastCredential = { token: resp.credential, exp: c.exp * 1000, sub: c.sub };
     try { localStorage.setItem(CRED_KEY, JSON.stringify(lastCredential)); } catch {}
     credWaiters.splice(0).forEach(f => f());
-    if (FB) fbAuth().then(async () => { prefsPull(); await projPull().catch(() => {}); dashShown = false; openDashboard(); }).catch(e => aiLog('warn', '목록 DB 로그인 실패', errInfo(e)));   // 로그인 직후 refresh 토큰을 받아 두고, 계정에 저장된 설정을 불러온다
+    if (FB) fbAuth().then(async () => { prefsPull(); recordAccess(); await projPull().catch(() => {}); dashShown = false; openDashboard(); }).catch(e => aiLog('warn', '목록 DB 로그인 실패', errInfo(e)));   // 로그인 직후 refresh 토큰을 받아 두고, 계정에 저장된 설정을 불러온다
     if (again) { try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch {} renderUser(); return; }
     try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch {}
     applyAuthorDefault(false);
@@ -8573,6 +8633,7 @@ async function signOutAll() {
   if (dirty && !(await askConfirm('로그아웃할까요?', '저장하지 않은 내용은 사라져요. 저장하려면 취소하고 저장을 누르세요.', '로그아웃'))) return;
   cloudSignOut();
   user = null; try { localStorage.removeItem(USER_KEY); } catch {}
+  projLoad(null); renderProjSel(); renderCloudProjSel();   // 로그아웃하면 계정의 프로젝트를 화면에서 내린다(브라우저에는 계정별로 남아 다시 로그인하면 보인다)
   try { google.accounts.id.disableAutoSelect(); } catch {}
   guest = false; try { sessionStorage.removeItem('meetnote.guest'); } catch {}
   await newMeeting();                       // 이전 계정의 회의록이 화면에 남지 않게 비운다. 프로젝트 등 저장된 데이터는 어떤 것도 지우지 않는다
@@ -8657,6 +8718,89 @@ async function dbUpsert(m) {
     const { project, projectName, ...rest } = m; if (Object.keys(rest).length > 1) await send(rest);
   }
 }
+/* ---------- 가입·접속 기록과 관리자 페이지 ----------
+   - 로그인한 계정은 accounts/{uid}(이메일·이름·처음/마지막 접속·접속 수)를 갱신하고 logins/{자동 id}에 접속 한 건을 남긴다(브라우저 세션마다 한 번)
+   - 관리자(config.js adminEmails)만 대시보드에 "관리자 페이지"가 보인다. 실제로 남의 기록을 읽을 수 있는지는 Firestore 규칙의 isAdmin()이 정한다(docs/CLOUD-SETUP.md) */
+let accOff = false;
+const uaShort = () => { const u = navigator.userAgent; const os = /Android/.test(u) ? 'Android' : /iPhone|iPad/.test(u) ? 'iOS' : /Windows/.test(u) ? 'Windows' : /Mac OS X/.test(u) ? 'Mac' : /Linux/.test(u) ? 'Linux' : '기타'; const b = (u.match(/Edg\/(\d+)/) && 'Edge ' + RegExp.$1) || (u.match(/(?:Chrome|CriOS)\/(\d+)/) && 'Chrome ' + RegExp.$1) || (u.match(/Firefox\/(\d+)/) && 'Firefox ' + RegExp.$1) || (u.match(/Version\/(\d+).*Safari/) && 'Safari ' + RegExp.$1) || '브라우저'; return `${os} · ${b}${native() ? ' · 앱' : ''}`.slice(0, 100); };
+async function recordAccess() {
+  if (!FB || !user || accOff) return;
+  const sk = 'meetnote.acc.' + user.sub; try { if (sessionStorage.getItem(sk)) return; sessionStorage.setItem(sk, '1'); } catch {}
+  try {
+    const a = await fbAuth(), now = new Date().toISOString(), hd = { authorization: 'Bearer ' + a.idToken };
+    const doc = `${fsRoot()}/accounts/${encodeURIComponent(a.uid)}`;
+    let prev = null; try { prev = fsUn((await jfetch(doc, { headers: hd })).fields); } catch (e) { if (e.status !== 404) throw e; }
+    const email = myEmail(), name = String(user.name || '').slice(0, 100), ua = uaShort();
+    const acc = { email: { stringValue: email }, name: { stringValue: name }, firstAt: { stringValue: (prev && prev.firstAt) || now }, lastAt: { stringValue: now }, logins: { integerValue: String(((prev && +prev.logins) || 0) + 1) }, ua: { stringValue: ua } };
+    await jfetch(`${doc}?${fsMask(acc)}`, { method: 'PATCH', headers: { ...hd, 'content-type': 'application/json' }, body: JSON.stringify({ fields: acc }) });
+    await jfetch(`${fsRoot()}/logins`, { method: 'POST', headers: { ...hd, 'content-type': 'application/json' }, body: JSON.stringify({ fields: { uid: { stringValue: a.uid }, email: { stringValue: email }, name: { stringValue: name }, at: { stringValue: now }, ua: { stringValue: ua } } }) });
+  } catch (e) {
+    if (e && e.status === 403) { accOff = true; aiLog('warn', '접속 기록 꺼짐: Firestore 규칙에 accounts·logins 경로가 없어요(docs/CLOUD-SETUP.md)'); }
+    else if (e.code !== 'relogin') aiLog('warn', '접속 기록 실패', errInfo(e));
+  }
+}
+let adm = { tab: 'users', users: [], projects: [], logins: [], loaded: false, err: '' };
+const admFmt = s => { if (!s) return '-'; const d = new Date(s); return isNaN(d) ? esc(String(s)) : d.toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); };
+async function admList(a, path, max = 1000) {   // 컬렉션 문서 전부(페이지 넘김)
+  const out = []; let page = '';
+  do {
+    const d = await jfetch(`${fsRoot()}/${path}?pageSize=300${page ? '&pageToken=' + encodeURIComponent(page) : ''}`, { headers: { authorization: 'Bearer ' + a.idToken } });
+    for (const doc of (d && d.documents) || []) out.push({ id: doc.name.split('/').pop(), ...fsUn(doc.fields), _f: doc.fields });
+    page = (d && d.nextPageToken) || '';
+  } while (page && out.length < max);
+  return out;
+}
+async function admLoad() {
+  adm.err = ''; $('#admBody').innerHTML = '<div class="empty">불러오는 중…</div>';
+  try {
+    const a = await fbAuth();
+    const [users, projs, logins] = await Promise.all([
+      admList(a, 'accounts'),
+      admList(a, 'projects'),
+      jfetch(`${fsRoot()}:runQuery`, { method: 'POST', headers: { authorization: 'Bearer ' + a.idToken, 'content-type': 'application/json' }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'logins' }], orderBy: [{ field: { fieldPath: 'at' }, direction: 'DESCENDING' }], limit: 500 } }) })
+        .then(d => (Array.isArray(d) ? d : []).filter(x => x.document).map(x => fsUn(x.document.fields)))
+    ]);
+    // 사용자별 회의록 수, 프로젝트별 회의록 수(관리자 읽기 규칙 필요 — 실패하면 '-')
+    await Promise.all(users.map(async u => { try { u.meetings = (await admList(a, `users/${encodeURIComponent(u.id)}/meetings`, 3000)).filter(m => !m.deletedAt).length; } catch { u.meetings = null; } }));
+    adm.projects = await Promise.all(projs.map(async r => {
+      let j = {}; try { j = JSON.parse(r.json || '{}'); } catch {}
+      const members = ((r._f.memberEmails || {}).arrayValue || {}).values || [];
+      let meetings = null; try { meetings = (await admList(a, `projects/${encodeURIComponent(r.id)}/meetings`, 3000)).filter(m => !m.deletedAt).length; } catch {}
+      return { id: r.id, name: r.name || j.name || '(이름 없음)', ownerEmail: r.ownerEmail || '', members: members.map(v => v.stringValue).filter(Boolean), updatedAt: r.updatedAt || j.updatedAt || '', deleted: r.deleted === true || ((r._f.deleted || {}).booleanValue === true), refs: Array.isArray(j.refs) ? j.refs.length : 0, meetings };
+    }));
+    adm.users = users.sort((x, y) => String(y.lastAt || '').localeCompare(String(x.lastAt || '')));
+    adm.logins = logins; adm.loaded = true;
+    aiLog('info', '관리자 페이지 불러옴', { users: users.length, projects: projs.length, logins: logins.length });
+  } catch (e) {
+    adm.err = e && e.status === 403 ? '계정 DB가 관리자 읽기를 허용하지 않아요. Firestore 규칙을 docs/CLOUD-SETUP.md의 최신본(isAdmin 포함)으로 게시해 주세요.' : '불러오지 못했어요: ' + (e.message || e);
+    aiLog('warn', '관리자 페이지 불러오기 실패', errInfo(e));
+  }
+  renderAdmin();
+}
+function renderAdmin() {
+  document.querySelectorAll('#adminTabs [data-adm]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.adm === adm.tab)));
+  $('#admUsersN').textContent = adm.loaded ? `(${adm.users.length})` : ''; $('#admProjN').textContent = adm.loaded ? `(${adm.projects.filter(p => !p.deleted).length})` : ''; $('#admLoginN').textContent = adm.loaded ? `(${adm.logins.length})` : '';
+  const box = $('#admBody'); if (adm.err) { box.innerHTML = `<div class="empty">${esc(adm.err)}</div>`; return; } if (!adm.loaded) return;
+  const q = $('#admSearch').value.trim().toLowerCase(), hit = (...xs) => !q || xs.some(x => String(x || '').toLowerCase().includes(q));
+  const projOf = email => adm.projects.filter(p => !p.deleted && (p.ownerEmail === email || p.members.includes(email)));
+  let html = '';
+  if (adm.tab === 'users') {
+    const rows = adm.users.filter(u => hit(u.email, u.name));
+    html = rows.length ? `<table><thead><tr><th>이메일</th><th>이름</th><th>처음 접속</th><th>마지막 접속</th><th>접속 수</th><th>회의록</th><th>프로젝트</th><th>최근 기기</th></tr></thead><tbody>${rows.map(u => { const ps = projOf(u.email); return `<tr><td>${esc(u.email)}${isAdminEmail(u.email) ? ' <span class="muted">(관리자)</span>' : ''}</td><td>${esc(u.name || '')}</td><td>${admFmt(u.firstAt)}</td><td>${admFmt(u.lastAt)}</td><td>${+u.logins || 0}</td><td>${u.meetings == null ? '-' : u.meetings}</td><td class="wrap">${ps.length ? ps.map(p => esc(p.name) + (p.ownerEmail === u.email ? ' (마스터)' : '')).join(', ') : '<span class="muted">없음</span>'}</td><td>${esc(u.ua || '')}</td></tr>`; }).join('')}</tbody></table>` : '<div class="empty">기록된 사용자가 없어요. 사용자가 이 버전 이후에 로그인하면 기록돼요.</div>';
+  } else if (adm.tab === 'projects') {
+    const rows = adm.projects.filter(p => hit(p.name, p.ownerEmail, ...p.members)).sort((x, y) => (x.deleted - y.deleted) || String(y.updatedAt).localeCompare(String(x.updatedAt)));
+    html = rows.length ? `<table><thead><tr><th>프로젝트</th><th>마스터</th><th>구성원</th><th>회의록</th><th>참고 문서</th><th>수정</th><th>상태</th></tr></thead><tbody>${rows.map(p => `<tr><td>${esc(p.name)}</td><td>${esc(p.ownerEmail || '-')}</td><td class="wrap">${p.members.filter(m => m !== p.ownerEmail).map(esc).join(', ') || '<span class="muted">없음</span>'}</td><td>${p.meetings == null ? '-' : p.meetings}</td><td>${p.refs}</td><td>${admFmt(p.updatedAt)}</td><td>${p.deleted ? '<span class="muted">삭제됨</span>' : '사용 중'}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">프로젝트가 없어요.</div>';
+  } else {
+    const rows = adm.logins.filter(l => hit(l.email, l.name, l.ua));
+    html = rows.length ? `<table><thead><tr><th>시각</th><th>이메일</th><th>이름</th><th>기기</th></tr></thead><tbody>${rows.map(l => `<tr><td>${admFmt(l.at)}</td><td>${esc(l.email || '')}</td><td>${esc(l.name || '')}</td><td>${esc(l.ua || '')}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">접속 기록이 없어요.</div>';
+  }
+  box.innerHTML = html;
+}
+$('#adminOpen').addEventListener('click', () => { if (!isAdmin()) return; try { $('#adminDlg').showModal(); } catch {} renderAdmin(); if (!adm.loaded) admLoad(); });
+$('#adminClose').addEventListener('click', () => $('#adminDlg').close());
+$('#admReload').addEventListener('click', admLoad);
+$('#admSearch').addEventListener('input', renderAdmin);
+$('#adminTabs').addEventListener('click', e => { const b = e.target.closest('[data-adm]'); if (b) { adm.tab = b.dataset.adm; renderAdmin(); } });
 /* 내 설정 동기화: 발언자 분석(방식·PC 서비스 주소·발언자 수), AI 엔진(종류·주소·모델), 다듬기 옵션, AI 작성 설정(시간 표시·표 정리 포함)·추가 지시 템플릿·작성자를 계정에 저장해 다른 기기·브라우저에서도 이어 쓴다.
    보안 토큰·API 키는 넣지 않는다. 규칙에 settings 경로가 없으면(403) 이 브라우저에만 기억한다 */
 const prefsDoc = a => `${EP.fs}/projects/${encodeURIComponent(FB.projectId)}/databases/(default)/documents/users/${encodeURIComponent(a.uid)}/settings/prefs`;
@@ -9361,7 +9505,7 @@ function renderDashProjs() {
   const chip = (id, label, extra = '') => `<button type="button" data-dproj="${esc(id)}" aria-pressed="${String(cur === id)}"><span class="nm">${label}</span>${extra}<span class="n">${cnt(id)}</span></button>`;
   box.innerHTML = chip('', '모든 회의록') + chip('__none', '미분류 (개인)') + projList().map(p => chip(p.id, esc(p.name), projShared(p) ? '<span class="sh">공유</span>' : '')).join('');
   $('#dashUser').textContent = user ? (user.email || user.name || '') : '로그인하지 않음 · 파일로 열거나 새 회의를 시작할 수 있어요';
-  $('#dashSignOut').hidden = !user;
+  $('#dashSignOut').hidden = !user; $('#adminOpen').hidden = !(isAdmin() && FB);
   const sel = $('#cloudProj'), name = cur === '' ? '모든 회의록' : cur === '__none' ? '미분류 (개인)' : projName(cur) || '프로젝트';
   $('#cloudTitle').textContent = name; $('#dashCalTitle').textContent = cloudUi.trash ? '휴지통' : cloudUi.view === 'cal' ? '달력' : '전체 목록';
   // 현황 카드: 필터 기준 회의록 수 · 이번 달 · 프로젝트 수(공유) · 마지막 저장 (휴지통 제외)
@@ -9416,7 +9560,7 @@ $('#driveDisconnect').addEventListener('click', async () => {
 renderUser();
 renderCloudState();
 initGoogle();
-if (FB && user && fbSess && fbSess.sub === user.sub) { prefsPull(); projPull().catch(() => {}).then(() => openDashboard()); }   // 이미 로그인된 상태로 열었을 때
+if (FB && user && fbSess && fbSess.sub === user.sub) { prefsPull(); recordAccess(); projPull().catch(() => {}).then(() => openDashboard()); }   // 이미 로그인된 상태로 열었을 때
 else if ($('#gate').hidden) setTimeout(openDashboard, 400);   // 게스트·로그인 없는 배포: 파일 열기·새 회의용 대시보드
 
 /* ---------- tooltips (usage help on hover) ---------- */

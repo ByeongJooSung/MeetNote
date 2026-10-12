@@ -22,59 +22,10 @@ MeetNote는 서버 없이 동작합니다. 클라우드 저장은 아래처럼 �
 2. **빌드 → Authentication → 시작하기 → 로그인 방법 → Google → 사용 설정**. 지원 이메일을 고르고 저장.
 3. **Authentication → 설정 → 승인된 도메인**에 배포 도메인(예: `byeongjoosung.github.io`)을 추가. `localhost`는 기본으로 들어 있습니다.
 4. **빌드 → Firestore Database → 데이터베이스 만들기** → 위치 `asia-northeast3`(서울) → **프로덕션 모드**.
-5. Firestore **규칙** 탭에 아래를 붙여 넣고 **게시**:
-   ```
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       // 본인 목록만 읽고 쓸 수 있음 + 정해진 항목·길이만 허용(남용 방지)
-       match /users/{uid}/meetings/{id} {
-         allow read, delete: if request.auth != null && request.auth.uid == uid;
-         allow create, update: if request.auth != null && request.auth.uid == uid
-           && request.resource.data.keys().hasOnly(['title','when','duration','bytes','updatedAt','fileId','name','project','projectName','deletedAt','deletedBy'])
-           && request.resource.data.title is string && request.resource.data.title.size() <= 200
-           && request.resource.data.fileId is string && request.resource.data.fileId.size() <= 200
-           && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 300));
-       }
-       // 프로젝트(회의록 묶음 + 참고 문서 통합본 + 구성원). 소유자와 memberEmails에 든 사람만 읽고 쓴다
-       function projMember(data) { return request.auth != null && (data.owner == request.auth.uid || request.auth.token.email in data.memberEmails); }
-       match /projects/{pid} {
-         allow read: if projMember(resource.data);
-         allow create: if request.auth != null && request.resource.data.owner == request.auth.uid
-           && request.resource.data.keys().hasOnly(['json','name','updatedAt','deleted','owner','ownerEmail','memberEmails'])
-           && request.resource.data.json is string && request.resource.data.json.size() <= 400000;
-         // 갱신: 구성원. 마스터 위임 때는 owner를 비우고(ownerEmail = 새 마스터), 새 마스터가 저장하면 자기 uid로 채운다
-         allow update: if projMember(resource.data)
-           && (request.resource.data.owner == resource.data.owner
-               || resource.data.owner == request.auth.uid
-               || (resource.data.owner == '' && request.resource.data.owner == request.auth.uid && request.auth.token.email == resource.data.ownerEmail))
-           && request.resource.data.keys().hasOnly(['json','name','updatedAt','deleted','owner','ownerEmail','memberEmails'])
-           && request.resource.data.json is string && request.resource.data.json.size() <= 400000;
-         allow delete: if request.auth != null && resource.data.owner == request.auth.uid;
-         // 프로젝트에 묶인 회의록 목록(구성원이 각자 올린 것). 파일 자체는 올린 사람의 Drive에 있고 구성원에게 공유된다
-         match /meetings/{mid} {
-           allow read, write: if projMember(get(/databases/$(database)/documents/projects/$(pid)).data);
-         }
-       }
-       // 옛 위치(개인 프로젝트). 앱이 처음 로그인할 때 위 projects로 옮긴 뒤에는 쓰지 않는다 — 옮긴 뒤 지워도 된다
-       match /users/{uid}/projects/{id} {
-         allow read, delete: if request.auth != null && request.auth.uid == uid;
-         allow create, update: if request.auth != null && request.auth.uid == uid
-           && request.resource.data.keys().hasOnly(['json','name','updatedAt','deleted'])
-           && request.resource.data.json is string && request.resource.data.json.size() <= 400000
-           && request.resource.data.name is string && request.resource.data.name.size() <= 100;
-       }
-       // 내 설정 동기화(발언자 분석 방식·PC 서비스 주소·발언자 수, AI 엔진 주소·모델 등. 토큰·키는 저장하지 않음)
-       match /users/{uid}/settings/{doc} {
-         allow read, delete: if request.auth != null && request.auth.uid == uid;
-         allow create, update: if request.auth != null && request.auth.uid == uid
-           && request.resource.data.keys().hasOnly(['json','updatedAt'])
-           && request.resource.data.json is string && request.resource.data.json.size() <= 40000
-           && request.resource.data.updatedAt is string && request.resource.data.updatedAt.size() <= 40;
-       }
-     }
-   }
-   ```
+5. Firestore **규칙** 탭에 저장소 맨 위의 **`firestore.rules`** 파일 내용을 그대로 붙여 넣고 **게시**합니다(규칙의 단일 원본).
+   - 본인 회의록 목록·설정만 읽고 쓰기, 프로젝트는 **소유자와 초대된 이메일(memberEmails)만** 읽고 쓰기.
+   - 가입 사용자(`accounts`)·접속 이력(`logins`): 로그인할 때 본인이 기록하고, **관리자(`isAdmin()`의 이메일)만** 전체를 읽습니다. 관리자는 프로젝트·회의록 목록도 읽기만 할 수 있어요(대시보드 → 관리자 페이지).
+   - 관리자를 바꾸려면 `firestore.rules`의 `isAdmin()`과 `web/config.js`의 `adminEmails`를 함께 고치세요(앞은 실제 권한, 뒤는 화면 표시).
 6. **프로젝트 설정(톱니) → 일반**에서 **웹 API 키**와 **프로젝트 ID**를 적어 둡니다. ("내 앱"에 웹 앱을 등록하지 않아도 API 키는 보입니다. 안 보이면 웹 앱(</>)을 하나 등록하세요.)
 
 ## 2. OAuth 클라이언트 · Drive API (같은 프로젝트의 Google Cloud Console)
