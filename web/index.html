@@ -1240,6 +1240,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div id="anaPy" hidden>
     <label class="field">서비스 주소<input id="anaBase" placeholder="http://localhost:8765" inputmode="url"></label>
     <label class="field">발언자 수 (비우면 자동)<input id="anaN" type="number" min="1" max="10" inputmode="numeric"></label>
+    <label class="field">전사 엔진<select id="anaAsr"><option value="whisper">Whisper (기존 · 빠름)</option><option value="qwen3-0.6b">Qwen3-ASR 0.6B (시험 · CPU 가능, Whisper보다 약 5배 느림)</option><option value="qwen3-1.7b">Qwen3-ASR 1.7B (시험 · NVIDIA GPU 권장, CPU는 아주 느림)</option></select></label><p class="hint" id="anaAsrNote"></p>
     <label class="chk"><input type="checkbox" id="anaVocab"> 회의 용어 사전 보내기 <span class="hint">(참석자 이름·참고 자료의 용어를 알려 줘 인식 정확도를 높여요)</span></label>
   </div>
   <div class="conn" id="anaConn" hidden><span class="sdot"></span><span id="anaConnText"></span></div>
@@ -1276,6 +1277,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
   <div id="diarPy" hidden>
     <label class="field">서비스 주소<input id="diarBase" placeholder="http://localhost:8765" inputmode="url"></label>
     <label class="field">발언자 수 (비우면 자동)<input id="diarN" type="number" min="1" max="10" inputmode="numeric"></label>
+    <label class="field">전사 엔진<select id="diarAsr"><option value="whisper">Whisper (기존 · 빠름)</option><option value="qwen3-0.6b">Qwen3-ASR 0.6B (시험 · CPU 가능, Whisper보다 약 5배 느림)</option><option value="qwen3-1.7b">Qwen3-ASR 1.7B (시험 · NVIDIA GPU 권장, CPU는 아주 느림)</option></select></label><p class="hint" id="diarAsrNote"></p>
     <label class="chk"><input type="checkbox" id="diarVocab"> 회의 용어 사전 보내기 <span class="hint">(참석자 이름·참고 자료의 용어를 알려 줘 인식 정확도를 높여요)</span></label>
     <p class="hint">저장소의 <code>server/</code> 폴더에서 <code>pip install -r requirements.txt</code> → <code>python diarize.py</code></p>
   </div>
@@ -1539,8 +1541,13 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.36.0';
+const APP_VERSION = '0.37.0';
 const PATCH_NOTES = [
+  { v: '0.37.0', date: '2026-10-12', items: [
+    'PC 서비스 전사 엔진을 고를 수 있어요(발언자 구분 창 → 전사 엔진): Whisper(기존) · Qwen3-ASR 0.6B · 1.7B(시험). 발언자 구분과 용어 사전은 같은 방식이라 전사 품질만 비교할 수 있어요. PC 서비스에 qwen-asr 설치가 필요해요.',
+    '다른 엔진으로 다시 분석할 때 "이전 전사 받아 두고 바꾸기"로 이전 결과를 텍스트 파일(엔진 이름 포함)로 받아 두고 나란히 비교할 수 있어요. 분석이 끝나면 엔진과 걸린 시간을 알려 줘요.',
+    'Gemini 회의록을 가져온 회의를 저장했다가 다시 열면 녹화를 붙일 수 없던 문제를 고쳤어요.',
+  ] },
   { v: '0.36.0', date: '2026-10-12', items: [
     '용어 사전(설정 → 용어 사전): "ANYID = aid, 에이아이디, 애니 아이디"처럼 정리해 두면 전사가 들어오는 즉시(녹음 중 실시간 전사, 발언자 구분 분석, 전사 가져오기) 바른 표기로 바꿔요. 영문은 낱말 단위로만(said는 그대로), 한글은 조사째 바꿔요. 계정에 저장돼 다른 기기에서도 이어져요.',
     '사전의 바른 표기는 음성 인식에 힌트로 먼저 전달돼 처음부터 그렇게 알아듣도록 도와요.',
@@ -6586,7 +6593,11 @@ if (!['browser', 'py', 'cloud'].includes(diar.mode)) diar.mode = 'browser';
 diar.cloud = Object.assign({ prov: 'clova', url: '', keep: false, vocab: true }, diar.cloud || {});
 if (diar.vocab == null) diar.vocab = true;
 if (!['auto', 'fast', 'balanced', 'accurate'].includes(diar.tier)) diar.tier = 'auto';
-if (!['window', 'long'].includes(diar.algo)) diar.algo = 'window';   // 발언자 구간 찾기: window(10초 창, 기본) / long(예전 10분 창). 화면에는 없고 평가 도구가 비교할 때 바꾼다
+if (!['window', 'long'].includes(diar.algo)) diar.algo = 'window';
+/* PC 서비스 전사 엔진: whisper(기존) | qwen3-0.6b | qwen3-1.7b(시험). 발언자 구분은 엔진과 상관없이 같은 방식이라 전사 품질만 비교할 수 있다 */
+const ASR_ENGINES = { whisper: 'Whisper', 'qwen3-0.6b': 'Qwen3-ASR 0.6B', 'qwen3-1.7b': 'Qwen3-ASR 1.7B' };
+if (!ASR_ENGINES[diar.asr]) diar.asr = 'whisper';
+const asrNote = () => diar.asr === 'whisper' ? '' : `시험용 엔진이에요. PC 서비스에 qwen-asr이 설치돼 있어야 해요(server 폴더에서 .venv\\Scripts\\python -m pip install qwen-asr). 처음 한 번 모델(${diar.asr === 'qwen3-1.7b' ? '약 5GB' : '약 2.5GB'})을 내려받아요. 발언자 구분·용어 사전은 Whisper와 같아서 전사 품질만 비교할 수 있어요. 전사를 바꿀 때 "이전 전사 받아 두고 바꾸기"로 두 결과를 나란히 비교해 보세요.`;   // 발언자 구간 찾기: window(10초 창, 기본) / long(예전 10분 창). 화면에는 없고 평가 도구가 비교할 때 바꾼다
 const saveDiar = () => { try { localStorage.setItem(DIAR_KEY, JSON.stringify(diar)); } catch {} prefsTouch(); };
 const cleanBase = v => String(v || '').trim().replace(/\/+$/, '');
 for (const pre of ['diar', 'ana']) {
@@ -6595,6 +6606,7 @@ for (const pre of ['diar', 'ana']) {
   $(`#${pre}Vocab`).addEventListener('change', e => { diar.vocab = e.target.checked; saveDiar(); });
   $(`#${pre}Tier`).addEventListener('change', e => { diar.tier = e.target.value; saveDiar(); $(`#${pre}BrowserNote`).textContent = browserDiarNote(); });
   $(`#${pre}BN`).addEventListener('change', e => { const n = parseInt(e.target.value, 10); diar.n = n >= 1 && n <= 10 ? n : 0; saveDiar(); });
+  $(`#${pre}Asr`).addEventListener('change', e => { diar.asr = ASR_ENGINES[e.target.value] ? e.target.value : 'whisper'; saveDiar(); $(`#${pre}AsrNote`).textContent = asrNote(); });
 }
 /* 인식 모델 등급: 자동은 기기에 맞춰 고른다(WebGPU PC → 정확, WebGPU 휴대폰 → 균형, CPU → 균형(휴대폰은 빠름)). '정확'은 WebGPU가 없으면 균형으로 내린다 */
 const TIER_INFO = { fast: { label: '빠름(base)', mb: 90, spd: [1.2, 2.5], gspd: [0.3, 0.6] }, balanced: { label: '균형(small)', mb: 560, spd: [3, 6], gspd: [0.5, 1] }, accurate: { label: '정확(large-v3-turbo)', mb: 1500, spd: [10, 20], gspd: [0.8, 1.6] } };
@@ -6618,7 +6630,7 @@ function setupEngine(prefix) {
   const radios = document.querySelectorAll(`input[name="${prefix}Mode"]`);
   const apply = () => {
     const m = document.querySelector(`input[name="${prefix}Mode"]:checked`)?.value || 'browser';
-    $(`#${prefix}Py`).hidden = m !== 'py'; $(`#${prefix}Vocab`).checked = diar.vocab !== false;
+    $(`#${prefix}Py`).hidden = m !== 'py'; $(`#${prefix}Vocab`).checked = diar.vocab !== false; $(`#${prefix}Asr`).value = diar.asr; $(`#${prefix}AsrNote`).textContent = asrNote();
     const cp = $(`#${prefix}Cloud`); cp.hidden = m !== 'cloud'; if (m === 'cloud') renderCloudPanel(prefix);
     const bo = $(`#${prefix}BrowserOpt`); bo.hidden = m !== 'browser'; if (m === 'browser') { $(`#${prefix}Tier`).value = diar.tier || 'auto'; $(`#${prefix}BN`).value = diar.n || ''; }
     const note = $(`#${prefix}BrowserNote`); note.hidden = m !== 'browser'; if (m === 'browser') note.textContent = browserDiarNote();
@@ -6770,7 +6782,8 @@ async function runDiarization({ base, n, title }) {
   fd.append('lang', ($('#lang').value || 'ko-KR').slice(0, 2));
   if (n > 0) fd.append('num_speakers', String(n));
   const vocab = diar.vocab !== false ? meetingVocab() : []; if (vocab.length) fd.append('vocab', vocab.join(', '));
-  aiLog('info', '발언자 구분 요청', { base: diar.base, bytes: S.audioBlob.size, lang: fd.get('lang'), n: n || 'auto', vocab: vocab.length });
+  if (diar.asr !== 'whisper') fd.append('engine', diar.asr);   // 예전 PC 서비스는 모르는 항목을 무시하고 Whisper로 분석한다(결과의 engine으로 확인)
+  aiLog('info', '발언자 구분 요청', { base: diar.base, bytes: S.audioBlob.size, lang: fd.get('lang'), n: n || 'auto', vocab: vocab.length, engine: diar.asr });
   const ctl = new AbortController(); let jobId = null, cancelled = false;
   progAbort = () => { cancelled = true; ctl.abort(); if (jobId) fetch(`${diar.base}/jobs/${jobId}`, { method: 'DELETE' }).catch(() => {}); };
   progOpen(title);
@@ -6820,15 +6833,27 @@ async function runDiarization({ base, n, title }) {
 async function applyDiarResult(result, t0) {
   const rawSegs = (result.segments || []).map(s => ({ t0: +(+s.t0).toFixed(2), t1: +(+s.t1).toFixed(2), text: String(s.text || '').trim(), spk: s.spk != null ? String(s.spk) : undefined })).filter(s => s.text);
   const segs = mergeSegments(cleanSegments(rawSegs));      // 환청(반복·상투 문구)을 걸러낸 뒤, 같은 발언자의 이어지는 말은 한 문단으로
-  aiLog('info', '발언자 구분 완료', { ms: Math.round(performance.now() - t0), segments: segs.length, before: rawSegs.length, speakers: new Set(segs.map(s => s.spk)).size, diarizer: result.diarizer });
+  const eng = result.engine || '', secs = result.seconds || Math.round((performance.now() - t0) / 1000);
+  aiLog('info', '발언자 구분 완료', { ms: Math.round(performance.now() - t0), segments: segs.length, before: rawSegs.length, speakers: new Set(segs.map(s => s.spk)).size, diarizer: result.diarizer, engine: eng || undefined, seconds: secs });
   if (!segs.length) throw new Error('전사 결과가 비어 있어요. 녹음에 말소리가 있는지 확인하세요.');
+  if (diar.asr !== 'whisper' && eng && !/qwen/i.test(eng)) toast('PC 서비스가 예전 버전이라 Qwen3-ASR을 몰라 Whisper로 분석했어요. PC 서비스를 최신으로 바꿔 다시 켜 주세요.', 9000);
   progSet(100, '완료');
-  if (S.segments.length) { progClose(); if (!(await askConfirm('전사를 바꿀까요?', `기존 전사 ${S.segments.length}개를 분석 결과 ${segs.length}개로 바꿉니다.`, '바꾸기'))) return false; }
-  S.segments = segs.sort((a, b) => a.t0 - b.t0 || a.t1 - b.t1); S.speakers = S.speakers || {};
+  if (S.segments.length) {
+    progClose();
+    const c = await askChoice('전사를 바꿀까요?', `기존 전사 ${S.segments.length}개${S.trEngine ? `(${S.trEngine})` : ''}를 분석 결과 ${segs.length}개${eng ? `(${eng})` : ''}로 바꿉니다. 엔진을 비교하려면 이전 전사를 텍스트 파일로 받아 두고 바꾸세요.`,
+      [{ id: 'save', label: '이전 전사 받아 두고 바꾸기' }, { id: 'yes', label: '바꾸기', primary: true }, { id: 'no', label: '취소' }]);
+    if (!c || c === 'no') return false;
+    if (c === 'save') await saveBlob(new Blob([transcriptText()], { type: 'text/plain;charset=utf-8' }), dlBase() + '_전사_' + (S.trEngine || '이전').replace(/[^\w가-힣.-]+/g, '-'), 'txt');
+  }
+  S.segments = segs.sort((a, b) => a.t0 - b.t0 || a.t1 - b.t1); S.speakers = S.speakers || {}; S.trEngine = eng;
   if (!S.duration && result.duration) S.duration = +(+result.duration).toFixed(2);
   markDirty(); renderTranscript(); renderTimeline(); selectTab('tr');
-  toast(`전사 ${segs.length}개, 발언자 ${new Set(segs.map(s => s.spk)).size}명으로 나눴어요. 이름을 누르면 참석자로 바꿀 수 있어요.`, 7000);
+  toast(`${eng ? eng + ' · ' : ''}${secs ? Math.floor(secs / 60) + '분 ' + Math.round(secs % 60) + '초 걸려 ' : ''}전사 ${segs.length}개, 발언자 ${new Set(segs.map(s => s.spk)).size}명으로 나눴어요. 이름을 누르면 참석자로 바꿀 수 있어요.`, 8000);
   return true;
+}
+/* 엔진 비교용 전사 글: [mm:ss] 발언자: 내용 */
+function transcriptText() {
+  return `전사 엔진: ${S.trEngine || '알 수 없음'}\n\n` + S.segments.map(g => `[${fmt(g.t0)}] ${g.spk != null ? speakerName(g.spk) + ': ' : ''}${g.text}`).join('\n');
 }
 
 /* ---------- 클라우드 STT·발언자 구분 (선택 옵션) ----------
@@ -7627,7 +7652,7 @@ async function buildZip() {
       return { id: b.id, t: b.t, removed: !!b.dead, html: el ? serialize(el) : '', history: b.hist };
     })
   }));
-  zip.file('transcript.json', JSON.stringify({ lang: $('#lang').value, segments: S.segments, ...(S.trImport ? { imported: S.trImport } : {}) }));
+  zip.file('transcript.json', JSON.stringify({ lang: $('#lang').value, segments: S.segments, ...(S.trImport ? { imported: S.trImport } : {}), ...(S.trEngine ? { engine: S.trEngine } : {}) }));
   if (S.minutes) zip.file('minutes.md', S.minutes);
   if (!docReplayOn) trackBlocks(docTrack, { structural: true });
   zip.file('document.html', serializeDoc());
@@ -7730,7 +7755,8 @@ async function openFile(file) {
     const tf = zip.file(man.files?.transcript || 'transcript.json');
     if (tf) {
       const t = JSON.parse(await tf.async('string')); lang = typeof t.lang === 'string' ? t.lang : null;
-      if (t.imported && typeof t.imported === 'object') next.trImport = { src: t.imported.src === 'clova' ? 'clova' : 'text', kind: t.imported.kind === 'summary' ? 'summary' : 'transcript', timed: t.imported.timed !== false, name: String(t.imported.name || '').slice(0, 120) };
+      if (t.imported && typeof t.imported === 'object') next.trImport = { src: ['clova', 'gemini'].includes(t.imported.src) ? t.imported.src : 'text', kind: t.imported.kind === 'summary' ? 'summary' : 'transcript', timed: t.imported.timed !== false, name: String(t.imported.name || '').slice(0, 120) };
+      if (typeof t.engine === 'string') next.trEngine = t.engine.replace(/[^\w가-힣 .-]/g, '').slice(0, 40);
       // 파일은 남이 만든 것일 수 있다: 숫자·문자열만 받아들인다
       next.segments = (Array.isArray(t.segments) ? t.segments : []).filter(g => g && typeof g === 'object' && isFinite(+g.t0)).slice(0, 20000)
         .map(g => ({ t0: Math.max(0, +g.t0), t1: isFinite(+g.t1) ? Math.max(0, +g.t1) : Math.max(0, +g.t0), text: String(g.text ?? '').slice(0, 5000), ...(g.spk != null && g.spk !== '' ? { spk: String(g.spk).replace(/[^\w가-힣 .-]/g, '').slice(0, 40) } : {}) }));
@@ -8918,7 +8944,7 @@ $('#adminTabs').addEventListener('click', e => { const b = e.target.closest('[da
 /* 내 설정 동기화: 발언자 분석(방식·PC 서비스 주소·발언자 수), AI 엔진(종류·주소·모델), 다듬기 옵션, AI 작성 설정(시간 표시·표 정리 포함)·추가 지시 템플릿·작성자를 계정에 저장해 다른 기기·브라우저에서도 이어 쓴다.
    보안 토큰·API 키는 넣지 않는다. 규칙에 settings 경로가 없으면(403) 이 브라우저에만 기억한다 */
 const prefsDoc = a => `${EP.fs}/projects/${encodeURIComponent(FB.projectId)}/databases/(default)/documents/users/${encodeURIComponent(a.uid)}/settings/prefs`;
-const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0, vocab: diar.vocab !== false, cloudProv: diar.cloud.prov, tier: diar.tier }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, tables: draftOpt.tables, times: draftOpt.times, source: draftOpt.source, sections: draftOpt.sections, extra: draftOpt.extra }, tpls: draftTpls, author: { org: authorPref.org, name: authorPref.name, title: authorPref.title }, vocab: vocabText });
+const prefsLocal = () => ({ v: 1, diar: { mode: diar.mode, base: diar.embedded ? '' : diar.base, n: diar.n || 0, vocab: diar.vocab !== false, cloudProv: diar.cloud.prov, tier: diar.tier, asr: diar.asr }, ai: { provider: ai.provider, base: ai.base || '', model: ai.model || '' }, refine: { len: refine.len, spk: refine.spk, tone: refine.tone, extra: refine.extra }, draft: { len: draftOpt.len, tone: draftOpt.tone, spk: draftOpt.spk, tables: draftOpt.tables, times: draftOpt.times, source: draftOpt.source, sections: draftOpt.sections, extra: draftOpt.extra }, tpls: draftTpls, author: { org: authorPref.org, name: authorPref.name, title: authorPref.title }, vocab: vocabText });
 const prefs403 = e => { if (e && e.status === 403) { prefsOff = true; aiLog('warn', '설정 동기화 꺼짐: 목록 DB 규칙에 settings 경로가 없어요(이 브라우저에만 기억)'); renderCloudState(); return true; } return false; };
 async function prefsPush() {
   if (!FB || !user || prefsOff) return;
@@ -8941,7 +8967,7 @@ async function prefsPull() {
         if (['browser', 'py', 'cloud'].includes(o.diar.mode)) diar.mode = o.diar.mode;
         if (typeof o.diar.vocab === 'boolean') diar.vocab = o.diar.vocab;
         if (CLOUD_PROV[o.diar.cloudProv]) diar.cloud.prov = o.diar.cloudProv;
-        if (['auto', 'fast', 'balanced', 'accurate'].includes(o.diar.tier)) diar.tier = o.diar.tier;
+        if (['auto', 'fast', 'balanced', 'accurate'].includes(o.diar.tier)) diar.tier = o.diar.tier; if (ASR_ENGINES[o.diar.asr]) diar.asr = o.diar.asr;
         if (url(o.diar.base) && o.diar.base) diar.base = o.diar.base.replace(/\/+$/, '');
         diar.n = Number.isInteger(o.diar.n) && o.diar.n >= 1 && o.diar.n <= 10 ? o.diar.n : 0;
         try { localStorage.setItem(DIAR_KEY, JSON.stringify(diar)); } catch {}

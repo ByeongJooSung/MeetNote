@@ -46,6 +46,7 @@ JS 문법은 `node --check`로 확인 가능: `python tests/smoke.py --check-onl
 - 서버 작업은 한 번에 하나(`RUN_LOCK`), 취소는 문장 경계에서 반영, 진행률은 `progress(pct, stage, msg)`. 작업 하나 안에서는 녹음을 구간으로 나눠 동시에 전사한다(`plan_chunks`·`PARALLEL`). 화자 군집은 반드시 녹음 전체로 한 번(`cluster_turns`) — 구간별로 군집하면 구간마다 번호가 달라진다. 바꾸면 `server\.venv\Scripts\python tests/server_parallel.py`로 확인.
 - 프로젝트 목록은 브라우저에 **계정별로** 보관한다(`projLoad`/`storeProjects`, 키 `meetnote.projects.<sub>`). `localStorage.setItem(PROJ_KEY…)`를 직접 쓰지 말 것. 계정 DB 권한은 저장소의 `firestore.rules`가 단일 원본(콘솔에 붙여 넣어 게시) — 관리자는 `isAdmin()`(규칙)과 `config.js adminEmails`(화면) 두 곳. 바꾸면 `python tests/accounts_admin.py`.
 - Google Meet 가져오기: Gemini 회의록은 `parseGemini`(마크다운·Docs API 글 공통, "회의 일정:" 머리줄로 회의 구분) → `geminiResult` → `applyTranscriptImport`(클로바노트와 공용). 문서 링크는 `gdocRead`(Docs API `includeTabsContent`, 꺼져 있으면 Drive 내보내기), 권한이 없으면 `driveGrant`(Drive 권한 또는 Picker). Gemini 스크립트(`S.trImport.src === 'gemini'`)만 녹화를 함께 붙일 수 있다(`trLock`). 녹화 mp4는 `attachRecording` → PC 서비스 `/extract`로 소리만. 바꾸면 `python tests/gemini_import.py`.
+- PC 서비스 전사 엔진: `diar.asr`(whisper | qwen3-0.6b | qwen3-1.7b) → `/jobs`의 `engine`. 서버 `run_pipeline(engine=…)`은 전사만 갈라지고(Qwen3: `load_qwen`·`qwen_segments`) 발언자 구분은 공통. 결과의 `engine`은 `S.trEngine`(transcript.json에 저장). 바꾸면 `tests/server_engines.py`, `tests/engine_ui.py`(PC 서비스 켜고).
 - NVIDIA API 엔진(`ai.provider === 'nvidia'`)은 OpenAI 호환이라 `callOpenAI`를 그대로 쓰되, 브라우저 CORS가 막혀 PC 서비스 `/nim` 프록시를 거친다(`nimBase`). 키는 `llmToken`(보안 토큰 칸)에 두고 prefs 동기화·로그에 넣지 말 것.
 - exe에서는 OpenMP 충돌 방지 환경변수(`KMP_DUPLICATE_LIB_OK` 등)를 서버가 스스로 설정한다.
 

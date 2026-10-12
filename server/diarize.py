@@ -242,12 +242,14 @@ def cluster_turns(pairs, segments, num_speakers):
 
 class Cancelled(Exception): pass
 
-def plan_chunks(wav, sr, workers):
+def plan_chunks(wav, sr, workers, target=None):
     """녹음을 동시에 처리할 구간으로 나눈다 → [(시작 샘플, 끝 샘플)]. 자르는 곳은 목표 지점 ±20초 안에서 가장 조용한 0.25초라
     말이 중간에 잘리지 않는다. 구간은 동시 처리 수의 약 3배로 잘게 나눠 먼저 끝난 쪽이 다음 구간을 이어받게 한다."""
     n = len(wav); dur = n / sr
-    if workers <= 1 or dur < 180: return [(0, n)]
-    target = max(45.0, min(600.0, dur / (workers * 3)))
+    if target:   # 길이를 정해 자르기(Qwen3: 정렬기 한도 180초 안쪽, 구간마다 진행률)
+        if dur < target * 1.5: return [(0, n)]
+    elif workers <= 1 or dur < 180: return [(0, n)]
+    else: target = max(45.0, min(600.0, dur / (workers * 3)))
     hop = int(sr * 0.25); frames = n // hop
     rms = np.sqrt(np.mean(np.square(wav[:frames * hop].reshape(frames, hop)), axis=1) + 1e-12)
     rms = np.convolve(rms, np.ones(3) / 3, mode="same")
@@ -260,24 +262,85 @@ def plan_chunks(wav, sr, workers):
     cuts.append(n)
     return list(zip(cuts[:-1], cuts[1:]))
 
+# ---- Qwen3-ASR(선택 엔진, 시험용): pip install qwen-asr. 문장 시각은 Qwen3-ForcedAligner로 낱말마다 받아 문장으로 묶는다 ----
+# 발언자 구분·구간 나누기·용어 힌트는 Whisper와 같은 코드를 써서 전사 품질만 비교할 수 있게 한다. GPU(CUDA)가 있으면 GPU, 없으면 CPU(느림)
+QWEN_SIZES = {"qwen3-0.6b": "Qwen/Qwen3-ASR-0.6B", "qwen3-1.7b": "Qwen/Qwen3-ASR-1.7B"}
+QWEN_ALIGNER = "Qwen/Qwen3-ForcedAligner-0.6B"
+QWEN_LANG = {"ko": "Korean", "en": "English", "ja": "Japanese", "zh": "Chinese"}
+_qwen = {}
+def qwen_available():
+    import importlib.util
+    return importlib.util.find_spec("qwen_asr") is not None
+def load_qwen(engine):
+    if engine not in _qwen:
+        if not qwen_available():
+            raise HTTPException(400, "Qwen3-ASR이 설치돼 있지 않아요. PC 서비스 폴더(server)에서 '.venv\\Scripts\\python -m pip install qwen-asr'로 설치한 뒤 서비스를 다시 켜 주세요.")
+        import torch
+        from qwen_asr import Qwen3ASRModel
+        cuda = torch.cuda.is_available()
+        dt = torch.bfloat16 if cuda else torch.float32
+        dev = "cuda:0" if cuda else "cpu"
+        if not cuda: torch.set_num_threads(max(4, CORES // 2))
+        t0 = time.time()
+        _qwen[engine] = Qwen3ASRModel.from_pretrained(QWEN_SIZES[engine], dtype=dt, device_map=dev, max_inference_batch_size=8, max_new_tokens=1024,
+                                                      forced_aligner=QWEN_ALIGNER, forced_aligner_kwargs=dict(dtype=dt, device_map=dev))
+        _qwen[engine]._mn_device = dev
+        print(f"[qwen3] {QWEN_SIZES[engine]} on {dev} ({time.time() - t0:.0f}s)")
+    return _qwen[engine]
+
+def qwen_segments(text, items, off):
+    """Qwen3 결과(문장부호가 있는 글 + 낱말별 시각) → 문장 단위 [{t0, t1, text}]. 낱말을 글 속 위치에 맞춰 문장부호·쉼(1.2초)·25초에서 끊는다."""
+    import re
+    text = str(text or "").strip()
+    items = [it for it in (items or []) if str(getattr(it, "text", "")).strip()]
+    if not text: return []
+    if not items: return [{"t0": round(off, 2), "t1": round(off + max(1.0, len(text) / 6), 2), "text": text}]
+    spans, pos = [], 0
+    for it in items:
+        k = text.find(it.text, pos)
+        if k < 0 or k - pos > 40: spans.append(None); continue
+        spans.append((k, k + len(it.text))); pos = k + len(it.text)
+    out, cur, last_ce = [], None, 0
+    for i, (it, sp) in enumerate(zip(items, spans)):
+        if cur is None: cur = {"t0": float(it.start_time), "cs": sp[0] if sp else last_ce}
+        cur["t1"] = float(it.end_time)
+        if sp: last_ce = sp[1]
+        nxt = items[i + 1] if i + 1 < len(items) else None
+        nsp = spans[i + 1] if nxt is not None else None
+        between = text[last_ce:nsp[0]] if nsp else ""
+        if nxt is None or re.search(r"[.?!。？！]", between) or float(nxt.start_time) - float(it.end_time) > 1.2 or float(it.end_time) - cur["t0"] > 25:
+            ce = nsp[0] if nsp else len(text)
+            seg = text[cur["cs"]:ce].strip()
+            if seg: out.append({"t0": round(off + cur["t0"], 2), "t1": round(off + max(cur["t1"], cur["t0"] + 0.3), 2), "text": seg})
+            last_ce = max(last_ce, ce); cur = None
+    return out
+
 def _transcribe(model, audio, kw):
     try:
         return model.transcribe(audio, **kw)
     except TypeError:   # 오래된 faster-whisper: 모르는 인자는 빼고
         return model.transcribe(audio, **{k: v for k, v in kw.items() if k not in ("no_repeat_ngram_size", "repetition_penalty", "vad_parameters", "hotwords")})
 
-def run_pipeline(src_path: str, lang: Optional[str], num_speakers: Optional[int], progress=lambda pct, stage, msg="": None, cancelled=lambda: False, vocab: Optional[str] = None):
-    """전체 파이프라인. progress(pct 0~100, stage, message) 콜백으로 진행률 보고."""
+def run_pipeline(src_path: str, lang: Optional[str], num_speakers: Optional[int], progress=lambda pct, stage, msg="": None, cancelled=lambda: False, vocab: Optional[str] = None, engine: Optional[str] = None):
+    """전체 파이프라인. progress(pct 0~100, stage, message) 콜백으로 진행률 보고. engine: whisper(기본) | qwen3-0.6b | qwen3-1.7b"""
     def check():
         if cancelled(): raise Cancelled()
     t_start = time.time()
+    qeng = engine if engine in QWEN_SIZES else None
+    if qeng and not qwen_available():
+        raise HTTPException(400, "Qwen3-ASR이 설치돼 있지 않아요. PC 서비스 폴더(server)에서 '.venv\\Scripts\\python -m pip install qwen-asr'로 설치한 뒤 서비스를 다시 켜 주세요.")
     progress(8, "convert", "오디오를 16kHz로 변환하는 중")
     wav_path = to_wav(src_path); check()
-    if _whisper is None:
+    if qeng:
+        progress(12, "model", f"Qwen3-ASR({qeng[6:].upper()}) 모델 준비 중" + ("" if qeng in _qwen else " — 처음이면 모델(약 2.5~5GB)을 내려받아요. 서버 창에 진행률이 보여요"))
+        model = load_qwen(qeng); check()
+    elif _whisper is None:
         progress(12, "model", f"음성 인식 모델({WHISPER_MODEL})을 처음 내려받는 중 — 서버 창에 다운로드 진행률이 표시돼요 (약 {MODEL_SIZE.get(WHISPER_MODEL, '수백')}MB)")
+        model = load_whisper(); check()
     else:
         progress(14, "model", "음성 인식 모델 준비 중")
-    model = load_whisper(); check()
+        model = load_whisper(); check()
+    eng_label = f"Qwen3-ASR {qeng[6:].upper()}" if qeng else f"Whisper {WHISPER_MODEL}"
     progress(16, "transcribe", "전사 준비 중 (녹음을 구간으로 나누는 중)")
     # 환청(말이 없는데 같은 단어가 반복되는 현상) 억제: VAD로 무음 제거, 앞 문장에 끌려가지 않게, 같은 구절 재생성 금지, 압축률·확률이 나쁜 구간은 버림
     kw = dict(language=(lang or None) if lang != "auto" else None, vad_filter=True, vad_parameters=dict(min_silence_duration_ms=500),
@@ -290,8 +353,8 @@ def run_pipeline(src_path: str, lang: Optional[str], num_speakers: Optional[int]
         print(f"[transcribe] 용어 사전 {len(vocab)}자")
     wav, sr = read_wav(wav_path); check()
     dur = len(wav) / sr
-    chunks = plan_chunks(wav, sr, WORKERS)
-    par = min(WORKERS, len(chunks))
+    chunks = plan_chunks(wav, sr, 1, target=120.0) if qeng else plan_chunks(wav, sr, WORKERS)
+    par = 1 if qeng else min(WORKERS, len(chunks))   # Qwen3는 한 모델을 차례로(구간마다 진행률). 동시 처리는 Whisper만
     # 발언자 구분: pyannote는 녹음 전체를 봐야 해서 전사와 동시에 따로 돌리고, resemblyzer는 구간 전사가 끝날 때마다 그 구간의 목소리 특징을 뽑는다
     use_pyannote = DIARIZER != "none" and bool(HF_TOKEN)
     embed_live = DIARIZER != "none" and not use_pyannote and load_encoder() is not None
@@ -302,13 +365,15 @@ def run_pipeline(src_path: str, lang: Optional[str], num_speakers: Optional[int]
     py_thread = threading.Thread(target=_py, daemon=True) if use_pyannote else None
     if py_thread: py_thread.start()
     mm = lambda t: f"{int(t // 60):02d}:{int(t % 60):02d}"
-    gpu = str(getattr(getattr(model, "model", None), "device", "")).startswith("cuda")
-    lo, hi = (0.1, 0.2) if gpu else (0.5, 1.0)
+    gpu = str(getattr(model, "_mn_device", "") if qeng else getattr(getattr(model, "model", None), "device", "")).startswith("cuda")
+    lo, hi = ((0.05, 0.15) if gpu else (0.6, 1.0) if qeng == "qwen3-0.6b" else (1.5, 3.0)) if qeng else ((0.1, 0.2) if gpu else (0.5, 1.0))   # Qwen3 CPU 실측: 0.6B 1분 녹음 약 39초
     speed = 1 + 0.6 * (par - 1)   # 동시 처리로 줄어드는 시간(대략)
     est = f" · {'GPU' if gpu else 'CPU'}에서는 약 {max(1, int(dur / 60 * lo / speed))}~{max(2, int(dur / 60 * hi / speed))}분 예상" if dur else ""
     split = f" · {len(chunks)}구간으로 나눠 {par}개씩 동시 처리" if len(chunks) > 1 else ""
-    progress(17, "transcribe", f"전사 시작 (녹음 {mm(dur)}{split}{est}). 첫 문장이 나오면 시간이 올라가요.")
-    print(f"[transcribe] 녹음 {mm(dur)} 시작{split}{est}")
+    if qeng: split = f" · {len(chunks)}구간을 차례로" if len(chunks) > 1 else ""
+    progress(17, "transcribe", f"{eng_label} 전사 시작 (녹음 {mm(dur)}{split}{est}). {'구간이 끝날 때마다' if qeng else '첫 문장이 나오면'} 시간이 올라가요.")
+    print(f"[transcribe] {eng_label} · 녹음 {mm(dur)} 시작{split}{est}")
+    qlang = QWEN_LANG.get((lang or "")[:2]) if lang and lang != "auto" else None
 
     stop = threading.Event()
     halt = lambda: cancelled() or stop.is_set()
@@ -324,21 +389,26 @@ def run_pipeline(src_path: str, lang: Optional[str], num_speakers: Optional[int]
     def work(ci):
         if halt(): raise Cancelled()
         a, b = chunks[ci]; off, span = a / sr, (b - a) / sr
-        segs_iter, info = _transcribe(model, wav[a:b], kw)
         out = []
-        for sg in segs_iter:
-            if halt(): raise Cancelled()
-            if sg.text.strip():
-                out.append({"t0": round(off + sg.start, 2), "t1": round(off + sg.end, 2), "text": sg.text.strip()})
-            pos[ci] = min(sg.end, span); report()
+        if qeng:   # Qwen3-ASR: 구간 한 번에(문장부호 있는 글 + 낱말별 시각) → 문장
+            r = model.transcribe(audio=(wav[a:b], sr), language=qlang, context=vocab or "", return_time_stamps=True)[0]
+            out = qwen_segments(r.text, list(r.time_stamps or []), off)
+            info = type("I", (), {"language": {"Korean": "ko", "English": "en", "Japanese": "ja", "Chinese": "zh"}.get(r.language, r.language)})()
+        else:
+            segs_iter, info = _transcribe(model, wav[a:b], kw)
+            for sg in segs_iter:
+                if halt(): raise Cancelled()
+                if sg.text.strip():
+                    out.append({"t0": round(off + sg.start, 2), "t1": round(off + sg.end, 2), "text": sg.text.strip()})
+                pos[ci] = min(sg.end, span); report()
         pairs = embed_segments(wav, sr, out, halt) if embed_live else []
         pos[ci] = span
         with lock: done[0] += 1
         report()
         return out, getattr(info, "language", None), pairs
 
-    if len(chunks) == 1:
-        results = [work(0)]
+    if len(chunks) == 1 or par == 1:
+        results = [work(i) for i in range(len(chunks))]
     else:
         from concurrent.futures import ThreadPoolExecutor, as_completed
         results = [None] * len(chunks)
@@ -359,7 +429,7 @@ def run_pipeline(src_path: str, lang: Optional[str], num_speakers: Optional[int]
     if DIARIZER == "none":
         print("[diarize] DIARIZER=none → 발언자 분석 건너뜀")
         progress(95, "finalize", "정리 중")
-        return {"language": language, "duration": dur or None, "segments": [{**s, "spk": "0"} for s in segments], "diarizer": "none"}
+        return {"language": language, "duration": dur or None, "segments": [{**s, "spk": "0"} for s in segments], "diarizer": "none", "engine": eng_label, "seconds": round(time.time() - t_start, 1)}
     turns, used = None, "none"
     if py_thread:
         progress(82, "diarize", "발언자 분석(pyannote)이 끝나길 기다리는 중")
@@ -382,18 +452,18 @@ def run_pipeline(src_path: str, lang: Optional[str], num_speakers: Optional[int]
     check()
     progress(95, "finalize", "정리 중")
     segments = assign_speakers(segments, turns) if turns else [{**s, "spk": "0"} for s in segments]
-    print(f"[pipeline] 끝 {time.time() - t_start:.1f}s (발언자 구분: {used})")
+    print(f"[pipeline] 끝 {time.time() - t_start:.1f}s ({eng_label} · 발언자 구분: {used})")
     progress(100, "done", "완료")
-    return {"language": language, "duration": dur or None, "segments": segments, "diarizer": used}
+    return {"language": language, "duration": dur or None, "segments": segments, "diarizer": used, "engine": eng_label, "seconds": round(time.time() - t_start, 1)}
 
 @app.post("/diarize")
-async def diarize(audio: UploadFile = File(...), lang: Optional[str] = Form("ko"), num_speakers: Optional[int] = Form(None), vocab: Optional[str] = Form(None)):
+async def diarize(audio: UploadFile = File(...), lang: Optional[str] = Form("ko"), num_speakers: Optional[int] = Form(None), vocab: Optional[str] = Form(None), engine: Optional[str] = Form(None)):
     """동기 API (구버전 호환)."""
     tmpdir = tempfile.mkdtemp(prefix="meetnote_")
     try:
         src = os.path.join(tmpdir, audio.filename or "audio.bin")
         with open(src, "wb") as f: f.write(await audio.read())
-        return run_pipeline(src, lang, num_speakers, vocab=vocab)
+        return run_pipeline(src, lang, num_speakers, vocab=vocab, engine=engine)
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -423,7 +493,7 @@ JOBS = {}
 JOBS_LOCK = threading.Lock()
 RUN_LOCK = threading.Lock()   # 분석은 한 번에 하나만 (CPU 경쟁 방지)
 
-def _job_worker(job_id: str, src: str, tmpdir: str, lang, num_speakers, vocab=None):
+def _job_worker(job_id: str, src: str, tmpdir: str, lang, num_speakers, vocab=None, engine=None):
     job = JOBS[job_id]
     def progress(pct, stage, msg=""):
         job.update({"pct": round(float(pct), 1), "stage": stage, "message": msg, "updated": time.time()})
@@ -434,7 +504,7 @@ def _job_worker(job_id: str, src: str, tmpdir: str, lang, num_speakers, vocab=No
                 if job.get("cancel"): raise Cancelled()
         if job.get("cancel"): raise Cancelled()
         job["state"] = "running"
-        result = run_pipeline(src, lang, num_speakers, progress, lambda: job.get("cancel", False), vocab=vocab)
+        result = run_pipeline(src, lang, num_speakers, progress, lambda: job.get("cancel", False), vocab=vocab, engine=engine)
         job.update({"state": "done", "result": result, "pct": 100, "stage": "done", "message": "완료"})
     except Cancelled:
         job.update({"state": "cancelled", "message": "취소됨"})
@@ -455,7 +525,7 @@ def _gc_jobs():
             JOBS.pop(k, None)
 
 @app.post("/jobs")
-async def create_job(audio: UploadFile = File(...), lang: Optional[str] = Form("ko"), num_speakers: Optional[int] = Form(None), vocab: Optional[str] = Form(None)):
+async def create_job(audio: UploadFile = File(...), lang: Optional[str] = Form("ko"), num_speakers: Optional[int] = Form(None), vocab: Optional[str] = Form(None), engine: Optional[str] = Form(None)):
     _gc_jobs()
     tmpdir = tempfile.mkdtemp(prefix="meetnote_")
     src = os.path.join(tmpdir, audio.filename or "audio.bin")
@@ -463,7 +533,7 @@ async def create_job(audio: UploadFile = File(...), lang: Optional[str] = Form("
     job_id = uuid.uuid4().hex[:12]
     with JOBS_LOCK:
         JOBS[job_id] = {"id": job_id, "state": "queued", "pct": 3, "stage": "queued", "message": "대기 중", "created": time.time()}
-    threading.Thread(target=_job_worker, args=(job_id, src, tmpdir, lang, num_speakers, vocab), daemon=True).start()
+    threading.Thread(target=_job_worker, args=(job_id, src, tmpdir, lang, num_speakers, vocab, engine), daemon=True).start()
     return {"job_id": job_id}
 
 @app.get("/jobs/{job_id}")
@@ -549,7 +619,7 @@ def _preload():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "whisper": WHISPER_MODEL, "ready": _whisper is not None, "cloud": ["clova"], "vocab": True, "llm": LLM_BASE, "nim": True, "extract": True, "parallel": WORKERS,
+    return {"ok": True, "whisper": WHISPER_MODEL, "ready": _whisper is not None, "cloud": ["clova"], "vocab": True, "llm": LLM_BASE, "nim": True, "extract": True, "parallel": WORKERS, "engines": ["whisper"] + (list(QWEN_SIZES) if qwen_available() else []),
             "diarizer": "pyannote" if HF_TOKEN else ("resemblyzer" if _encoder else "none"), "ffmpeg": bool(shutil.which("ffmpeg"))}
 
 # ---- 웹 앱을 같은 주소에서 제공 (exe/도커 배포용) ----

@@ -42,7 +42,7 @@ def make_wav():
     os.makedirs(TMP, exist_ok=True)
     txt = os.path.join(TMP, 'lines.txt')
     with open(txt, 'w', encoding='utf-8-sig') as f: f.write('\n'.join(LINES))
-    r = subprocess.run(['powershell', '-NoProfile', '-Command', PS % (txt, TMP)], capture_output=True, text=True)
+    r = subprocess.run(['powershell', '-NoProfile', '-Command', PS % (txt, TMP)], capture_output=True, text=True, encoding='utf-8', errors='replace')
     if r.returncode != 0: raise SystemExit('TTS 녹음을 만들지 못했어요(Windows 한국어 음성 Heami 필요): ' + r.stderr[-300:])
     clips = []
     for i in range(len(LINES)):

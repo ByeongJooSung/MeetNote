@@ -39,6 +39,15 @@ HF_TOKEN=hf_xxx python diarize.py       # Windows PowerShell: $env:HF_TOKEN="hf_
 `WHISPER_MODEL`(tiny/base/small/medium/large-v3/large-v3-turbo), `DEVICE`(auto/cpu/cuda), `COMPUTE`(int8/float16), `PORT`(8765),
 `PARALLEL`(auto/1/동시 구간 수 — 녹음을 구간으로 나눠 동시에 전사, 1이면 끄기), `CPU_THREADS`(구간당 스레드), `NIM_BASE`(NVIDIA API 프록시 대상)
 
+## 전사 엔진 선택: Qwen3-ASR (시험)
+기본은 faster-whisper. 앱의 발언자 구분 창(PC 서비스) → **전사 엔진**에서 Qwen3-ASR 0.6B·1.7B를 고르면 그 엔진으로 전사하고,
+발언자 구분·구간 나누기·용어 힌트는 Whisper와 같은 방식이라 전사 품질만 비교할 수 있다. 문장 시각은 Qwen3-ForcedAligner로 낱말마다 받아 문장으로 묶는다(120초 구간씩).
+```powershell
+.\.venv\Scripts\python -m pip install qwen-asr      # 처음 분석 때 모델을 받는다(0.6B+정렬기 약 2.5GB, 1.7B 약 5GB)
+.\.venv\Scripts\python ..\tests\server_engines.py   # 같은 녹음으로 Whisper ↔ Qwen3 비교(시간·대본 일치율, 결과 .txt)
+```
+CPU에서도 돌지만 느리다(실측 Core Ultra 7: 0.6B가 1분 녹음에 약 40초, Whisper small의 약 5배). NVIDIA GPU + CUDA용 torch면 GPU로 돈다.
+
 ## NVIDIA API (AI 회의록 엔진)
 앱의 설정 → AI 엔진 → **NVIDIA API**. NVIDIA API(integrate.api.nvidia.com)는 브라우저 호출(CORS)을 막아 이 서버의 `/nim/*`가 대신 부른다.
 앱의 서버 주소는 `http://localhost:8765/nim`(PC 서비스를 연결해 두면 자동). 키(`nvapi-…`)는 Authorization 헤더로 전달만 하고 저장하지 않는다.

@@ -15,4 +15,5 @@ webrtcvad-wheels>=2.0.14
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch>=2.1
 # resemblyzer는 아래 install 스크립트가 --no-deps로 설치합니다 (requirements로 설치하면 원본 webrtcvad를 빌드하려 함)
+# qwen-asr               # 선택(시험): Qwen3-ASR 전사 엔진. 설치하면 transformers 4.57에 맞춰 huggingface_hub이 0.x로 내려가요(faster-whisper는 그대로 동작 확인). NVIDIA GPU 권장
 # pyannote.audio>=3.1   # 정확도가 필요하면 HF 토큰 발급 후 설치
