@@ -468,8 +468,7 @@ async def diarize(audio: UploadFile = File(...), lang: Optional[str] = Form("ko"
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 # ---- 녹화(동영상)에서 소리만: 구글 미트 녹화 mp4 등을 모노 AAC(m4a)로. 1시간 약 29MB라 회의 파일(.mnote)에 넣어도 가볍다 ----
-@app.post("/extract")
-async def extract_audio(audio: UploadFile = File(...)):
+async def _to_m4a(audio: UploadFile, start: Optional[float] = None, end: Optional[float] = None, tag: str = "extract"):
     from fastapi.responses import FileResponse
     from starlette.background import BackgroundTask
     from starlette.concurrency import run_in_threadpool
@@ -480,13 +479,24 @@ async def extract_audio(audio: UploadFile = File(...)):
     try:
         with open(src, "wb") as f: await run_in_threadpool(shutil.copyfileobj, audio.file, f, 1 << 20)   # 수백 MB 녹화도 메모리에 다 올리지 않게
         t0 = time.time()
-        r = await run_in_threadpool(lambda: subprocess.run(["ffmpeg", "-y", "-i", src, "-vn", "-ac", "1", "-ar", "24000", "-c:a", "aac", "-b:a", "64k", "-movflags", "+faststart", out], capture_output=True))
+        cut = ([] if start is None else ["-ss", f"{max(0.0, start):.2f}"]) + ([] if end is None else ["-to", f"{max(0.0, end):.2f}"])
+        r = await run_in_threadpool(lambda: subprocess.run(["ffmpeg", "-y", "-i", src, *cut, "-vn", "-ac", "1", "-ar", "24000", "-c:a", "aac", "-b:a", "64k", "-movflags", "+faststart", out], capture_output=True))
         if r.returncode != 0 or not os.path.exists(out):
-            raise HTTPException(400, "녹화에서 소리를 뽑지 못했어요: " + r.stderr.decode(errors="ignore")[-300:])
-        print(f"[extract] {os.path.getsize(src) // 1048576}MB → {os.path.getsize(out) // 1048576}MB ({time.time() - t0:.1f}s)")
+            raise HTTPException(400, "소리 파일을 만들지 못했어요: " + r.stderr.decode(errors="ignore")[-300:])
+        print(f"[{tag}] {os.path.getsize(src) // 1048576}MB → {os.path.getsize(out) // 1048576}MB ({time.time() - t0:.1f}s)")
     except BaseException:
         shutil.rmtree(tmpdir, ignore_errors=True); raise
     return FileResponse(out, media_type="audio/mp4", filename="audio.m4a", background=BackgroundTask(shutil.rmtree, tmpdir, True))
+
+@app.post("/extract")
+async def extract_audio(audio: UploadFile = File(...)):
+    return await _to_m4a(audio)
+
+# ---- 녹음 자르기: 앱의 "녹음 내려받기 → 1부·2부…"(다시 연 회의). start~end초를 m4a로 ----
+@app.post("/cut")
+async def cut_audio(audio: UploadFile = File(...), start: float = Form(0.0), end: Optional[float] = Form(None)):
+    if end is not None and end <= start: raise HTTPException(400, "끝 시각이 시작 시각보다 앞이에요.")
+    return await _to_m4a(audio, start, end, "cut")
 
 # ---- 진행률을 보고하는 작업(job) API ----
 JOBS = {}
@@ -619,7 +629,7 @@ def _preload():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "whisper": WHISPER_MODEL, "ready": _whisper is not None, "cloud": ["clova"], "vocab": True, "llm": LLM_BASE, "nim": True, "extract": True, "parallel": WORKERS, "engines": ["whisper"] + (list(QWEN_SIZES) if qwen_available() else []),
+    return {"ok": True, "whisper": WHISPER_MODEL, "ready": _whisper is not None, "cloud": ["clova"], "vocab": True, "llm": LLM_BASE, "nim": True, "extract": True, "cut": True, "parallel": WORKERS, "engines": ["whisper"] + (list(QWEN_SIZES) if qwen_available() else []),
             "diarizer": "pyannote" if HF_TOKEN else ("resemblyzer" if _encoder else "none"), "ffmpeg": bool(shutil.which("ffmpeg"))}
 
 # ---- 웹 앱을 같은 주소에서 제공 (exe/도커 배포용) ----
