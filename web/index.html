@@ -1548,8 +1548,11 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.38.0';
+const APP_VERSION = '0.38.1';
 const PATCH_NOTES = [
+  { v: '0.38.1', date: '2026-10-13', items: [
+    '전사 문단을 더블클릭하면 바로 고칠 수 있어요(커서는 더블클릭한 자리). Enter로 저장, Esc로 취소. 한 번 클릭은 지금처럼 그 자리부터 재생하고, 우클릭 메뉴(수정·듣기·나누기·삭제)도 그대로예요.',
+  ] },
   { v: '0.38.0', date: '2026-10-13', items: [
     '녹음을 1부·2부·3부로 나눌 수 있어요: 녹음 중이나 일시정지 중에 "2부 시작"을 누르면 그 자리에서 다음 부가 시작돼요(쉬는 시간에 일시정지했다가 누르면 이어서 녹음). 회의는 하나로 이어져 메모·전사·발언자 구분이 그대로 동작하고, 타임라인과 전사 목록에 부 구분선이 보여요. AI 회의록도 부별로 나눠 정리해요.',
     '"녹음 내려받기": 녹음 파일만 내려받아요. 부로 나눴다면 전체 / 1부 / 2부 … / 모든 부 따로 중에서 고를 수 있어요. 녹음한 화면에서는 부마다 따로 녹음한 파일을, 다시 연 회의에서는 전체 녹음을 부 시각으로 잘라 받아요(PC 서비스가 켜져 있으면 m4a, 아니면 WAV).',
@@ -4370,16 +4373,22 @@ function segTextOffset(stext, e) {   // 누른 자리(또는 고른 범위의 �
   const r = document.createRange(); r.setStart(stext, 0); r.setEnd(node, off); return r.toString().length;
 }
 const segTimeAt = (g, off) => g.t0 + Math.max(0, g.t1 - g.t0) * Math.min(1, off / Math.max(1, g.text.length));
-let segEdit = null, segSuppressClick = false;
-function startSegEdit(i, e) {
+let segEdit = null, segSuppressClick = false, segClickTimer = null;
+function startSegEdit(i, at) {   // at: 커서를 둘 글자 위치(더블클릭한 자리). 없으면 문단 끝
   if (segEdit) return; const g = S.segments[i], row = $('#segList').querySelector(`.seg[data-i="${i}"]`); if (!g || !row) return;
+  clearTimeout(segClickTimer); segClickTimer = null;
   const el = row.querySelector('.stext'); audio.pause();
   segEdit = { i, el, orig: g.text, pending: false };
   el.textContent = g.text; el.classList.add('editing');
   try { el.contentEditable = 'plaintext-only'; } catch { el.contentEditable = 'true'; }
   if (el.contentEditable !== 'plaintext-only') el.contentEditable = 'true';
   el.focus();
-  try { const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } catch {}
+  try {
+    const r = document.createRange(), tn = el.firstChild;
+    if (typeof at === 'number' && tn && tn.nodeType === 3) { r.setStart(tn, Math.max(0, Math.min(at, tn.length))); r.collapse(true); }
+    else { r.selectNodeContents(el); r.collapse(false); }
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  } catch {}
   toast('전사를 고친 뒤 Enter로 저장, Esc로 취소해요.', 3500);
 }
 function endSegEdit(save) {
@@ -4502,6 +4511,14 @@ $('#trReplaceUndo').addEventListener('click', () => {
   markDirty(); renderTranscript(); toast('바꾸기 전으로 되돌렸어요.');
 });
 $('#trReplace').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); $('#trReplaceAll').click(); } });
+/* 더블클릭: 전사 문단 바로 수정(커서는 더블클릭한 자리). 우클릭 메뉴(수정·듣기·나누기·삭제)와 터치 길게 누르기는 그대로 */
+$('#segList').addEventListener('dblclick', e => {
+  const st = e.target.closest('.stext'), row = e.target.closest('.seg'); if (!st || !row || segEdit) return;
+  clearTimeout(segClickTimer); segClickTimer = null; e.preventDefault();
+  const off = segTextOffset(st, e);
+  try { getSelection().removeAllRanges(); } catch {}
+  startSegEdit(+row.dataset.i, off);
+});
 $('#segList').addEventListener('click', e => {
   if (segSuppressClick) { segSuppressClick = false; return; }
   if (segEdit) return;
@@ -4511,8 +4528,11 @@ $('#segList').addEventListener('click', e => {
     const row = e.target.closest('.seg'); if (!row || e.target.closest('button,a') && !e.target.closest('[data-segplay]')) return;
     const i = +row.dataset.i, st = e.target.closest('.stext');
     if (!segCanPlay()) return;
-    if (st) seek(Math.max(0, segTimeAt(S.segments[i], segTextOffset(st, e)) - 0.25), true);   // 글자: 그 자리부터 이어서
-    else playSegment(i);                                                                      // 행: 그 문단만
+    if (st) {   // 글자: 그 자리부터 이어서. 더블클릭(수정)과 겹치지 않게 잠깐 기다렸다가 재생하고, 두 번째 클릭이면 재생하지 않는다
+      clearTimeout(segClickTimer); if (e.detail >= 2) return;
+      const off = segTextOffset(st, e);
+      segClickTimer = setTimeout(() => { segClickTimer = null; if (!segEdit && S.segments[i]) seek(Math.max(0, segTimeAt(S.segments[i], off) - 0.25), true); }, 250);
+    } else playSegment(i);                                                                    // 행: 그 문단만
     return;
   }
   const s = S.segments[+add.dataset.add];
