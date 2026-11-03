@@ -201,8 +201,28 @@ body.resizing #editor,body.resizing #docEditor{pointer-events:none}
 .att td{border:1px solid var(--line);padding:0}
 .att td input{width:100%;border:0;background:transparent;padding:6px 8px;font-size:14px;outline:none}
 .att td input:focus{background:var(--tape-soft)}
+#editor img,.doc-content img{max-width:100%;height:auto;display:inline-block;vertical-align:bottom;border-radius:2px;cursor:pointer}
+#editor img:hover,.doc-content img:hover{outline:2px solid var(--tape-soft)}
 .att td.x{width:34px;text-align:center}
 .att td.x button{border:0;background:none;color:var(--ink2);cursor:pointer;font-size:16px;padding:4px 8px}
+#attTable td.x{width:60px;white-space:nowrap}
+#attTable td.x button{padding:4px 5px}
+#attTable td.x button[data-ins]:hover{color:var(--tape)}
+#attTable th.h,#attTable td.h{width:22px;padding:0;text-align:center}
+#attTable td.h{cursor:grab;color:var(--ink2);user-select:none;font-size:12px;letter-spacing:-2px}
+#attTable td.h:active{cursor:grabbing}
+#attTable tr.dragging{opacity:.4}
+#attTable tr.drop-before td{box-shadow:inset 0 2px 0 var(--tape)}
+#attTable tr.drop-after td{box-shadow:inset 0 -2px 0 var(--tape)}
+#attTable td.sel{background:var(--tape-soft)}
+#attTable td.sel input{background:transparent}
+#attTable.ranging,#attTable.ranging input{user-select:none;caret-color:transparent}
+#attTable:focus{outline:none}
+.att-tip{margin:4px 0 0;font-size:12px}
+.topic-row{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;font-size:14px;margin:0 0 12px}
+.topic-row label{color:var(--ink2);font-size:13px;font-weight:600}
+.topic-row input{width:100%;min-width:0;border:1px solid var(--line);border-radius:7px;padding:6px 9px;background:var(--surface);font-size:14px;font-weight:600}
+.topic-file{grid-column:2;font-size:12px;color:var(--ink2);word-break:break-all}
 .att td.x button:hover{color:var(--rec)}
 .att .empty{padding:8px;color:var(--ink2);font-size:13.5px}
 .doc-title{font-size:20px;font-weight:700;margin:0 0 14px;text-align:center;letter-spacing:-.01em}
@@ -850,6 +870,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
         <button type="button" class="tb" data-cmd="insertOrderedList" title="번호 목록" aria-label="번호 목록" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><text x="1" y="6.5" font-size="5.5" fill="currentColor" font-family="sans-serif">1</text><text x="1" y="11" font-size="5.5" fill="currentColor" font-family="sans-serif">2</text><text x="1" y="15.5" font-size="5.5" fill="currentColor" font-family="sans-serif">3</text><path d="M7 4.5h9M7 9h9M7 13.5h9" stroke="currentColor" stroke-width="1.5"/></svg></button>
         <button type="button" class="tb" data-cmd="clear" title="서식 지우기" aria-label="서식 지우기"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 4h9M8.5 4l-2.5 10" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M11 11l5 5M16 11l-5 5" stroke="var(--rec)" stroke-width="1.5"/></svg></button>
         <span class="tb-sep"></span>
+        <button type="button" class="tb" data-img="1" title="그림 넣기 (Ctrl+V로 붙여 넣거나 끌어다 놓아도 돼요)"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="3" width="14" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="6.5" cy="7" r="1.4" fill="currentColor"/><path d="M3 14l4.5-4.5 3 3 2-2L16 14" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>그림</button><input type="file" id="edImgInput" accept="image/*" multiple hidden>
         <button type="button" class="tb" data-pop="table" aria-haspopup="true" title="표 넣기"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="3" width="14" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 7h14M2 11h14M7 3v12M11.5 3v12" stroke="currentColor" stroke-width="1.2"/></svg>표 넣기</button>
         <span class="tb-target" id="tbTarget">회의록</span>
       </div>
@@ -880,15 +901,18 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
     <div class="docsheet" id="docsheet">
       <div class="doc-title" id="docTitle">회의록</div>
       <div class="tpl-row"><label>회의록 양식 <select id="tplSel" aria-label="회의록 양식"></select></label><label class="proj-row">프로젝트 <select id="projSel" aria-label="프로젝트"></select></label><button type="button" class="link" id="projManage" title="프로젝트 만들기·이름 바꾸기·참고 문서 관리">관리</button></div>
+      <div class="topic-row"><label for="mTopic">주제</label><input id="mTopic" placeholder="예: 3부.경과보고 회의 — 저장·내보내기 파일 이름에 쓰여요" autocomplete="off"><div class="topic-file" id="topicFile"></div></div>
       <div class="dochead">
         <label for="mWhen">일시</label><input id="mWhen" type="datetime-local">
+        <label for="mEnd" data-f="end">종료</label><input id="mEnd" data-f="end" type="time" title="끝난 시각(일시 칸에 '16:30 ~ 17:30'처럼 들어가요). 비우면 녹음 길이로 계산해요.">
         <label for="mPlace">장소</label><input id="mPlace" placeholder="예: 3층 대회의실">
         <label for="mAuthor">작성자</label><input id="mAuthor" placeholder="소속 / 이름 직급">
         <label for="mHost" data-f="host">주관</label><input id="mHost" data-f="host" placeholder="부서 또는 담당자">
       </div>
       <div class="att">
         <div class="att-head"><b>참석자</b><span class="att-btns"><button class="btn" id="attScan" title="참석자 명단을 캡처한 이미지를 AI가 읽어 소속·이름·직급을 채웁니다. 이 영역을 누른 뒤 Ctrl+V로 붙여 넣어도 돼요.">캡처 이미지에서 읽기</button><button class="btn" id="attAdd">참석자 추가</button></span><input id="attScanInput" type="file" accept="image/*" hidden></div>
-        <table><thead><tr><th style="width:32%">소속</th><th style="width:28%">이름</th><th style="width:28%">직급</th><th></th></tr></thead><tbody id="attBody"></tbody></table>
+        <table id="attTable" tabindex="-1"><thead><tr><th class="h" aria-label="순서"></th><th style="width:32%">소속</th><th style="width:28%">이름</th><th style="width:26%">직급</th><th></th></tr></thead><tbody id="attBody"></tbody></table>
+        <p class="hint att-tip">칸을 끌어 여러 칸을 고른 뒤 Ctrl+C·Ctrl+V로 복사·붙여넣기(엑셀 표도 붙여 넣을 수 있어요) · 왼쪽 ⋮⋮를 끌어 순서 바꾸기 · ＋로 그 아래에 참석자 넣기</p>
       </div>
       <div class="att ref-sec" id="refSec">
         <div class="att-head"><b>참고 자료 <span id="refCount" style="font-weight:400;color:var(--ink2)"></span></b><button class="btn" id="refAdd" title="회의 안건 자료를 올리면 글로 변환해 AI가 회의록을 쓸 때 참고합니다. 지원: pdf · docx · pptx · xlsx · hwpx · txt · md · csv · tsv · json · log · html · srt · vtt (hwp · doc · ppt · xls · 스캔 PDF는 안 돼요)">자료 추가</button></div>
@@ -920,7 +944,7 @@ dialog pre{background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto
       <div class="doc-resize" id="docResize" role="separator" aria-orientation="horizontal" aria-label="회의 내용 영역 높이 조절" tabindex="0" title="끌어서 회의 내용 영역 높이 조절 (두 번 누르면 기본 높이)"></div>
       <div class="att" id="tplActions" hidden>
         <div class="att-head"><b>실행계획</b><button class="btn" id="actAdd">행 추가</button></div>
-        <table><thead><tr><th style="width:18%">기한</th><th style="width:22%">작업수행자</th><th>내용</th><th></th></tr></thead><tbody id="actBody"></tbody></table>
+        <table><thead><tr><th style="width:16%">기한</th><th style="width:20%">작업수행자</th><th>내용</th><th data-f="out" style="width:20%">산출물</th><th></th></tr></thead><tbody id="actBody"></tbody></table>
       </div>
       <div id="tplNotes" hidden>
         <div class="sect">특이사항</div>
@@ -1548,8 +1572,14 @@ const fmt = s => {
 };
 const API_MODEL = 'claude-sonnet-5';
 /* 버전: 출시 전에는 0.x.y (기능 추가 = x, 수정 = y). 올릴 때 PATCH_NOTES 맨 위에 항목을 추가할 것 */
-const APP_VERSION = '0.38.2';
+const APP_VERSION = '0.39.0';
 const PATCH_NOTES = [
+  { v: '0.39.0', date: '2026-11-03', items: [
+    '회의록 화면 맨 위 제목이 "회의록"으로 고정되고, 양식 아래에 "주제" 칸이 생겼어요. 주제가 저장·내보내기 파일 이름이 되고(양식에 파일 이름 규칙이 있으면 그 규칙대로), 저장 창에서 바꾼 이름은 다시 주제 칸에 반영돼요.',
+    '참석자 표: 칸을 끌어 여러 칸을 고른 뒤 Ctrl+C·Ctrl+X·Delete, 엑셀·한글 표를 Ctrl+V로 한 번에 붙여 넣기(모자라면 줄이 늘어나요). 왼쪽 ⋮⋮를 끌어 순서를 바꾸고, ＋로 그 줄 아래에 참석자를 넣을 수 있어요.',
+    '새 회의록 양식 "공동활용 플랫폼": 일시(요일·종료 시각), 소속별 참석자, 회의 세부 내용, 산출물이 있는 실행계획과 특이사항을 한 표로, 붙임 사진은 사진마다 제목 칸을 달아 한 쪽에 2장씩 내보내요. 파일 이름은 CH_P_PM_10705_…_회의록 (주제)_날짜.',
+    '회의 내용·메모에 그림을 넣을 수 있어요: Ctrl+V로 캡처 붙여 넣기, 끌어다 놓기, 툴바의 "그림". 그림을 눌러 고르고 Ctrl+C로 복사하면 다른 앱에도 붙어요. 내보내기(PDF·한글·Word)에도 들어가요.'
+  ] },
   { v: '0.38.2', date: '2026-11-02', items: [
     '녹음이 있는 회의에서도 전사 탭의 "전사 파일 가져오기" 버튼이 사라지지 않고 흐리게 보여요. 버튼에 마우스를 올리면 가져올 수 없는 이유와 방법(녹음은 "발언자 구분"으로 전사, 클로바노트 등의 전사는 새 회의에서 가져오기)을 알려 줘요.'
   ] },
@@ -1791,7 +1821,7 @@ const downloadsP = capP('downloads');
 const fresh = () => ({
   id: uid(), title: '', createdAt: new Date().toISOString(),
   blocks: [],
-  segments: [], minutes: '', docHtml: '', docBlocks: [], meta: { when: '', place: '', author: '', host: '', template: 'kcsa', actions: [], notes: '', project: '' }, attendees: [], speakers: {}, audioBlob: null, audioMime: '', audioExt: '', audioImported: false, clockOnly: false, duration: 0,
+  segments: [], minutes: '', docHtml: '', docBlocks: [], meta: { when: '', end: '', place: '', author: '', host: '', template: 'kcsa', actions: [], notes: '', project: '', topic: '' }, attendees: [], speakers: {}, audioBlob: null, audioMime: '', audioExt: '', audioImported: false, clockOnly: false, duration: 0,
   refs: [],  // 회의 참고 자료: 파일을 글로 변환한 내용만 보관 [{ id, name, kind, pages, text, cut, addedAt }] (원본 파일은 보관하지 않는다)
   parts: [],  // 녹음을 1부·2부…로 나눈 경우 [{ n, t0, t1 }](녹음 시작 기준 초). 비어 있으면 나누지 않은 회의
   trImport: null,  // 전사를 파일에서 가져온 회의: { src: 'clova'|'text', kind: 'transcript'|'summary', timed, name } — 이 경우 녹음·녹음 파일 붙이기는 막는다
@@ -1953,7 +1983,7 @@ function cellOf(node) {
   while (n && n !== editor && n !== document.body) { if (n.tagName === 'TD' || n.tagName === 'TH') return n; n = n.parentNode; }
   return null;
 }
-function hasContent(el) { return !!(el && (el.textContent.trim() || el.querySelector('table'))); }
+function hasContent(el) { return !!(el && (el.textContent.trim() || el.querySelector('table, img'))); }
 function templ(html) { const t = document.createElement('template'); t.innerHTML = html; return t.content; }
 
 function serialize(el) {
@@ -1979,8 +2009,8 @@ function pushV(r, t, v) {
 }
 
 /* sanitize HTML coming from files */
-const ALLOWED = new Set(['P', 'H1', 'H2', 'H3', 'UL', 'OL', 'LI', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'SPAN', 'BR', 'DIV', 'TABLE', 'TBODY', 'THEAD', 'TR', 'TD', 'TH', 'COLGROUP', 'COL']);
-const DROP = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'LINK', 'META', 'TEMPLATE', 'SVG', 'MATH', 'IMG', 'VIDEO', 'AUDIO', 'FORM', 'INPUT', 'TEXTAREA', 'BUTTON', 'SELECT']);
+const ALLOWED = new Set(['P', 'H1', 'H2', 'H3', 'UL', 'OL', 'LI', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'SPAN', 'BR', 'DIV', 'TABLE', 'TBODY', 'THEAD', 'TR', 'TD', 'TH', 'COLGROUP', 'COL', 'IMG']);
+const DROP = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'LINK', 'META', 'TEMPLATE', 'SVG', 'MATH', 'VIDEO', 'AUDIO', 'FORM', 'INPUT', 'TEXTAREA', 'BUTTON', 'SELECT']);
 const okColor = v => !!v && (/^var\(--(ink|tc-[a-z]+|bg-[a-z]+)\)$/.test(v) || /^(rgba?\([\d\s.,%]+\)|#[0-9a-f]{3,8}|transparent)$/i.test(v));
 function sanitizeNode(node) {
   for (const n of [...node.childNodes]) {
@@ -1998,7 +2028,16 @@ function sanitizeNode(node) {
     processEl(el);
   }
 }
+const IMG_SRC_OK = /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/;
 function processEl(n) {
+  if (n.tagName === 'IMG') {   // 그림은 문서 안에 든 data: 그림만(외부 주소는 불러오지 않음). 원래 크기 data-w/h는 내보내기 크기 계산용
+    const src = n.getAttribute('src') || '', w = parseInt(n.getAttribute('data-w') || n.getAttribute('width'), 10), h = parseInt(n.getAttribute('data-h') || n.getAttribute('height'), 10);
+    for (const a of [...n.attributes]) n.removeAttribute(a.name);
+    if (!IMG_SRC_OK.test(src)) { n.remove(); return; }
+    n.setAttribute('src', src); n.setAttribute('alt', '');
+    if (w > 0 && h > 0) { n.setAttribute('data-w', Math.min(w, 20000)); n.setAttribute('data-h', Math.min(h, 20000)); }
+    return;
+  }
   {
     const st = n.style;
     const keep = {
@@ -2317,7 +2356,15 @@ bothEditors('keydown', e => {
 });
 bothEditors('paste', e => {
   e.preventDefault();
-  const text = ((e.clipboardData || window.clipboardData).getData('text/plain') || '').replace(/\r/g, '');
+  const cd = e.clipboardData || window.clipboardData;
+  const files = [...(cd.files || [])].filter(f => /^image\//.test(f.type));
+  if (files.length) { insertEditorImages(files, editor, currentTopBlock()); return; }   // 캡처·복사한 그림
+  const html = cd.getData('text/html') || '';
+  if (/<img[^>]+src=["']?data:image\//i.test(html)) {   // 본문·메모에서 그림을 섞어 복사한 것
+    if (cellOf(getSelection().anchorNode)) { toast('표 칸 안에는 그림을 넣을 수 없어요. 표 밖에 붙여 넣어 주세요.'); return; }
+    document.execCommand('insertHTML', false, sanitizeHTML(html)); syncBlocks({ structural: true }); return;
+  }
+  const text = (cd.getData('text/plain') || '').replace(/\r/g, '');
   if (!text) return;
   const s = getSelection();
   if ((s.rangeCount && cellOf(s.anchorNode)) || !text.includes('\n')) document.execCommand('insertText', false, text);
@@ -2519,7 +2566,9 @@ toolbar.addEventListener('click', e => {
   if (b.dataset.cmd) exec(b.dataset.cmd);
   else if (b.dataset.pop) openPop(b.dataset.pop, b);
   else if (b.dataset.tbl) onTableAction(b.dataset.tbl, b);
+  else if (b.dataset.img) { edImgTarget = { ed: editor, top: currentTopBlock() || (savedRange && topBlockOf(savedRange.startContainer)) }; $('#edImgInput').click(); }
 });
+$('#edImgInput').addEventListener('change', e => { const f = [...e.target.files]; e.target.value = ''; if (f.length && edImgTarget) insertEditorImages(f, edImgTarget.ed, edImgTarget.top); });
 
 /* ---------- tables ---------- */
 function newCell() { const td = document.createElement('td'); td.innerHTML = '<br>'; return td; }
@@ -2902,6 +2951,43 @@ function insertTable(R, C) {
   syncBlocks({ structural: true });
   updateTableToolbar();
 }
+
+/* ---------- 본문·메모 그림 ----------
+   붙여 넣기(Ctrl+V)·끌어 놓기·툴바 '그림'으로 넣는다. 긴 변 1600px JPEG로 줄여(loadPhoto) 그림 하나를 한 블록(<p><img></p>)으로 둔다
+   — 같은 문단에 두면 글자를 고칠 때마다 편집 기록(hist)에 그림이 통째로 다시 쌓이기 때문. 그림을 누르면 고르고, Ctrl+C로 복사(다른 앱에는 PNG로) */
+let edImgTarget = null;
+async function insertEditorImages(files, ed, top) {
+  if (activeReplay()) { toast('따라 쓰기 재생 중에는 편집할 수 없어요.'); return; }
+  const list = [...files].filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|gif|webp|bmp)$/i.test(f.name || ''));
+  if (!list.length) return;
+  if (top && cellOf(top.firstChild || top) || (top && top.classList.contains('tbl-wrap'))) top = top.closest('.tbl-wrap') || top;
+  let after = top && top.parentNode === ed ? top : ed.lastElementChild, last = null, failed = 0;
+  for (const f of list) {
+    let ph; try { ph = await loadPhoto(f); } catch { failed++; continue; }
+    const p = document.createElement('p'), img = document.createElement('img');
+    img.src = ph.dataUrl; img.alt = ''; img.dataset.w = ph.w; img.dataset.h = ph.h; p.appendChild(img);
+    if (after && after.tagName === 'P' && !hasContent(after)) after.replaceWith(p); else if (after) after.after(p); else ed.appendChild(p);
+    after = last = p;
+  }
+  if (!last) { toast('그림을 읽지 못했어요. JPG·PNG 그림인지 확인해 주세요.'); return; }
+  if (!last.nextElementSibling) { const q = document.createElement('p'); q.innerHTML = '<br>'; last.after(q); }
+  setActive(ed); placeCaretIn(last.nextElementSibling, false);
+  trackBlocks(ed === memoEditor ? memoTrack : docTrack, { structural: true }); markDirty();
+  if (failed) toast(`${failed}개는 읽을 수 없는 그림이라 넣지 않았어요.`);
+}
+const imgPng = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => { const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight; c.getContext('2d').drawImage(i, 0, 0); c.toBlob(b => b ? res(b) : rej(new Error('png')), 'image/png'); }; i.onerror = rej; i.src = src; });
+bothEditors('click', e => {
+  const img = e.target.closest && e.target.closest('img'); if (!img || activeReplay()) return;
+  const r = document.createRange(); r.selectNode(img); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+});
+bothEditors('copy', e => {   // 그림 하나만 고르고 복사하면 다른 앱(한글·워드·그림판)에도 붙도록 PNG를 함께 올린다
+  const s = getSelection(); if (!s.rangeCount) return;
+  const frag = s.getRangeAt(0).cloneContents(), imgs = frag.querySelectorAll('img');
+  if (imgs.length !== 1 || frag.textContent.trim() || !navigator.clipboard?.write || !window.ClipboardItem) return;
+  const src = imgs[0].getAttribute('src'), html = `<img src="${src}" data-w="${imgs[0].dataset.w || ''}" data-h="${imgs[0].dataset.h || ''}">`;
+  e.preventDefault(); e.clipboardData.setData('text/html', html);
+  try { navigator.clipboard.write([new ClipboardItem({ 'image/png': imgPng(src), 'text/html': new Blob([html], { type: 'text/html' }) })]).catch(() => {}); } catch {}
+});
 
 /* ---------- block text (for AI, notes.md, timeline) ---------- */
 function blockText(el) {
@@ -4127,7 +4213,7 @@ async function applyTranscriptImport(p, name) {
     S.trImport = { src: p.src, kind: p.kind, timed: p.timed, name: String(name || '').slice(0, 120) };
   }
   // 비어 있는 회의 정보는 파일 머리말로 채운다(이미 적은 값은 건드리지 않는다)
-  if (!S.title && p.title) { S.title = p.title.slice(0, 120); $('#title').value = S.title; $('#docTitle').textContent = S.title; document.title = S.title + ' · MeetNote'; }
+  if (!S.title && p.title) { S.title = p.title.slice(0, 120); $('#title').value = S.title; document.title = S.title + ' · MeetNote'; }
   if (!S.meta.when && p.when) S.meta.when = p.when;
   if (!S.duration && p.duration) S.duration = p.duration;
   const names = p.people.filter(n => !/^(참석자|화자|발언자|Speaker)\s*\d+$/i.test(n));
@@ -6100,6 +6186,13 @@ function hwpxBuilder(title) {
   };
   return {
     para: (runs, pp) => out(para(runs, pp)),
+    image: (src, pw, ph) => {   // 본문·메모의 그림 한 장 = 한 문단(글자처럼 취급)
+      const d = imgData(src); if (!d) return;
+      const bid = 'image' + (bins.length + 1);
+      bins.push({ id: bid, path: `BinData/${bid}.${d.ext}`, base64: d.base64, mime: d.mime });
+      const [w, h] = imgFit(pw, ph, box ? HW.textW - 1500 : HW.textW);
+      out(`<hp:p id="${pid++}" paraPrIDRef="${paraPr({ line: 100, before: 100, after: 100 })}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0">${picXml(bid, w, h, pw, ph)}</hp:run></hp:p>`);
+    },
     /* 회의 세부 내용: 제목 칸 + 본문 칸을 한 표(1열)로. 글자처럼 취급하지 않는 표(treatAsChar=0)라 내용이 길면 쪽을 넘어 이어진다 */
     boxHead: true,
     boxStart: head => { box = []; boxHead = head || null; },
@@ -6113,7 +6206,20 @@ function hwpxBuilder(title) {
       const tbl = `<hp:tbl id="${tblId++}" zOrder="${tblId}" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="${rows.length}" colCnt="1" cellSpacing="0" borderFillIDRef="2" noAdjust="0"><hp:sz width="${W}" widthRelTo="ABSOLUTE" height="${Hh}" heightRelTo="ABSOLUTE" protect="0"/><hp:pos treatAsChar="0" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/><hp:outMargin left="0" right="0" top="141" bottom="141"/><hp:inMargin left="510" right="510" top="141" bottom="141"/>${rows.map(r => `<hp:tr>${r[1]}</hp:tr>`).join('')}</hp:tbl>`;
       body.push(`<hp:p id="${pid++}" paraPrIDRef="${paraPr({ before: 200, after: 200 })}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0">${tbl}<hp:t/></hp:run></hp:p>`);
     },
-    photos: list => {
+    photos: (list, opt = {}) => {
+      if (opt.caption) {   // 사진마다 [제목 칸 / 사진 칸] 한 표(공동활용 플랫폼 양식의 붙임 사진)
+        const W = HW.textW, bf = borderFill({ border: true }), CH = PHOTO_CAP.head, PH = PHOTO_CAP.photo;
+        const tc = (r, h, inner) => `<hp:tc name="" header="0" hasMargin="0" protect="0" editable="0" dirty="0" borderFillIDRef="${bf}"><hp:subList id="" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="CENTER" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0">${inner}</hp:subList><hp:cellAddr colAddr="0" rowAddr="${r}"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="${W}" height="${h}"/><hp:cellMargin left="510" right="510" top="141" bottom="141"/></hp:tc>`;
+        list.forEach((ph, i) => {
+          const bid = 'image' + (bins.length + 1);
+          bins.push({ id: bid, path: `BinData/${bid}.jpg`, base64: ph.dataUrl.split(',')[1] });
+          const [w, h] = fitBox(ph.w, ph.h, W - 1020 - 400, PH - 282 - 400);
+          const pic = `<hp:p id="${pid++}" paraPrIDRef="${paraPr({ align: 'CENTER', line: 100 })}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0">${picXml(bid, w, h, ph.w, ph.h)}</hp:run></hp:p>`;
+          const tbl = `<hp:tbl id="${tblId++}" zOrder="${tblId}" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="2" colCnt="1" cellSpacing="0" borderFillIDRef="2" noAdjust="0"><hp:sz width="${W}" widthRelTo="ABSOLUTE" height="${CH + PH}" heightRelTo="ABSOLUTE" protect="0"/><hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/><hp:outMargin left="141" right="141" top="141" bottom="141"/><hp:inMargin left="510" right="510" top="141" bottom="141"/><hp:tr>${tc(0, CH, para([{ t: opt.caption(i), f: { size: 1100 } }], { align: 'CENTER', line: 130 }))}</hp:tr><hp:tr>${tc(1, PH, pic)}</hp:tr></hp:tbl>`;
+          body.push(`<hp:p id="${pid++}" paraPrIDRef="${paraPr({ after: 300 })}" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0">${tbl}</hp:run></hp:p>`);
+        });
+        return;
+      }
       const L = photoLayout(list.length), trs = [];
       for (let r = 0; r < L.rows; r++) {
         const tcs = [];
@@ -6175,12 +6281,12 @@ function hwpxBuilder(title) {
       const section = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <hs:sec xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section" xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph" xmlns:hc="http://www.hancom.co.kr/hwpml/2011/core" xmlns:hh="http://www.hancom.co.kr/hwpml/2011/head">${first}${body.join('')}</hs:sec>`;
       const hpf = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<opf:package xmlns:opf="http://www.idpf.org/2007/opf/" version="" unique-identifier="" id=""><opf:metadata><opf:title>${xesc(title)}</opf:title><opf:language>ko</opf:language><opf:meta name="creator" content="MeetNote"/><opf:meta name="CreatedDate" content="${new Date().toISOString()}"/></opf:metadata><opf:manifest><opf:item id="header" href="Contents/header.xml" media-type="application/xml"/><opf:item id="section0" href="Contents/section0.xml" media-type="application/xml"/><opf:item id="settings" href="settings.xml" media-type="application/xml"/>${bins.map(b => `<opf:item id="${b.id}" href="${b.path}" media-type="image/jpeg" isEmbeded="1"/>`).join('')}</opf:manifest><opf:spine><opf:itemref idref="header" linear="yes"/><opf:itemref idref="section0" linear="yes"/></opf:spine></opf:package>`;
+<opf:package xmlns:opf="http://www.idpf.org/2007/opf/" version="" unique-identifier="" id=""><opf:metadata><opf:title>${xesc(title)}</opf:title><opf:language>ko</opf:language><opf:meta name="creator" content="MeetNote"/><opf:meta name="CreatedDate" content="${new Date().toISOString()}"/></opf:metadata><opf:manifest><opf:item id="header" href="Contents/header.xml" media-type="application/xml"/><opf:item id="section0" href="Contents/section0.xml" media-type="application/xml"/><opf:item id="settings" href="settings.xml" media-type="application/xml"/>${bins.map(b => `<opf:item id="${b.id}" href="${b.path}" media-type="${b.mime || 'image/jpeg'}" isEmbeded="1"/>`).join('')}</opf:manifest><opf:spine><opf:itemref idref="header" linear="yes"/><opf:itemref idref="section0" linear="yes"/></opf:spine></opf:package>`;
       return {
         'mimetype': 'application/hwp+zip',
         'version.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<hv:HCFVersion xmlns:hv="http://www.hancom.co.kr/hwpml/2011/version" tagetApplication="WORDPROCESSOR" major="5" minor="1" micro="1" buildNumber="0" os="1" xmlVersion="1.4" application="MeetNote" appVersion="1.0"/>`,
         'META-INF/container.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<ocf:container xmlns:ocf="urn:oasis:names:tc:opendocument:xmlns:container" xmlns:hpf="http://www.hancom.co.kr/schema/2011/hpf"><ocf:rootfiles><ocf:rootfile full-path="Contents/content.hpf" media-type="application/hwpml-package+xml"/></ocf:rootfiles></ocf:container>`,
-        'META-INF/manifest.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<odf:manifest xmlns:odf="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"><odf:file-entry odf:full-path="/" odf:media-type="application/hwp+zip"/><odf:file-entry odf:full-path="Contents/header.xml" odf:media-type="application/xml"/><odf:file-entry odf:full-path="Contents/section0.xml" odf:media-type="application/xml"/><odf:file-entry odf:full-path="settings.xml" odf:media-type="application/xml"/>${bins.map(b => `<odf:file-entry odf:full-path="${b.path}" odf:media-type="image/jpeg"/>`).join('')}</odf:manifest>`,
+        'META-INF/manifest.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<odf:manifest xmlns:odf="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"><odf:file-entry odf:full-path="/" odf:media-type="application/hwp+zip"/><odf:file-entry odf:full-path="Contents/header.xml" odf:media-type="application/xml"/><odf:file-entry odf:full-path="Contents/section0.xml" odf:media-type="application/xml"/><odf:file-entry odf:full-path="settings.xml" odf:media-type="application/xml"/>${bins.map(b => `<odf:file-entry odf:full-path="${b.path}" odf:media-type="${b.mime || 'image/jpeg'}"/>`).join('')}</odf:manifest>`,
         'Contents/content.hpf': hpf,
         'Contents/header.xml': header,
         'Contents/section0.xml': section,
@@ -6203,8 +6309,16 @@ function docxBuilder(title) {
   const out = x => (box || body).push(x);
   const EMU = 127;  // 1 HWPUNIT(1/7200 in) = 127 EMU
   const line = 'w:val="single" w:sz="4" w:space="0" w:color="000000"';
+  const drawing = (n, rid, cx, cy) => `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${n}" name="그림 ${n}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${n}" name="image${n}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
   return {
     para: (runs, pp) => out(para(runs, pp)),
+    image: (src, pw, ph) => {
+      const d = imgData(src); if (!d || d.ext === 'webp') return;   // Word가 읽지 못하는 형식은 건너뜀(편집기에 넣는 그림은 JPEG)
+      const n = media.length + 1, rid = 'rIdImg' + n;
+      media.push({ n, rid, base64: d.base64, ext: d.ext === 'jpg' ? 'jpeg' : d.ext });
+      const [w, h] = imgFit(pw, ph, box ? HW.textW - 1500 : HW.textW);
+      out(`<w:p><w:pPr><w:spacing w:before="60" w:after="60" w:line="240" w:lineRule="auto"/></w:pPr>${drawing(n, rid, w * EMU, h * EMU)}</w:p>`);
+    },
     boxHead: true,
     boxStart: head => { box = []; boxHead = head || null; },
     boxEnd: minH => {
@@ -6214,7 +6328,19 @@ function docxBuilder(title) {
       const head = boxHead ? `<w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="${tw(boxHead.height)}"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${W}" w:type="dxa"/>${bd}<w:vAlign w:val="center"/></w:tcPr>${para([{ t: boxHead.text, f: boxHead.f }], { align: 'CENTER', line: 130 })}</w:tc></w:tr>` : '';
       body.push(`<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="28" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="28" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid><w:gridCol w:w="${W}"/></w:tblGrid>${head}<w:tr><w:trPr><w:trHeight w:val="${tw(Math.max(3000, minH || 0))}"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${W}" w:type="dxa"/>${bd}<w:vAlign w:val="top"/></w:tcPr>${inner}</w:tc></w:tr></w:tbl><w:p><w:pPr><w:spacing w:before="0" w:after="60"/></w:pPr></w:p>`);
     },
-    photos: list => {
+    photos: (list, opt = {}) => {
+      if (opt.caption) {
+        const W = tw(HW.textW), bd = `<w:tcBorders><w:top ${line}/><w:left ${line}/><w:bottom ${line}/><w:right ${line}/></w:tcBorders>`;
+        list.forEach((ph, i) => {
+          const n = media.length + 1, rid = 'rIdImg' + n;
+          media.push({ n, rid, base64: ph.dataUrl.split(',')[1] });
+          const [w, h] = fitBox(ph.w, ph.h, HW.textW - 1400, PHOTO_CAP.photo - 900), cx = w * EMU, cy = h * EMU;
+          const pic = `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${n}" name="회의 사진 ${n}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${n}" name="photo${n}.jpeg"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+          const tcp = `<w:tcPr><w:tcW w:w="${W}" w:type="dxa"/>${bd}<w:vAlign w:val="center"/></w:tcPr>`;
+          body.push(`<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${W}"/></w:tblGrid><w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="${tw(PHOTO_CAP.head)}"/></w:trPr><w:tc>${tcp}${para([{ t: opt.caption(i), f: { size: 1100 } }], { align: 'CENTER', line: 130 })}</w:tc></w:tr><w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="${tw(PHOTO_CAP.photo)}" w:hRule="exact"/></w:trPr><w:tc>${tcp}${pic}</w:tc></w:tr></w:tbl><w:p/>`);
+        });
+        return;
+      }
       const L = photoLayout(list.length), cw = tw(L.cellW), trs = [];
       for (let r = 0; r < L.rows; r++) {
         const tcs = [];
@@ -6264,14 +6390,14 @@ function docxBuilder(title) {
       const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document ${W} ${NS}><w:body>${body.join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>`;
       const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:styles ${W}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${EXPORT_FONT}" w:hAnsi="${EXPORT_FONT}" w:eastAsia="${EXPORT_FONT}" w:cs="${EXPORT_FONT}"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:lang w:val="ko-KR" w:eastAsia="ko-KR"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="384" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>`;
       return {
-        '[Content_Types].xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`,
+        '[Content_Types].xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="png" ContentType="image/png"/><Default Extension="gif" ContentType="image/gif"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`,
         '_rels/.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>`,
-        'word/_rels/document.xml.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${media.map(m => `<Relationship Id="${m.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/photo${m.n}.jpeg"/>`).join('')}</Relationships>`,
+        'word/_rels/document.xml.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${media.map(m => `<Relationship Id="${m.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/photo${m.n}.${m.ext || 'jpeg'}"/>`).join('')}</Relationships>`,
         'word/document.xml': doc,
         'word/styles.xml': styles,
         'docProps/core.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xesc(title)}</dc:title><dc:creator>MeetNote</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created></cp:coreProperties>`,
         'docProps/app.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>MeetNote</Application></Properties>`,
-        ...Object.fromEntries(media.map(m => [`word/media/photo${m.n}.jpeg`, { base64: m.base64 }]))
+        ...Object.fromEntries(media.map(m => [`word/media/photo${m.n}.${m.ext || 'jpeg'}`, { base64: m.base64 }]))
       };
     }
   };
@@ -6287,9 +6413,17 @@ function htmlBuilder(title) {
   let inBox = false;
   return {
     para: (runs, pp) => body.push(para(runs, pp)),
+    image: (src, pw, ph) => { if (!imgData(src)) return; const [w, h] = imgFit(pw, ph, inBox ? HW.textW - (BOX_PAD * 2 + 1) * HW.px : HW.textW); body.push(`<p style="margin:4px 0;line-height:1"><img src="${src}" alt="" style="width:${px(w)}px;height:${px(h)}px"></p>`); },
     /* 회의 세부 내용 입력 영역: 페이지를 넘어가도 각 페이지에서 테두리가 닫히도록 clone */
     boxStart: () => { inBox = true; body.push('<div class="body-box">'); },
-    photos: list => {
+    photos: (list, opt = {}) => {
+      if (opt.caption) {
+        list.forEach((ph, i) => {
+          const [w, hh] = fitBox(ph.w, ph.h, HW.textW - 1020 - 400, PHOTO_CAP.photo - 282 - 400);
+          body.push(`<table style="width:${px(HW.textW)}px;margin-bottom:14px"><tr class="keep" style="height:${px(PHOTO_CAP.head)}px"><td style="text-align:center;vertical-align:middle">${xesc(opt.caption(i))}</td></tr><tr class="keep" style="height:${px(PHOTO_CAP.photo)}px"><td style="text-align:center;vertical-align:middle;padding:0"><img src="${ph.dataUrl}" alt="" style="width:${px(w)}px;height:${px(hh)}px;display:inline-block;vertical-align:middle"></td></tr></table>`);
+        });
+        return;
+      }
       const L = photoLayout(list.length);
       let h = `<table style="width:${px(L.cellW * L.cols)}px"><colgroup>${`<col style="width:${px(L.cellW)}px">`.repeat(L.cols)}</colgroup>`;
       for (let r = 0; r < L.rows; r++) {
@@ -6402,6 +6536,17 @@ function hwpxBlock(B, el, base = {}) {
   const size = { H1: 1800, H2: 1500, H3: 1250 }[tag];
   const f = size ? { ...base, size, bold: true } : base;
   const pp = size ? { before: tag === 'H1' ? 400 : 300, after: 100 } : {};
+  if (el.querySelector('img') && B.image) {   // 그림이 든 블록: 앞뒤 글은 문단으로, 그림은 한 장씩 따로
+    let buf = el.cloneNode(false);
+    const flush = () => { if (buf.textContent.trim()) splitRuns(inlineRuns(buf, f)).forEach(runs => B.para(runs, pp)); buf = el.cloneNode(false); };
+    const pic = img => B.image(img.getAttribute('src'), +img.dataset.w || img.naturalWidth, +img.dataset.h || img.naturalHeight);
+    for (const n of el.childNodes) {
+      if (n.nodeType === 1 && n.tagName === 'IMG') { flush(); pic(n); }
+      else if (n.nodeType === 1 && n.querySelector('img')) { const c = n.cloneNode(true); c.querySelectorAll('img').forEach(x => x.remove()); buf.appendChild(c); flush(); n.querySelectorAll('img').forEach(pic); }
+      else buf.appendChild(n.cloneNode(true));
+    }
+    flush(); return;
+  }
   splitRuns(inlineRuns(el, f)).forEach(runs => B.para(runs, pp));
 }
 function hwpxPlainLine(B, text, f = {}, pp = {}) { B.para(text ? [{ t: text, f }] : [], pp); }
@@ -6528,26 +6673,73 @@ const TEMPLATES = {
     }
   }
 };
+/* 화학물질정보 공동활용 플랫폼 구축(1단계) 회의록(경과보고 회의록 hwp를 본뜸): 일시는 '2026년 5월 8일 (금) 16:30 ~ 17:30',
+   참석자는 소속별 한 줄, 실행계획(산출물 포함)과 특이사항이 한 표, 붙임 사진은 사진마다 제목 칸이 있는 표(한 쪽에 2장) */
+const COOP_PROJECT = '화학물질정보 공동활용 플랫폼 구축(1단계)';
+const COOP_FILL = '#D9D9D9';
+function coopWhenText() {
+  const d = S.meta.when ? new Date(S.meta.when) : new Date(S.createdAt); if (isNaN(d)) return S.meta.when || '';
+  const p = n => String(n).padStart(2, '0'), hm = x => `${p(x.getHours())}:${p(x.getMinutes())}`;
+  const end = S.meta.end || (S.duration > 0 ? hm(new Date(d.getTime() + S.duration * 1000)) : '');   // 종료 칸이 비면 녹음 길이로
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]}) ${hm(d)}${end ? ' ~ ' + end : ''}`;
+}
+TEMPLATES.coop = {
+  name: '공동활용 플랫폼 (화학물질정보 공동활용 플랫폼 구축 회의록)',
+  fields: ['when', 'end', 'place', 'author', 'out'], sections: { actions: true, notes: true }, bodyBox: true,
+  fileName: (topic, ymd) => `CH_P_PM_10705_${COOP_PROJECT}_회의록 (${topic})${ymd ? '_' + ymd : ''}`,
+  topicOf: n => { const m = String(n).match(/회의록\s*\((.+)\)(?:_\d{8})?$/); return m ? m[1].trim() : ''; },
+  render(B) {
+    const W = HW.textW, RH = 1900, lab = { size: 1100, bold: true };
+    const labc = (r, c, t, extra = {}) => cellSpec(r, c, spaced(t), lab, { fill: COOP_FILL, align: 'CENTER', valign: 'CENTER', ...extra });
+    const labh = (r, c, t) => cellSpec(r, c, t, lab, { fill: COOP_FILL, align: 'CENTER', valign: 'CENTER' });   // 실행계획 머리글은 원본처럼 띄우지 않음
+    const valc = (r, c, t, extra = {}) => cellSpec(r, c, t, F.val, { valign: 'CENTER', ...extra });
+    B.para([{ t: '회    의    록', f: { size: 2200, bold: true } }], { align: 'CENTER', after: 500 });
+    const c0 = Math.round(W * 0.165), c2 = Math.round(W * 0.152), c3 = Math.round(W * 0.217), c1 = W - c0 - c2 - c3;
+    const attLines = attendeesByOrg(), auth = authorLines();
+    B.table({ rows: 4, cols: 4, origin: [
+      [labc(0, 0, '일시'), valc(0, 1, coopWhenText()), labc(0, 2, '작성자'), multiCell(0, 3, auth, F.val, { valign: 'CENTER', align: 'CENTER' })],
+      [labc(1, 0, '장소'), valc(1, 1, S.meta.place || '', { cs: 3 })],
+      [labc(2, 0, '제목'), valc(2, 1, S.title || '', { cs: 3 })],
+      [labc(3, 0, '참석자'), { ...multiCell(3, 1, attLines, F.val, { valign: 'CENTER' }), cs: 3 }]
+    ] }, [c0, c1, c2, c3], [auth.length > 1 ? 2900 : RH, RH + 300, RH + 300, Math.max(RH * 2, 1300 * Math.max(1, attLines.length) + 600)]);
+    renderBody(B, { box: true, head: { text: '회 의   세 부   내 용', f: { size: 1200, bold: true }, height: 1500 } });
+    // 실행계획 + 특이사항: 한 표(실행계획 레이블이 기한~산출물 줄을 세로로 묶고, 특이사항은 맨 아래 한 줄 전체)
+    const acts = (S.meta.actions || []).filter(a => a.due || a.who || a.what || a.out), n = Math.max(1, acts.length);
+    const wl = Math.round(W * 0.108), wd = Math.round(W * 0.144), ww = Math.round(W * 0.203), wo = Math.round(W * 0.272), wc = W - wl - wd - ww - wo;
+    const rows = [[{ ...labc(0, 0, '실행계획'), rs: n + 1 }, labh(0, 1, '기 한'), labh(0, 2, '작업수행자'), labh(0, 3, '내용'), labh(0, 4, '산출물')]];
+    for (let i = 0; i < n; i++) { const a = acts[i] || {}, ctr = { align: 'CENTER', valign: 'CENTER' }; rows.push([cellSpec(i + 1, 1, a.due || '', F.val, ctr), cellSpec(i + 1, 2, a.who || '', F.val, ctr), cellSpec(i + 1, 3, a.what || '', F.val, { valign: 'CENTER' }), cellSpec(i + 1, 4, a.out || '', F.val, ctr)]); }
+    const notes = String(S.meta.notes || '').split(/\n/).map(x => x.trim()).filter(Boolean);
+    rows.push([{ r: n + 1, c: 0, rs: 1, cs: 5, paras: [[{ t: 'ㅇ 특이사항', f: F.lab }], ...(notes.length ? notes.map(l => [{ t: '- ' + l, f: { size: 900 } }]) : [[{ t: '-', f: { size: 900 } }]])] }]);
+    B.para([], { before: 100 });
+    B.table({ rows: n + 2, cols: 5, origin: rows }, [wl, wd, ww, wc, wo], [1400, ...Array(n).fill(1400), Math.max(2400, 1100 * (notes.length + 1) + 600)]);
+  },
+  photos(B) {
+    const cap = `${COOP_PROJECT} ${String(S.meta.topic || S.title || '회의').trim()}`;
+    B.para([], { pageBreak: true });
+    B.photos(S.photos, { caption: i => `${cap} 사진${i + 1}` });
+  }
+};
 const curTemplate = () => TEMPLATES[S.meta.template] ? S.meta.template : 'kcsa';
 function fillTplSelects() {
   for (const sel of [$('#tplSel'), $('#expTpl')]) { sel.innerHTML = Object.entries(TEMPLATES).map(([k, t]) => `<option value="${k}">${esc(t.name)}</option>`).join(''); sel.value = curTemplate(); }
 }
 function applyTemplateUI() {
   const t = TEMPLATES[curTemplate()];
-  document.querySelectorAll('[data-f="host"]').forEach(el => { el.hidden = !t.fields.includes('host'); });
+  for (const f of ['host', 'end', 'out']) document.querySelectorAll(`[data-f="${f}"]`).forEach(el => { el.hidden = !t.fields.includes(f); });
   $('#tplActions').hidden = !t.sections.actions; $('#tplNotes').hidden = !t.sections.notes;
   docEditor.classList.toggle('boxed', !!t.bodyBox); $('#docReplay').classList.toggle('boxed', !!t.bodyBox);  // 출력의 '회의 세부 내용' 테두리와 같게
   $('#tplSel').value = curTemplate(); $('#expTpl').value = curTemplate();
 }
-function setTemplate(id) { if (!TEMPLATES[id]) return; S.meta.template = id; markDirty(); applyTemplateUI(); }
+function setTemplate(id) { if (!TEMPLATES[id]) return; S.meta.template = id; markDirty(); applyTemplateUI(); renderActions(); renderTopicFile(); }
 $('#tplSel').addEventListener('change', e => setTemplate(e.target.value));
 $('#expTpl').addEventListener('change', e => setTemplate(e.target.value));
 function renderActions() {
   const tb = $('#actBody'); const acts = S.meta.actions || (S.meta.actions = []);
-  tb.innerHTML = acts.map((a, i) => `<tr>${['due', 'who', 'what'].map(k => `<td><input data-act="${k}" data-i="${i}" value="${esc(a[k] || '')}" placeholder="${{ due: '예: 5/25', who: '담당', what: '할 일' }[k]}"></td>`).join('')}<td class="x"><button data-adel="${i}" title="삭제" aria-label="삭제">×</button></td></tr>`).join('')
-    || '<tr><td colspan="4" class="empty">행 추가를 눌러 기한·작업수행자·내용을 입력하세요. AI 초안의 "할 일"을 회의록에 넣으면 여기에 채워져요.</td></tr>';
+  const keys = TEMPLATES[curTemplate()].fields.includes('out') ? ['due', 'who', 'what', 'out'] : ['due', 'who', 'what'];   // 산출물 열은 양식에 있을 때만
+  tb.innerHTML = acts.map((a, i) => `<tr>${keys.map(k => `<td><input data-act="${k}" data-i="${i}" value="${esc(a[k] || '')}" placeholder="${{ due: '예: 5/25', who: '담당', what: '할 일', out: '예: 설계(안)' }[k]}"></td>`).join('')}<td class="x"><button data-adel="${i}" title="삭제" aria-label="삭제">×</button></td></tr>`).join('')
+    || `<tr><td colspan="${keys.length + 1}" class="empty">행 추가를 눌러 기한·작업수행자·내용을 입력하세요. AI 초안의 "할 일"을 회의록에 넣으면 여기에 채워져요.</td></tr>`;
 }
-$('#actAdd').addEventListener('click', () => { (S.meta.actions || (S.meta.actions = [])).push({ due: '', who: '', what: '' }); renderActions(); markDirty(); $('#actBody').querySelector(`input[data-i="${S.meta.actions.length - 1}"]`)?.focus(); });
+$('#actAdd').addEventListener('click', () => { (S.meta.actions || (S.meta.actions = [])).push({ due: '', who: '', what: '', out: '' }); renderActions(); markDirty(); $('#actBody').querySelector(`input[data-i="${S.meta.actions.length - 1}"]`)?.focus(); });
 $('#actBody').addEventListener('input', e => { const i = e.target.dataset.i, k = e.target.dataset.act; if (i == null) return; S.meta.actions[+i][k] = e.target.value; markDirty(); });
 $('#actBody').addEventListener('click', e => { const b = e.target.closest('[data-adel]'); if (!b) return; S.meta.actions.splice(+b.dataset.adel, 1); renderActions(); markDirty(); });
 $('#mNotes').addEventListener('input', e => { S.meta.notes = e.target.value; markDirty(); });
@@ -6557,6 +6749,10 @@ function photoLayout(n) {
   const cols = n <= 2 ? 1 : 2, rows = Math.ceil(n / cols);
   return { cols, rows, cellW: Math.floor(HW.textW / cols), cellH: 33000 };
 }
+const PHOTO_CAP = { head: 1500, photo: 30000 };
+/* 본문·메모 그림의 내보내기 크기(HWPUNIT): 화면 픽셀 그대로(1px = HW.px)이되 쪽 너비·높이를 넘지 않게 줄인다(키우지는 않음) */
+const imgFit = (w, h, maxW, maxH = 60000) => { w = (w || 400) * HW.px; h = (h || 300) * HW.px; const k = Math.min(1, maxW / w, maxH / h); return [Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))]; };
+const imgData = src => { const m = /^data:image\/(png|jpeg|gif|webp);base64,(.+)$/.exec(src || ''); return m ? { mime: 'image/' + m[1], ext: m[1] === 'jpeg' ? 'jpg' : m[1], base64: m[2] } : null; };   // 제목 칸이 붙은 사진 표(한 쪽에 2장): 제목 칸·사진 칸 높이(HWPUNIT)
 const fitBox = (w, h, maxW, maxH) => { w = w || 4; h = h || 3; const r = Math.min(maxW / w, maxH / h); return [Math.round(w * r), Math.round(h * r)]; };
 function renderPhotoPage(B) {
   B.para([{ t: '붙임. 회의 사진', f: { size: 1400, bold: true } }], { pageBreak: true, after: 300 });
@@ -6567,7 +6763,7 @@ function buildExportInto(B, opts) {
   HW.chips = !!opts.chips; HW.attCompact = opts.attCompact !== false;
   TEMPLATES[curTemplate()].render(B, opts);
   renderAppendices(B, opts);
-  if (opts.photos && S.photos.length) renderPhotoPage(B);
+  if (opts.photos && S.photos.length) (TEMPLATES[curTemplate()].photos || renderPhotoPage)(B);
   return B;
 }
 async function buildHwpx(opts) {
@@ -6628,19 +6824,34 @@ function metaWhenText() {
 }
 const toLocalInput = iso => { const d = new Date(iso); if (isNaN(d)) return ''; const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
 function renderMeta() {
-  $('#docTitle').textContent = S.title || '회의록';
+  $('#docTitle').textContent = '회의록';   // 문서 머리 제목은 '회의록'으로 고정(회의 제목은 위 제목 칸·양식의 제목 칸)
   $('#mWhen').value = S.meta.when ? toLocalInput(S.meta.when) : toLocalInput(S.createdAt);
   $('#mPlace').value = S.meta.place || ''; $('#mAuthor').value = S.meta.author || ''; $('#mHost').value = S.meta.host || '';
-  $('#mNotes').value = S.meta.notes || '';
+  $('#mNotes').value = S.meta.notes || ''; $('#mEnd').value = S.meta.end || '';
+  if (!S.meta.topic && S.fileName) S.meta.topic = topicFromName(S.fileName);   // 주제가 없던 회의는 파일 이름에서 읽는다
+  $('#mTopic').value = S.meta.topic || '';
   if (!Array.isArray(S.meta.actions)) S.meta.actions = [];
   renderProjSel();
   fillTplSelects(); applyTemplateUI(); renderActions();
-  renderAttendees();
+  renderAttendees(); renderTopicFile();
 }
+/* 주제: 저장·내보내기 파일 이름의 원본. 양식에 fileName(주제, 날짜)이 있으면 그 규칙(예: 공동활용 플랫폼), 없으면 주제 그대로.
+   반대로 저장 창에서 고친 이름·클라우드에서 연 이름은 topicFromName으로 주제 칸에 되돌린다 */
+function meetYmd() { const d = S.meta.when ? new Date(S.meta.when) : new Date(S.createdAt); const p = n => String(n).padStart(2, '0'); return isNaN(d) ? '' : `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`; }
+function topicFileName() { const tp = String(S.meta.topic || '').trim(); if (!tp) return ''; const t = TEMPLATES[curTemplate()]; return safeName(t.fileName ? t.fileName(tp, meetYmd()) : tp, 120); }
+function topicFromName(name) { const n = stripStamp(String(name || '').replace(/\.(mnote|hwpx|docx|pdf)$/i, '')).trim(); if (!n) return ''; const t = TEMPLATES[curTemplate()]; return t.topicOf ? t.topicOf(n) : n; }
+function syncTopicFromName(name) { const tp = topicFromName(name); if (!tp || tp === S.meta.topic) return; S.meta.topic = tp; $('#mTopic').value = tp; renderTopicFile(); }
+function renderTopicFile() { const f = topicFileName(); $('#topicFile').textContent = f ? '파일 이름: ' + f : '주제를 적으면 저장·내보내기 파일 이름이 이 주제로 정해져요.'; }
+$('#mTopic').addEventListener('input', e => { S.meta.topic = e.target.value; markDirty(); renderTopicFile(); });
+$('#mEnd').addEventListener('change', e => { S.meta.end = e.target.value; markDirty(); });
+const ATT_COLS = ['org', 'name', 'title'];
+let attSel = null, attDrag = null, attRowFrom = null;   // 참석자 표 칸 선택·끌기 상태(아래 '참석자 표' 설명)
+const attTable = $('#attTable');
 function renderAttendees() {
   const tb = $('#attBody');
-  tb.innerHTML = S.attendees.map((a, i) => `<tr><td><input data-att="org" data-i="${i}" value="${esc(a.org || '')}" placeholder="소속"></td><td><input data-att="name" data-i="${i}" value="${esc(a.name || '')}" placeholder="이름"></td><td><input data-att="title" data-i="${i}" value="${esc(a.title || '')}" placeholder="직급"></td><td class="x"><button data-del="${i}" title="삭제" aria-label="삭제">×</button></td></tr>`).join('')
-    || '<tr><td colspan="4" class="empty">참석자 추가를 눌러 소속·이름·직급을 입력하세요.</td></tr>';
+  tb.innerHTML = S.attendees.map((a, i) => `<tr data-r="${i}"><td class="h" draggable="true" title="끌어서 순서 바꾸기" aria-label="순서 바꾸기">⋮⋮</td>${ATT_COLS.map((k, c) => `<td data-c="${c}"><input data-att="${k}" data-i="${i}" value="${esc(a[k] || '')}" placeholder="${{ org: '소속', name: '이름', title: '직급' }[k]}"></td>`).join('')}<td class="x"><button data-ins="${i}" title="이 줄 아래에 참석자 넣기" aria-label="아래에 참석자 넣기">＋</button><button data-del="${i}" title="삭제" aria-label="삭제">×</button></td></tr>`).join('')
+    || '<tr><td colspan="5" class="empty">참석자 추가를 눌러 소속·이름·직급을 입력하세요. 엑셀·한글 표에서 복사한 명단을 이 표에 Ctrl+V로 붙여 넣어도 돼요.</td></tr>';
+  paintAttSel();
 }
 /* 참석자 캡처 이미지 읽기: 명단을 찍은 화면 캡처·사진을 AI(이미지를 읽는 모델)에게 보내 소속·이름·직급을 받아 참석자 표에 채운다 */
 const ATT_SCAN_PROMPT = `이 이미지는 회의 참석자 명단(참석자 표, 메신저·메일·화상회의 참가자 목록, 명함 등)을 찍은 것입니다. 이미지에 보이는 사람만 뽑아 JSON 배열로만 답하세요. 설명·마크다운·코드 블록 없이 JSON만 출력합니다.
@@ -6696,19 +6907,127 @@ document.querySelector('.att').addEventListener('paste', e => {   // 참석자 �
   const f = [...(e.clipboardData?.files || [])].find(x => /^image\//.test(x.type)); if (!f) return;
   e.preventDefault(); scanAttendees(f);
 });
-$('#attAdd').addEventListener('click', () => { S.attendees.push({ org: '', name: '', title: '' }); renderAttendees(); markDirty(); const inp = $('#attBody').querySelector(`input[data-i="${S.attendees.length - 1}"]`); if (inp) inp.focus(); });
+$('#attAdd').addEventListener('click', () => { S.attendees.push({ org: '', name: '', title: '' }); attSel = null; renderAttendees(); markDirty(); const inp = $('#attBody').querySelector(`input[data-i="${S.attendees.length - 1}"]`); if (inp) inp.focus(); });
 $('#attBody').addEventListener('input', e => { const i = e.target.dataset.i, k = e.target.dataset.att; if (i == null) return; S.attendees[+i][k] = e.target.value; markDirty(); });
 $('#attBody').addEventListener('keydown', e => {
   if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
   e.preventDefault();
-  const i = +e.target.dataset.i, k = e.target.dataset.att, order = ['org', 'name', 'title'];
+  const i = +e.target.dataset.i, k = e.target.dataset.att, order = ATT_COLS;
   const ni = order.indexOf(k) + 1;
   if (ni < 3) $('#attBody').querySelector(`input[data-i="${i}"][data-att="${order[ni]}"]`)?.focus();
   else if (i === S.attendees.length - 1) $('#attAdd').click(); else $('#attBody').querySelector(`input[data-i="${i + 1}"][data-att="org"]`)?.focus();
 });
-$('#attBody').addEventListener('click', e => { const b = e.target.closest('[data-del]'); if (!b) return; S.attendees.splice(+b.dataset.del, 1); renderAttendees(); markDirty(); });
+$('#attBody').addEventListener('click', e => {
+  const ins = e.target.closest('[data-ins]');
+  if (ins) { const at = +ins.dataset.ins + 1; S.attendees.splice(at, 0, { org: ins.closest('tr').querySelector('input[data-att="org"]')?.value || '', name: '', title: '' }); attSel = null; renderAttendees(); markDirty(); $('#attBody').querySelector(`input[data-i="${at}"][data-att="name"]`)?.focus(); return; }   // 사이에 넣기: 소속은 윗줄을 따라간다
+  const b = e.target.closest('[data-del]'); if (!b) return; S.attendees.splice(+b.dataset.del, 1); attSel = null; renderAttendees(); markDirty();
+});
+/* 참석자 표: 칸 범위 선택(끌기·Shift+클릭) → Ctrl+C/X(탭·줄바꿈 글, 엑셀과 호환)·Delete, Ctrl+V는 엑셀·한글 표를 고른 칸부터 채운다(모자라면 줄 추가).
+   줄 순서는 왼쪽 ⋮⋮ 손잡이를 끌어 바꾼다. 선택 상태 attSel = { a:[행,열], b:[행,열] } */
+const attCellOf = el => { const td = el && el.closest && el.closest('#attBody td[data-c]'); return td ? [+td.parentElement.dataset.r, +td.dataset.c] : null; };
+const attRange = () => attSel && { r0: Math.min(attSel.a[0], attSel.b[0]), r1: Math.max(attSel.a[0], attSel.b[0]), c0: Math.min(attSel.a[1], attSel.b[1]), c1: Math.max(attSel.a[1], attSel.b[1]) };
+function paintAttSel() {
+  const g = attRange();
+  $('#attBody').querySelectorAll('td[data-c]').forEach(td => { const r = +td.parentElement.dataset.r, c = +td.dataset.c; td.classList.toggle('sel', !!g && r >= g.r0 && r <= g.r1 && c >= g.c0 && c <= g.c1); });
+  attTable.classList.toggle('ranging', !!g);
+}
+function setAttSel(a, b) {
+  attSel = a && b && (a[0] !== b[0] || a[1] !== b[1]) ? { a, b } : null;
+  if (attSel && document.activeElement && attTable.contains(document.activeElement) && document.activeElement !== attTable) { document.activeElement.blur(); attTable.focus({ preventScroll: true }); }
+  paintAttSel();
+}
+const attTsv = g => { const out = []; for (let r = g.r0; r <= g.r1; r++) { const a = S.attendees[r] || {}; out.push(ATT_COLS.slice(g.c0, g.c1 + 1).map(k => String(a[k] || '').replace(/[\t\r\n]+/g, ' ')).join('\t')); } return out.join('\n'); };
+function attClear(g) { for (let r = g.r0; r <= g.r1; r++) for (let c = g.c0; c <= g.c1; c++) if (S.attendees[r]) S.attendees[r][ATT_COLS[c]] = ''; renderAttendees(); markDirty(); }
+function attPasteGrid(text, r0, c0, fill) {
+  let rows = String(text).replace(/\r/g, '').split('\n'); if (rows.length > 1 && rows[rows.length - 1] === '') rows.pop();
+  rows = rows.map(l => l.split('\t').map(v => v.trim()));
+  const g = attRange();
+  if (fill && g && rows.length === 1 && rows[0].length === 1) {   // 값 하나를 여러 칸에 붙이면 고른 칸을 모두 채운다(엑셀과 같음)
+    for (let r = g.r0; r <= g.r1; r++) for (let c = g.c0; c <= g.c1; c++) S.attendees[r][ATT_COLS[c]] = rows[0][0];
+  } else {
+    rows.forEach((cells, dr) => {
+      const r = r0 + dr; while (S.attendees.length <= r) S.attendees.push({ org: '', name: '', title: '' });
+      cells.forEach((v, dc) => { const c = c0 + dc; if (c < ATT_COLS.length) S.attendees[r][ATT_COLS[c]] = v.slice(0, 60); });
+    });
+    const w = Math.min(ATT_COLS.length - c0, Math.max(...rows.map(x => x.length)));
+    attSel = rows.length > 1 || w > 1 ? { a: [r0, c0], b: [r0 + rows.length - 1, c0 + w - 1] } : null;
+  }
+  renderAttendees(); markDirty();
+  if (attSel) attTable.focus({ preventScroll: true });
+}
+$('#attBody').addEventListener('pointerdown', e => {
+  if (e.button !== 0 || e.target.closest('td.h, td.x')) return;
+  const cell = attCellOf(e.target); if (!cell) return;
+  if (e.shiftKey) { const from = attSel ? attSel.a : attCellOf(document.activeElement); if (from) { e.preventDefault(); setAttSel(from, cell); return; } }
+  attDrag = cell; if (attSel) { attSel = null; paintAttSel(); }
+});
+$('#attBody').addEventListener('pointerover', e => {
+  if (!attDrag || !(e.buttons & 1)) return;
+  const cell = attCellOf(e.target); if (!cell) return;
+  if (attSel || cell[0] !== attDrag[0] || cell[1] !== attDrag[1]) { window.getSelection()?.removeAllRanges(); setAttSel(attDrag, cell); }
+});
+document.addEventListener('pointerup', () => { attDrag = null; });
+attTable.addEventListener('keydown', e => {
+  if (!attSel) return;
+  const g = attRange();
+  if (e.key === 'Escape') { attSel = null; paintAttSel(); return; }
+  if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); attClear(g); }
+});
+document.addEventListener('copy', e => {
+  if (!attSel || !attTable.contains(document.activeElement)) return;
+  e.clipboardData.setData('text/plain', attTsv(attRange())); e.preventDefault(); toast('고른 칸을 복사했어요. 다른 칸이나 엑셀에 붙여 넣을 수 있어요.', 2500);
+});
+document.addEventListener('cut', e => {
+  if (!attSel || !attTable.contains(document.activeElement)) return;
+  const g = attRange(); e.clipboardData.setData('text/plain', attTsv(g)); e.preventDefault(); attClear(g);
+});
+attTable.addEventListener('paste', e => {
+  if ([...(e.clipboardData?.files || [])].some(x => /^image\//.test(x.type))) return;   // 캡처 이미지는 아래 '캡처에서 읽기'가 처리
+  const text = e.clipboardData?.getData('text/plain') || ''; if (!text) return;
+  const g = attRange(), at = g ? [g.r0, g.c0] : attCellOf(document.activeElement);
+  const multi = /[\t\n]/.test(text.replace(/\r?\n$/, ''));
+  if (!at) { if (!S.attendees.length) { e.preventDefault(); attPasteGrid(text, 0, 0); } return; }
+  if (!multi && !g) return;   // 한 칸에 글 하나: 입력칸 기본 붙여넣기
+  e.preventDefault(); attPasteGrid(text, at[0], at[1], true);
+});
+document.querySelector('.att').addEventListener('paste', e => {   // 표가 비어 있을 때(입력칸 없음) 영역에서 붙인 명단
+  if (e.defaultPrevented || attTable.contains(e.target)) return;
+  const text = e.clipboardData?.getData('text/plain') || '';
+  if (!text || [...(e.clipboardData?.files || [])].length || !/[\t\n]/.test(text.trim())) return;
+  e.preventDefault(); attPasteGrid(text, S.attendees.filter(a => a.org || a.name || a.title).length ? S.attendees.length : 0, 0);
+});
+document.addEventListener('pointerdown', e => { if (attSel && !attTable.contains(e.target)) { attSel = null; paintAttSel(); } });
+/* 줄 끌어 옮기기: ⋮⋮ 손잡이만 끌 수 있다(입력칸 글자 선택과 겹치지 않게) */
+$('#attBody').addEventListener('dragstart', e => {
+  const tr = e.target.closest && e.target.closest('tr[data-r]'); if (!tr || !e.target.closest('td.h')) return;
+  attRowFrom = +tr.dataset.r; tr.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/x-meetnote-att', String(attRowFrom));
+  try { e.dataTransfer.setDragImage(tr, 10, 10); } catch {}
+});
+const attDropClear = () => $('#attBody').querySelectorAll('.drop-before,.drop-after,.dragging').forEach(x => x.classList.remove('drop-before', 'drop-after', 'dragging'));
+$('#attBody').addEventListener('dragover', e => {
+  if (attRowFrom == null) return;
+  const tr = e.target.closest('tr[data-r]'); if (!tr) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  const after = e.clientY > tr.getBoundingClientRect().top + tr.offsetHeight / 2;
+  $('#attBody').querySelectorAll('.drop-before,.drop-after').forEach(x => x.classList.remove('drop-before', 'drop-after'));
+  tr.classList.add(after ? 'drop-after' : 'drop-before');
+});
+$('#attBody').addEventListener('drop', e => {
+  if (attRowFrom == null) return;
+  e.preventDefault(); e.stopPropagation();
+  const tr = e.target.closest('tr[data-r]'), from = attRowFrom; attRowFrom = null;
+  if (!tr) { attDropClear(); return; }
+  let to = +tr.dataset.r + (tr.classList.contains('drop-after') ? 1 : 0);
+  attDropClear();
+  if (from < to) to--;
+  if (to === from) return;
+  const [row] = S.attendees.splice(from, 1); S.attendees.splice(to, 0, row);
+  attSel = null; renderAttendees(); markDirty();
+});
+$('#attBody').addEventListener('dragend', () => { attRowFrom = null; attDropClear(); });
 ['mPlace', 'mAuthor', 'mHost'].forEach(id => $('#' + id).addEventListener('input', e => { S.meta[id.slice(1).toLowerCase()] = e.target.value; markDirty(); }));
-$('#mWhen').addEventListener('change', e => { S.meta.when = e.target.value ? new Date(e.target.value).toISOString() : ''; markDirty(); });
+$('#mWhen').addEventListener('change', e => { S.meta.when = e.target.value ? new Date(e.target.value).toISOString() : ''; markDirty(); renderTopicFile(); });
 
 /* ---------- speaker diarization ---------- */
 const DIAR_KEY = 'meetnote.diar';
@@ -7747,7 +8066,7 @@ $('#anaGo').addEventListener('click', async () => {
 });
 
 /* ---------- .mnote save / open ---------- */
-const safeName = s => s.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').trim().slice(0, 60) || '회의록';
+const safeName = (s, n = 60) => s.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').trim().slice(0, n) || '회의록';
 const stamp = iso => { const d = new Date(iso); const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; };
 
 function readable() {
@@ -7803,11 +8122,11 @@ async function buildZip() {
 
 const stampSec = (d = new Date()) => { const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; };
 const stripStamp = n => String(n || '').replace(/_\d{8}_\d{4}(\d{2})?$/, '');
-const defaultFileName = () => safeName(S.title || '') || stripStamp(S.fileName) || '회의록';   // 저장 창의 기본 파일 이름 = 회의록 제목(제목이 없으면 지난번 이름)
-const dlBase = base => `${stripStamp(base || defaultFileName()) || '회의록'}_${stampSec()}`;   // 내려받는 파일: 회의록 이름 + 날짜시분초
+const defaultFileName = () => topicFileName() || safeName(S.title || '') || stripStamp(S.fileName) || '회의록';   // 저장 창의 기본 파일 이름 = 주제(양식의 파일 이름 규칙) → 회의록 제목 → 지난번 이름
+const dlBase = base => { const b = stripStamp(base || defaultFileName()) || '회의록'; return /_\d{8}$/.test(b) ? b : `${b}_${stampSec()}`; };   // 내려받는 파일: 회의록 이름 + 날짜시분초. 이름이 날짜(_YYYYMMDD)로 끝나면(양식 규칙) 그대로
 async function askFileName(title) {   // 저장 직전에 파일 이름을 한 번 묻는다(취소하면 null)
-  const name = await askText(title, '파일 이름 (.mnote)', defaultFileName(), { max: 80, yes: '저장' });
-  return name ? safeName(stripStamp(name.replace(/\.mnote$/i, ''))) : null;
+  const name = await askText(title, '파일 이름 (.mnote)', defaultFileName(), { max: 120, yes: '저장' });
+  return name ? safeName(stripStamp(name.replace(/\.mnote$/i, '')), 120) : null;
 }
 const SAVE_HOW_KEY = 'meetnote.saveHow';
 async function chooseSaveHow() {   // 저장 버튼: 클라우드 / .mnote / 둘 다. 마지막 선택을 기억한다
@@ -7838,7 +8157,7 @@ async function save(pre) {
   try {
     const blob = pre && pre.blob || await buildZip();
     await saveBlob(blob, dlBase(base), 'mnote');
-    S.fileName = base; markClean();
+    S.fileName = base; syncTopicFromName(base); markClean();
   } catch (e) {
     const code = e && e.code;
     toast(code === 'declined' ? '저장을 취소했어요.'
@@ -7963,6 +8282,8 @@ window.addEventListener('drop', e => {
   e.preventDefault();
   const files = [...(e.dataTransfer?.files || [])];
   const imgs = files.filter(x => /^image\//.test(x.type));
+  const edDrop = e.target.closest && e.target.closest('#docEditor, #editor');
+  if (imgs.length && edDrop) { insertEditorImages(imgs, edDrop, withEditor(edDrop, () => topBlockOf(e.target))); return; }   // 본문·메모 위에 놓으면 그 자리에 그림
   if (imgs.length) { addPhotos(imgs); return; }
   const f = files[0];
   const docs = files.filter(x => /\.(pdf|docx|pptx|xlsx|hwpx|hwp|doc|ppt|xls)$/i.test(x.name || ''));
@@ -7978,7 +8299,7 @@ window.addEventListener('beforeunload', e => {
 });
 
 $('#title').addEventListener('input', e => {
-  S.title = e.target.value; $('#docTitle').textContent = S.title || '회의록';
+  S.title = e.target.value;
   document.title = (S.title ? S.title + ' · ' : '') + 'MeetNote';
   markDirty();
 });
@@ -9236,7 +9557,7 @@ async function cloudSave({ alsoLocal = false } = {}) {
     const up = id => driveUpload(blob, name, meta, id, folder, f => progSet(10 + f * 82, `Google Drive에 올리는 중 ${Math.round(f * 100)}% (${(blob.size / 1048576).toFixed(1)}MB)`), ctl.signal);
     let forked = false;
     try { fileId = await up(fileId); } catch (e) { if (fileId && (e.status === 404 || e.status === 403)) { forked = e.status === 403; fileId = await up(null); } else throw e; }   // 지워진 파일이면 새로 만든다. 남의 공유 파일에 쓸 권한이 없으면 내 Drive에 새로 만든다
-    S.cloud = { fileId, ...(await driveModified(fileId) || {}) }; S.fileName = base; presStart();
+    S.cloud = { fileId, ...(await driveModified(fileId) || {}) }; S.fileName = base; syncTopicFromName(base); presStart();
     let dbNote = '';
     const proj = projById(S.meta.project);
     if (FB && proj) {
@@ -10043,7 +10364,7 @@ else if ($('#gate').hidden) setTimeout(openDashboard, 400);   // 게스트·로�
     host.title = text;
   }
 })();
-if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { get partAudio() { return partAudio; }, set partAudio(v) { partAudio = v; }, applyVocab, suggestVocab, meetingVocab, get vocabText() { return vocabText; }, parseGemini, geminiResult, docBodyText, mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, browserSpeakersFor, lastWords: () => diarLastWords, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, dashOpen, dashClose, setReadOnly, askChoice, set driveTok(v) { driveTok = v; }, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; } };
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__meetnote = { get partAudio() { return partAudio; }, set partAudio(v) { partAudio = v; }, applyVocab, suggestVocab, meetingVocab, get vocabText() { return vocabText; }, parseGemini, geminiResult, docBodyText, mergeSegments, pushSegment, cleanSegText, cleanSegments, get S() { return S; }, audio, tick, seek, memoTrack, docTrack, trackBlocks, buildPrompt, startClock, stopRec, runAutoDraft, mdToHtml, mdToDocNodes, appendToDoc, insertDraft, splitDraft, parseTodos, draftOpt, meetingVocab, diarState: () => diar, CLOUD_RUN, CLOUD_PROV, diarizeBrowser, browserSpeakersFor, lastWords: () => diarLastWords, diarizeCloud, setCloudKey, wavBytes, playSegment, startSegEdit, endSegEdit, renderTranscript, projects: () => projects, projBlock, projRule, addProjRefs, mergeInto, saveProjects, refsBlock, refsRule, addRefs, docxXmlText, attendeesForExport, attendeesByOrg, titleRank, parseAttendeeJson, mergeAttendees, authorLines, HW, parseTranscriptText, importTranscriptFile, renderCloudList, dashOpen, dashClose, setReadOnly, askChoice, set driveTok(v) { driveTok = v; }, set cloudRows(v) { cloudRows = v; cloudUi.ym = null; }, buildHwpx, buildDocx, buildExportInto, htmlBuilder, defaultFileName, dlBase, setTemplate, topicFileName, syncTopicFromName, insertEditorImages, renderAttendees };
 applyAuthorDefault(false);
 renderAll();
 selectTab(curTab);
